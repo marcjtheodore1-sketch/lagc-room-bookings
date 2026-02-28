@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: lagc-room-bookings
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: FLASK_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ENABLE_EMAIL
+        value: false
+      # Add these after deployment:
+      # - key: SMTP_HOST
+      #   value: smtp.gmail.com
+      # - key: SMTP_PORT
+      #   value: 587
+      # - key: SMTP_USER
+      #   value: your-email@gmail.com
+      # - key: SMTP_PASSWORD
+      #   value: your-app-password
+      # - key: SMTP_FROM
+      #   value: londonautismgroupcharity@gmail.com
+      # - key: ADMIN_PASSWORD
+      #   value: Moonlight

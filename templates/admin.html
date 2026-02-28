@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - LAGC Room Bookings{% endblock %}
+
+{% block content %}
+<div class="admin-page">
+    <div class="admin-header">
+        <h1>⚙️ LAGC - Fridays @ The Smithson Admin</h1>
+        <a href="/admin/logout" class="btn btn-secondary btn-small">Logout</a>
+    </div>
+
+    <div class="admin-tabs">
+        <button class="tab-btn active" onclick="showTab('rooms')">Rooms</button>
+        <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
+        <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
+    </div>
+
+    <!-- Rooms Tab -->
+    <div class="tab-content active" id="tab-rooms">
+        <h2>Manage Rooms</h2>
+        <div class="room-list" id="admin-room-list">
+            <p class="loading">Loading rooms...</p>
+        </div>
+
+        <div class="add-room-form">
+            <h3>Add New Room</h3>
+            <div class="form-group">
+                <label for="new-room-name">Room Name:</label>
+                <input type="text" id="new-room-name" placeholder="e.g., Conference Room D">
+            </div>
+            <div class="form-group">
+                <label for="new-room-location">Building Location:</label>
+                <input type="text" id="new-room-location" placeholder="e.g., Main Building, Floor 3">
+            </div>
+            <button class="btn btn-primary" onclick="addRoom()">Add Room</button>
+        </div>
+    </div>
+
+    <!-- Messages Tab -->
+    <div class="tab-content" id="tab-messages">
+        <h2>Confirmation Message Template</h2>
+        <p class="hint">Customize the message sent to users after booking. Available variables:</p>
+        <ul class="variables-list">
+            <li><code>{{name}}</code> - User's full name</li>
+            <li><code>{{email}}</code> - User's email address</li>
+            <li><code>{{room_name}}</code> - Name of the booked room</li>
+            <li><code>{{building_location}}</code> - Building location</li>
+            <li><code>{{date}}</code> - Booking date</li>
+            <li><code>{{start_time}}</code> - Start time</li>
+            <li><code>{{end_time}}</code> - End time</li>
+            <li><code>{{cancel_url}}</code> - URL to cancel the booking</li>
+        </ul>
+        <div class="form-group">
+            <textarea id="confirmation-template" rows="15" class="code-editor"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveMessageTemplate()">Save Template</button>
+        <button class="btn btn-secondary" onclick="resetMessageTemplate()">Reset to Default</button>
+    </div>
+
+    <!-- Bookings Tab -->
+    <div class="tab-content" id="tab-bookings">
+        <h2>All Upcoming Bookings</h2>
+        <div class="bookings-table-container">
+            <table class="bookings-table" id="admin-bookings-table">
+                <thead>
+                    <tr>
+                        <th>Room</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td colspan="4" class="loading">Loading bookings...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+{% endblock %}

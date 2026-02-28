@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="booking-page">
+    <h1>London Autism Group Charity</h1>
+    <h2>Room Bookings for Fridays @ The Smithson</h2>
+    <p class="subtitle">Select a Friday and book your time slot (max 3 hours)</p>
+
+    <div class="booking-form">
+        <!-- Step 1: Select Room -->
+        <div class="form-step" id="step-room">
+            <h2>Step 1: Select a Room</h2>
+            <div class="room-grid" id="room-grid">
+                <p class="loading">Loading rooms...</p>
+            </div>
+        </div>
+
+        <!-- Step 2: Select Date -->
+        <div class="form-step hidden" id="step-date">
+            <h2>Step 2: Select a Friday</h2>
+            <div class="date-grid" id="date-grid">
+                <p class="loading">Loading dates...</p>
+            </div>
+            <button class="btn btn-secondary" onclick="resetRoom()">← Back</button>
+        </div>
+
+        <!-- Step 3: Select Time Slots -->
+        <div class="form-step hidden" id="step-time">
+            <h2>Step 3: Select Time Slots</h2>
+            <p class="hint">Click and drag to select consecutive slots (max 3 hours)</p>
+            <div class="time-slots-container" id="time-slots">
+                <p class="loading">Loading availability...</p>
+            </div>
+            <div class="selection-info" id="selection-info"></div>
+            <div class="step-actions">
+                <button class="btn btn-secondary" onclick="resetDate()">← Back</button>
+                <button class="btn btn-primary hidden" id="btn-continue" onclick="showEmailStep()">Continue →</button>
+            </div>
+        </div>
+
+        <!-- Step 4: Enter Details -->
+        <div class="form-step hidden" id="step-email">
+            <h2>Step 4: Enter Your Details</h2>
+            <div class="booking-summary" id="booking-summary"></div>
+            <div class="form-group">
+                <label for="name">Full Name:</label>
+                <input type="text" id="name" placeholder="John Smith" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email Address:</label>
+                <input type="email" id="email" placeholder="your@email.com" required>
+            </div>
+            <div class="step-actions">
+                <button class="btn btn-secondary" onclick="showTimeStep()">← Back</button>
+                <button class="btn btn-primary" onclick="submitBooking()">Confirm Booking</button>
+            </div>
+        </div>
+
+        <!-- Step 5: Confirmation -->
+        <div class="form-step hidden" id="step-confirmation">
+            <h2>✅ Booking Confirmed!</h2>
+            <div class="confirmation-message" id="confirmation-message"></div>
+            <div class="step-actions">
+                <button class="btn btn-primary" onclick="resetBooking()">Make Another Booking</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- My Bookings Section -->
+    <div class="my-bookings-section">
+        <h2>My Bookings</h2>
+        <p>Enter your email to view and manage your bookings:</p>
+        <div class="form-inline">
+            <input type="email" id="my-bookings-email" placeholder="your@email.com">
+            <button class="btn btn-secondary" onclick="loadMyBookings()">View My Bookings</button>
+        </div>
+        <div class="my-bookings-list" id="my-bookings-list"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

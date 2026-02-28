@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Cancel Booking - LAGC{% endblock %}
+
+{% block content %}
+<div class="cancel-page">
+    <h1>Cancel Your Booking</h1>
+    
+    <div id="loading-state">
+        <p class="loading">Loading booking details...</p>
+    </div>
+
+    <div id="booking-details" class="hidden">
+        <div class="booking-card">
+            <h2>Booking Details</h2>
+            <div class="detail-row">
+                <span class="label">Room:</span>
+                <span class="value" id="detail-room"></span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Location:</span>
+                <span class="value" id="detail-location"></span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Date:</span>
+                <span class="value" id="detail-date"></span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Time:</span>
+                <span class="value" id="detail-time"></span>
+            </div>
+            <div class="detail-row">
+                <span class="label">Email:</span>
+                <span class="value" id="detail-email"></span>
+            </div>
+        </div>
+
+        <div class="cancel-actions">
+            <p class="warning">⚠️ Are you sure you want to cancel this booking?</p>
+            <button class="btn btn-danger" onclick="confirmCancel()">Yes, Cancel Booking</button>
+            <a href="/" class="btn btn-secondary">No, Keep Booking</a>
+        </div>
+    </div>
+
+    <div id="cancel-success" class="hidden">
+        <div class="success-message">
+            <h2>✅ Booking Cancelled</h2>
+            <p>Your booking has been cancelled successfully.</p>
+            <div class="cancel-actions">
+                <a href="/" class="btn btn-secondary" id="back-to-bookings">← Back to My Bookings</a>
+                <a href="/" class="btn btn-primary">Make a New Booking</a>
+            </div>
+        </div>
+    </div>
+
+    <div id="cancel-error" class="hidden">
+        <div class="error-message">
+            <h2>❌ Unable to Cancel</h2>
+            <p id="error-text"></p>
+            <a href="/" class="btn btn-primary">Go to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CANCEL_TOKEN = '{{ token }}';
+</script>
+<script src="{{ url_for('static', filename='js/cancel.js') }}"></script>
+{% endblock %}
