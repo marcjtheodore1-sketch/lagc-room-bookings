@@ -429,8 +429,8 @@ def create_booking():
         if num_slots > MAX_SLOTS:
             return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
     
-    # Check availability
-    if not check_availability(room_id, booking_date, start_slot, end_slot):
+    # Check availability (only for slot rooms - open rooms allow multiple bookings)
+    if room.room_type == 'slot' and not check_availability(room_id, booking_date, start_slot, end_slot):
         return jsonify({'error': 'Selected time slots are no longer available'}), 409
     
     # Create booking
