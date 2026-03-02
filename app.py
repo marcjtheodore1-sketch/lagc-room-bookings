@@ -411,7 +411,7 @@ def create_booking():
     if room.room_type == 'open':
         # Open rooms: book the entire day (11am - 4pm)
         start_slot = 0
-        end_slot = len(TIME_SLOTS) - 1  # Last slot index (16:00)
+        end_slot = len(TIME_SLOTS)  # Exclusive end (covers all slots 0-10)
     else:
         # Slot rooms: require start_slot and end_slot from request
         if 'start_slot' not in data or 'end_slot' not in data:
