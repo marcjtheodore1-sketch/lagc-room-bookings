@@ -32,6 +32,14 @@
                 <label for="new-room-location">Building Location:</label>
                 <input type="text" id="new-room-location" placeholder="e.g., Main Building, Floor 3">
             </div>
+            <div class="form-group">
+                <label for="new-room-type">Room Type:</label>
+                <select id="new-room-type">
+                    <option value="slot">Time Slot Room (30 min slots)</option>
+                    <option value="open">Open Booking Room (11am - 4pm)</option>
+                </select>
+                <small class="hint">Time Slot rooms allow users to book specific 30-minute slots. Open Booking rooms book the entire 11am-4pm period.</small>
+            </div>
             <button class="btn btn-primary" onclick="addRoom()">Add Room</button>
         </div>
     </div>

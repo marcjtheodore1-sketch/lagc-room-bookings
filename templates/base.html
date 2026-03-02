@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}LAGC - Room Bookings for Fridays @ The Smithson{% endblock %}</title>
+    <title>{% block title %}LAGC - Fridays @ Farringdon{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <a href="/">📅 LAGC - Fridays @ The Smithson</a>
+            <a href="/">📅 LAGC - Fridays @ Farringdon</a>
         </div>
         <div class="nav-links">
-            <a href="/" class="nav-link">Book a Room</a>
+            <a href="/book" class="nav-link">Book a Room</a>
             <a href="/admin" class="nav-link">Admin</a>
         </div>
     </nav>
@@ -22,7 +22,7 @@
     </main>
 
     <footer class="footer">
-        <p>London Autism Group Charity - Room Bookings for Fridays @ The Smithson</p>
+        <p>London Autism Group Charity - Fridays @ Farringdon</p>
     </footer>
 
     {% block scripts %}{% endblock %}

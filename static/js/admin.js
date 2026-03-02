@@ -47,26 +47,31 @@ function renderRooms(rooms) {
         return;
     }
     
-    container.innerHTML = rooms.map(room => `
+    container.innerHTML = rooms.map(room => {
+        const typeLabel = room.room_type === 'open' ? '📋 Open Booking' : '⏰ Time Slots';
+        return `
         <div class="room-item ${room.is_active ? '' : 'inactive'}">
             <div class="room-item-info">
                 <h4>${escapeHtml(room.name)} ${!room.is_active ? '<span class="badge">(Inactive)</span>' : ''}</h4>
                 <p>${escapeHtml(room.building_location)}</p>
+                <small class="room-type-label">${typeLabel}</small>
             </div>
             <div class="room-item-actions">
-                <button class="btn btn-small btn-secondary" onclick="editRoom(${room.id}, '${escapeHtml(room.name)}', '${escapeHtml(room.building_location)}', ${room.is_active})">Edit</button>
+                <button class="btn btn-small btn-secondary" onclick="editRoom(${room.id}, '${escapeHtml(room.name)}', '${escapeHtml(room.building_location)}', '${room.room_type}', ${room.is_active})">Edit</button>
                 <button class="btn btn-small btn-danger" onclick="deleteRoom(${room.id})">Delete</button>
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 async function addRoom() {
     const nameInput = document.getElementById('new-room-name');
     const locationInput = document.getElementById('new-room-location');
+    const typeInput = document.getElementById('new-room-type');
     
     const name = nameInput.value.trim();
     const location = locationInput.value.trim();
+    const roomType = typeInput.value;
     
     if (!name) {
         alert('Please enter a room name');
@@ -80,6 +85,7 @@ async function addRoom() {
             body: JSON.stringify({
                 name: name,
                 building_location: location,
+                room_type: roomType,
                 is_active: true
             })
         });
@@ -87,6 +93,7 @@ async function addRoom() {
         if (response.ok) {
             nameInput.value = '';
             locationInput.value = '';
+            typeInput.value = 'slot';
             loadRooms();
         } else {
             alert('Failed to add room');
@@ -96,13 +103,20 @@ async function addRoom() {
     }
 }
 
-async function editRoom(id, currentName, currentLocation, currentActive) {
+async function editRoom(id, currentName, currentLocation, currentType, currentActive) {
     const name = prompt('Room name:', currentName);
     if (name === null) return;
     
     const location = prompt('Building location:', currentLocation);
     if (location === null) return;
     
+    const typeOptions = currentType === 'open' 
+        ? 'Select room type:\n1. Time Slot (30 min slots)\n2. Open Booking (11am - 4pm)\n\nEnter 1 or 2:'
+        : 'Select room type:\n1. Time Slot (30 min slots) [current]\n2. Open Booking (11am - 4pm)\n\nEnter 1 or 2:';
+    const typeChoice = prompt(typeOptions, currentType === 'open' ? '2' : '1');
+    if (typeChoice === null) return;
+    
+    const roomType = typeChoice === '2' ? 'open' : 'slot';
     const isActive = confirm('Is this room active? (OK = Yes, Cancel = No)');
     
     try {
@@ -112,6 +126,7 @@ async function editRoom(id, currentName, currentLocation, currentActive) {
             body: JSON.stringify({
                 name: name || currentName,
                 building_location: location || currentLocation,
+                room_type: roomType,
                 is_active: isActive
             })
         });

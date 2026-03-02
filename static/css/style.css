@@ -267,10 +267,40 @@ h2 {
 .room-card h3 {
     font-size: 1.1rem;
     margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
 }
 
 .room-card p {
     font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.room-type-badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.room-type-badge.open {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.room-type-badge.slot {
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
+.room-hint {
+    display: block;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
     color: var(--text-light);
 }
 
@@ -618,6 +648,14 @@ h2 {
     color: var(--text-light);
 }
 
+.room-type-label {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--primary);
+}
+
 .room-item-actions {
     display: flex;
     gap: 0.5rem;
@@ -704,6 +742,232 @@ h2 {
 
 .error-text {
     color: var(--danger);
+}
+
+/* ============================================
+   LANDING PAGE
+   ============================================ */
+
+.landing-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.landing-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.landing-header h1 {
+    color: var(--primary);
+    font-size: 2.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.landing-content {
+    line-height: 1.7;
+}
+
+.info-section {
+    margin-bottom: 2rem;
+}
+
+.intro-text {
+    font-size: 1.1rem;
+    color: var(--text);
+}
+
+.info-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: var(--shadow);
+}
+
+.info-card h2 {
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+.map-link {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.map-link:hover {
+    text-decoration: underline;
+}
+
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.feature-item {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.feature-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.feature-item p {
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+.notice-box {
+    background: #fef3c7;
+    border: 1px solid #fcd34d;
+    border-radius: var(--radius);
+    padding: 1rem 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.notice-box p {
+    margin-bottom: 0.5rem;
+}
+
+.notice-box p:last-child {
+    margin-bottom: 0;
+}
+
+.notice-box.warning {
+    background: #fee2e2;
+    border-color: #fca5a5;
+}
+
+.notice-box.limit {
+    background: #dbeafe;
+    border-color: #93c5fd;
+    text-align: center;
+    font-size: 1.1rem;
+}
+
+.rooms-section {
+    margin-bottom: 2rem;
+}
+
+.rooms-section h2 {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.rooms-intro {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: var(--text-light);
+}
+
+.room-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.room-info-card {
+    background: var(--card-bg);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    transition: all 0.2s;
+}
+
+.room-info-card:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow);
+}
+
+.room-info-card h3 {
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.room-type {
+    font-weight: 600;
+    color: var(--text-light);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.room-info-card p {
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.photo-link {
+    display: inline-block;
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.photo-link:hover {
+    text-decoration: underline;
+}
+
+.cafeteria-card {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border-color: #86efac;
+}
+
+.guidelines-section {
+    background: var(--bg);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.guidelines-section a {
+    color: var(--primary);
+    font-weight: 500;
+}
+
+.commitment-note {
+    margin-top: 1rem;
+    font-size: 1.05rem;
+    color: var(--text);
+}
+
+.cta-section {
+    text-align: center;
+    padding: 2rem;
+    background: var(--card-bg);
+    border: 2px solid var(--primary);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+}
+
+.btn-large {
+    font-size: 1.25rem;
+    padding: 1rem 2rem;
+    font-weight: 600;
+}
+
+.cta-hint {
+    margin-top: 1rem;
+    color: var(--text-light);
+    font-size: 0.95rem;
 }
 
 /* ============================================

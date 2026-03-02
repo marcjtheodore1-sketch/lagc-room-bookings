@@ -1,6 +1,6 @@
 """
 Simple Room Booking System
-Handles 30-minute booking slots on Fridays from 11am to 5:30pm
+Handles 30-minute booking slots on Fridays from 11am to 4pm
 """
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
@@ -50,6 +50,7 @@ class Room(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
     building_location = db.Column(db.String(200), nullable=False, default='Main Building')
+    room_type = db.Column(db.String(20), nullable=False, default='slot')  # 'slot' or 'open'
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -60,7 +61,7 @@ class Booking(db.Model):
     user_name = db.Column(db.String(100), nullable=False)
     user_email = db.Column(db.String(120), nullable=False)
     booking_date = db.Column(db.Date, nullable=False)  # The Friday being booked
-    start_slot = db.Column(db.Integer, nullable=False)  # 0-12 (11:00-17:30 in 30min slots)
+    start_slot = db.Column(db.Integer, nullable=False)  # 0-10 (11:00-16:00 in 30min slots)
     end_slot = db.Column(db.Integer, nullable=False)    # exclusive end slot
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     cancelled_at = db.Column(db.DateTime, nullable=True)
@@ -77,10 +78,10 @@ class Setting(db.Model):
 # CONSTANTS
 # ============================================================================
 
-# Friday time slots: 11:00 - 17:30 (30 min intervals)
-# Slot 0 = 11:00, Slot 1 = 11:30, ..., Slot 12 = 17:00, Slot 13 = 17:30 (end)
+# Friday time slots: 11:00 - 16:00 (30 min intervals)
+# Slot 0 = 11:00, Slot 1 = 11:30, ..., Slot 10 = 16:00 (end)
 START_HOUR = 11  # 11 AM
-END_HOUR = 17    # 5 PM + 30 min = 17:30
+END_HOUR = 16    # 4 PM
 SLOT_MINUTES = 30
 MAX_SLOTS = 6    # 3 hours = 6 x 30 min slots
 
@@ -88,7 +89,7 @@ def get_time_slots():
     """Generate all available time slots"""
     slots = []
     current = datetime.strptime(f"{START_HOUR}:00", "%H:%M")
-    end = datetime.strptime(f"{END_HOUR}:30", "%H:%M")
+    end = datetime.strptime(f"{END_HOUR}:00", "%H:%M")
     
     slot_index = 0
     while current <= end:
@@ -254,6 +255,11 @@ def check_availability(room_id, booking_date, start_slot, end_slot, exclude_book
 # ============================================================================
 
 @app.route('/')
+def landing():
+    """Landing page with information about the initiative"""
+    return render_template('landing.html')
+
+@app.route('/book')
 def index():
     """Main booking page"""
     return render_template('index.html')
@@ -304,7 +310,8 @@ def get_rooms():
     return jsonify([{
         'id': r.id,
         'name': r.name,
-        'building_location': r.building_location
+        'building_location': r.building_location,
+        'room_type': r.room_type
     } for r in rooms])
 
 @app.route('/api/fridays')
@@ -356,7 +363,7 @@ def create_booking():
     data = request.get_json()
     
     # Validate required fields
-    required = ['room_id', 'date', 'name', 'email', 'start_slot', 'end_slot']
+    required = ['room_id', 'date', 'name', 'email']
     for field in required:
         if field not in data:
             return jsonify({'error': f'Missing required field: {field}'}), 400
@@ -364,8 +371,6 @@ def create_booking():
     room_id = data['room_id']
     name = data['name'].strip()
     email = data['email'].strip().lower()
-    start_slot = data['start_slot']
-    end_slot = data['end_slot']
     
     # Validate name
     if not name:
@@ -385,26 +390,36 @@ def create_booking():
     if booking_date.weekday() != 4:
         return jsonify({'error': 'Bookings are only available on Fridays'}), 400
     
-    # Validate slot range
-    if start_slot < 0 or end_slot > len(TIME_SLOTS) or start_slot >= end_slot:
-        return jsonify({'error': 'Invalid time slot selection'}), 400
-    
-    # Validate consecutive slots
-    num_slots = end_slot - start_slot
-    if num_slots > MAX_SLOTS:
-        return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
-    
-    # Validate slots are consecutive (no gaps allowed)
-    # This is automatically enforced by the range
-    
-    # Check availability
-    if not check_availability(room_id, booking_date, start_slot, end_slot):
-        return jsonify({'error': 'Selected time slots are no longer available'}), 409
-    
     # Get room details
     room = Room.query.get(room_id)
     if not room:
         return jsonify({'error': 'Room not found'}), 404
+    
+    # Determine slots based on room type
+    if room.room_type == 'open':
+        # Open rooms: book the entire day (11am - 4pm)
+        start_slot = 0
+        end_slot = len(TIME_SLOTS) - 1  # Last slot index (16:00)
+    else:
+        # Slot rooms: require start_slot and end_slot from request
+        if 'start_slot' not in data or 'end_slot' not in data:
+            return jsonify({'error': 'Missing time slot selection'}), 400
+        
+        start_slot = data['start_slot']
+        end_slot = data['end_slot']
+        
+        # Validate slot range
+        if start_slot < 0 or end_slot > len(TIME_SLOTS) or start_slot >= end_slot:
+            return jsonify({'error': 'Invalid time slot selection'}), 400
+        
+        # Validate consecutive slots
+        num_slots = end_slot - start_slot
+        if num_slots > MAX_SLOTS:
+            return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
+    
+    # Check availability
+    if not check_availability(room_id, booking_date, start_slot, end_slot):
+        return jsonify({'error': 'Selected time slots are no longer available'}), 409
     
     # Create booking
     cancel_token = secrets.token_urlsafe(32)
@@ -424,7 +439,7 @@ def create_booking():
     # Generate confirmation message
     template = get_setting('confirmation_message', get_default_confirmation_message())
     start_time = TIME_SLOTS[start_slot]['display']
-    end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '17:30'
+    end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '16:00'
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     confirmation_message = format_confirmation_message(
@@ -466,7 +481,7 @@ def get_booking(token):
         return jsonify({'error': 'This booking has already been cancelled'}), 410
     
     start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '17:30'
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
     
     return jsonify({
         'id': booking.id,
@@ -517,7 +532,7 @@ def get_my_bookings():
     result = []
     for booking in bookings:
         start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '17:30'
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
         
         result.append({
             'id': booking.id,
@@ -546,6 +561,7 @@ def admin_get_rooms():
         'id': r.id,
         'name': r.name,
         'building_location': r.building_location,
+        'room_type': r.room_type,
         'is_active': r.is_active
     } for r in rooms])
 
@@ -558,6 +574,7 @@ def admin_create_room():
     room = Room(
         name=data['name'],
         building_location=data.get('building_location', ''),
+        room_type=data.get('room_type', 'slot'),
         is_active=data.get('is_active', True)
     )
     db.session.add(room)
@@ -567,6 +584,7 @@ def admin_create_room():
         'id': room.id,
         'name': room.name,
         'building_location': room.building_location,
+        'room_type': room.room_type,
         'is_active': room.is_active
     })
 
@@ -579,6 +597,7 @@ def admin_update_room(room_id):
     
     room.name = data.get('name', room.name)
     room.building_location = data.get('building_location', room.building_location)
+    room.room_type = data.get('room_type', room.room_type)
     room.is_active = data.get('is_active', room.is_active)
     
     db.session.commit()
@@ -587,6 +606,7 @@ def admin_update_room(room_id):
         'id': room.id,
         'name': room.name,
         'building_location': room.building_location,
+        'room_type': room.room_type,
         'is_active': room.is_active
     })
 
@@ -630,7 +650,7 @@ def admin_get_bookings():
     result = []
     for booking in bookings:
         start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '17:30'
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
         
         result.append({
             'id': booking.id,
@@ -660,7 +680,7 @@ def admin_delete_booking(booking_id):
     user_email = booking.user_email
     booking_date = booking.booking_date
     start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '17:30'
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     # Delete the booking

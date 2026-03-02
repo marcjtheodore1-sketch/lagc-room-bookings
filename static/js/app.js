@@ -132,12 +132,21 @@ function renderRooms() {
         return;
     }
 
-    elements.roomGrid.innerHTML = state.rooms.map(room => `
+    elements.roomGrid.innerHTML = state.rooms.map(room => {
+        const typeBadge = room.room_type === 'open' 
+            ? '<span class="room-type-badge open">Open Booking</span>' 
+            : '<span class="room-type-badge slot">Time Slots</span>';
+        const typeHint = room.room_type === 'open'
+            ? '<small class="room-hint">11am - 4pm</small>'
+            : '<small class="room-hint">30 min slots</small>';
+        
+        return `
         <div class="room-card" onclick="selectRoom(${room.id})">
-            <h3>${escapeHtml(room.name)}</h3>
+            <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
+            ${typeHint}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderDates() {
@@ -328,7 +337,7 @@ function updateSelectionInfo() {
     
     const startTime = state.timeSlots[startSlot]?.display;
     const endTimeIndex = Math.min(endSlot + 1, state.timeSlots.length - 1);
-    const endTime = state.timeSlots[endSlot + 1]?.display || '17:30';
+    const endTime = state.timeSlots[endSlot + 1]?.display || '16:00';
     
     elements.selectionInfo.innerHTML = `
         <strong>✓ Selected:</strong> ${escapeHtml(startTime)} - ${escapeHtml(endTime)} 
@@ -366,9 +375,15 @@ function selectDate(date) {
     });
     event.currentTarget.classList.add('selected');
     
-    // Show next step and load availability
-    showStep('time');
-    loadAvailability();
+    // Check room type - open rooms skip time selection
+    if (state.selectedRoom.room_type === 'open') {
+        // For open rooms, auto-select full day (11am-4pm)
+        showEmailStepForOpenRoom();
+    } else {
+        // For slot rooms, show time selection
+        showStep('time');
+        loadAvailability();
+    }
 }
 
 
@@ -406,17 +421,26 @@ function showTimeStep() {
 }
 
 function showEmailStep() {
-    // Validate selection
-    if (state.selectedSlots.length === 0) return;
+    // Validate selection for slot rooms
+    if (state.selectedRoom.room_type === 'slot' && state.selectedSlots.length === 0) return;
     
-    const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
-    const startSlot = sortedSlots[0];
-    const endSlot = sortedSlots[sortedSlots.length - 1];
+    let startTime, endTime;
     
-    // Build summary
-    const startTime = state.timeSlots[startSlot]?.display;
-    const endTime = state.timeSlots[endSlot + 1]?.display || '17:30';
+    if (state.selectedRoom.room_type === 'open') {
+        // Open rooms: full day
+        startTime = state.timeSlots[0]?.display || '11:00 AM';
+        endTime = '4:00 PM';
+    } else {
+        // Slot rooms: use selected slots
+        const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
+        const startSlot = sortedSlots[0];
+        const endSlot = sortedSlots[sortedSlots.length - 1];
+        startTime = state.timeSlots[startSlot]?.display;
+        endTime = state.timeSlots[endSlot + 1]?.display || '16:00';
+    }
+    
     const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;
+    const roomTypeLabel = state.selectedRoom.room_type === 'open' ? 'Open Booking' : 'Time Slot Booking';
     
     elements.bookingSummary.innerHTML = `
         <h3>Booking Summary</h3>
@@ -429,6 +453,10 @@ function showEmailStep() {
             <span>${escapeHtml(state.selectedRoom.building_location)}</span>
         </div>
         <div class="summary-row">
+            <span>Type:</span>
+            <span>${roomTypeLabel}</span>
+        </div>
+        <div class="summary-row">
             <span>Date:</span>
             <span>${escapeHtml(dateDisplay)}</span>
         </div>
@@ -439,6 +467,11 @@ function showEmailStep() {
     `;
     
     showStep('email');
+}
+
+function showEmailStepForOpenRoom() {
+    // For open rooms, skip time selection and go straight to email step
+    showEmailStep();
 }
 
 function resetBooking() {
@@ -469,18 +502,23 @@ async function submitBooking() {
         return;
     }
     
-    const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
-    const startSlot = sortedSlots[0];
-    const endSlot = sortedSlots[sortedSlots.length - 1] + 1; // Exclusive end
-    
     const bookingData = {
         room_id: state.selectedRoom.id,
         date: state.selectedDate,
         name: name,
-        email: email,
-        start_slot: startSlot,
-        end_slot: endSlot
+        email: email
     };
+    
+    // Only add slots for slot-type rooms
+    if (state.selectedRoom.room_type === 'slot') {
+        if (state.selectedSlots.length === 0) {
+            alert('Please select time slots');
+            return;
+        }
+        const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
+        bookingData.start_slot = sortedSlots[0];
+        bookingData.end_slot = sortedSlots[sortedSlots.length - 1] + 1; // Exclusive end
+    }
     
     try {
         const response = await fetch('/api/book', {
