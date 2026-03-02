@@ -218,6 +218,9 @@ def get_upcoming_fridays(count=8):
     fridays = []
     today = datetime.now().date()
     
+    # Last available booking date: Friday, March 27, 2026
+    last_booking_date = datetime(2026, 3, 27).date()
+    
     # Find next Friday
     days_until_friday = (4 - today.weekday()) % 7
     if days_until_friday == 0 and datetime.now().hour >= END_HOUR:
@@ -229,7 +232,12 @@ def get_upcoming_fridays(count=8):
     i = 0
     while len(fridays) < count:
         friday = next_friday + timedelta(weeks=i)
-        # Skip April dates
+        
+        # Stop if we've reached the last booking date
+        if friday > last_booking_date:
+            break
+        
+        # Skip April dates (safety check)
         if friday.month != 4:
             fridays.append({
                 'date': friday.isoformat(),
