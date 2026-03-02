@@ -360,6 +360,16 @@ function selectRoom(roomId) {
     });
     event.currentTarget.classList.add('selected');
     
+    // Show/hide subtitle based on room type
+    const subtitle = document.getElementById('booking-subtitle');
+    if (subtitle) {
+        if (state.selectedRoom.room_type === 'open') {
+            subtitle.classList.add('hidden');
+        } else {
+            subtitle.classList.remove('hidden');
+        }
+    }
+    
     // Show next step
     showStep('date');
     renderDates();
@@ -406,6 +416,13 @@ function resetRoom() {
     state.selectedRoom = null;
     state.selectedDate = null;
     state.selectedSlots = [];
+    
+    // Reset subtitle visibility
+    const subtitle = document.getElementById('booking-subtitle');
+    if (subtitle) {
+        subtitle.classList.remove('hidden');
+    }
+    
     showStep('room');
     renderRooms();
 }
@@ -480,6 +497,13 @@ function resetBooking() {
     state.selectedSlots = [];
     elements.nameInput.value = '';
     elements.emailInput.value = '';
+    
+    // Reset subtitle visibility
+    const subtitle = document.getElementById('booking-subtitle');
+    if (subtitle) {
+        subtitle.classList.remove('hidden');
+    }
+    
     showStep('room');
     renderRooms();
 }

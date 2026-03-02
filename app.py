@@ -226,12 +226,16 @@ def get_upcoming_fridays(count=8):
     
     next_friday = today + timedelta(days=days_until_friday)
     
-    for i in range(count):
+    i = 0
+    while len(fridays) < count:
         friday = next_friday + timedelta(weeks=i)
-        fridays.append({
-            'date': friday.isoformat(),
-            'display': friday.strftime('%A, %B %d, %Y')
-        })
+        # Skip April dates
+        if friday.month != 4:
+            fridays.append({
+                'date': friday.isoformat(),
+                'display': friday.strftime('%A, %B %d, %Y')
+            })
+        i += 1
     
     return fridays
 
