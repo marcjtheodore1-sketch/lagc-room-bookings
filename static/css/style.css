@@ -214,6 +214,15 @@ h2 {
     flex: 1;
 }
 
+.form-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.form-row .form-group {
+    flex: 1;
+}
+
 /* ============================================
    BOOKING FORM STEPS
    ============================================ */
@@ -735,9 +744,112 @@ h2 {
     font-size: 0.875rem;
 }
 
-/* Bookings Table */
-.bookings-table-container {
-    overflow-x: auto;
+/* Bookings by Date - Collapsible Groups */
+.bookings-by-date-container {
+    margin-top: 1rem;
+}
+
+.date-booking-group {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 0.75rem;
+    overflow: hidden;
+}
+
+.date-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: var(--bg);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.2s;
+}
+
+.date-header:hover {
+    background: var(--border);
+}
+
+.date-header h4 {
+    margin: 0;
+    flex: 1;
+    color: var(--text);
+}
+
+.toggle-icon {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    width: 1rem;
+    text-align: center;
+}
+
+.booking-count {
+    font-size: 0.875rem;
+    color: var(--text-light);
+    background: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+}
+
+.date-bookings {
+    display: none;
+    padding: 0.5rem;
+}
+
+.date-booking-group.expanded .date-bookings {
+    display: block;
+}
+
+.booking-row {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.booking-row:last-child {
+    border-bottom: none;
+}
+
+.booking-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 180px;
+}
+
+.room-name {
+    font-weight: 600;
+    color: var(--text);
+}
+
+.booking-time {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.booking-user {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.user-name {
+    font-weight: 500;
+}
+
+.user-email {
+    font-size: 0.875rem;
+    color: var(--text-light);
+}
+
+.no-bookings {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-light);
 }
 
 .bookings-table {

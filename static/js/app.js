@@ -23,7 +23,8 @@ const elements = {
     selectionInfo: document.getElementById('selection-info'),
     btnContinue: document.getElementById('btn-continue'),
     bookingSummary: document.getElementById('booking-summary'),
-    nameInput: document.getElementById('name'),
+    firstNameInput: document.getElementById('first-name'),
+    lastNameInput: document.getElementById('last-name'),
     emailInput: document.getElementById('email'),
     confirmationMessage: document.getElementById('confirmation-message'),
     myBookingsList: document.getElementById('my-bookings-list')
@@ -499,7 +500,8 @@ function resetBooking() {
     state.selectedRoom = null;
     state.selectedDate = null;
     state.selectedSlots = [];
-    elements.nameInput.value = '';
+    elements.firstNameInput.value = '';
+    elements.lastNameInput.value = '';
     elements.emailInput.value = '';
     
     // Reset subtitle visibility
@@ -517,13 +519,21 @@ function resetBooking() {
 // ============================================
 
 async function submitBooking() {
-    const name = elements.nameInput.value.trim();
+    const firstName = elements.firstNameInput.value.trim();
+    const lastName = elements.lastNameInput.value.trim();
     const email = elements.emailInput.value.trim();
     
-    if (!name) {
-        alert('Please enter your name');
+    if (!firstName) {
+        alert('Please enter your first name');
         return;
     }
+    
+    if (!lastName) {
+        alert('Please enter your last name');
+        return;
+    }
+    
+    const name = `${firstName} ${lastName}`;
     
     if (!email || !email.includes('@')) {
         alert('Please enter a valid email address');

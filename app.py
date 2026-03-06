@@ -512,6 +512,23 @@ def create_booking():
         confirmation_message
     )
     
+    # Send admin notification email
+    admin_emails = ['londonautismgroupcharity@gmail.com', 'zara.lagc@gmail.com']
+    admin_subject = f"New Booking: {name} booked {room.name}"
+    admin_message = f"""A new booking has been made:
+
+Name: {name}
+Email: {email}
+Room: {room.name}
+Date: {date_display}
+Time: {start_time} - {end_time}
+
+View all bookings at: {request.host_url.rstrip('/')}/admin
+"""
+    
+    for admin_email in admin_emails:
+        send_confirmation_email(admin_email, admin_subject, admin_message)
+    
     return jsonify({
         'success': True,
         'booking_id': booking.id,
