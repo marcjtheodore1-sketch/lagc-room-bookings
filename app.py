@@ -111,13 +111,13 @@ TIME_SLOTS = get_time_slots()
 # Rooms must match IDs in the database (1=Indigo 4.2, 2=Rose 4.4, 3=Clerkenwell 4.7, 4=The Loft)
 # ============================================================================
 ROOM_SCHEDULE = {
-    '2025-03-06': [3, 1, 2],        # March 6th: 4.7, 4.2 and 4.4
-    '2025-03-13': [4, 1, 2],        # March 13th: Loft, 4.2 and 4.4
-    '2025-03-20': [3, 2, 1],        # March 20th: 4.7 and 4.4 all day, 4.2 until 2:30pm (handled separately)
-    '2025-03-27': [4, 3, 1, 2],     # March 27th: Loft, 4.7, 4.2 and 4.4
-    '2025-04-10': [4, 1, 2],        # April 10th: Loft, 4.2 and 4.4
-    '2025-04-17': [1, 2, 3],        # April 17th: 4.2, 4.4 and 4.7
-    '2025-04-24': [4, 1, 2],        # April 24th: Loft, 4.2 and 4.4
+    '2026-03-06': [3, 1, 2],        # March 6th: 4.7, 4.2 and 4.4
+    '2026-03-13': [4, 1, 2],        # March 13th: Loft, 4.2 and 4.4
+    '2026-03-20': [3, 2, 1],        # March 20th: 4.7 and 4.4 all day, 4.2 until 2:30pm (handled separately)
+    '2026-03-27': [4, 3, 1, 2],     # March 27th: Loft, 4.7, 4.2 and 4.4
+    '2026-04-10': [4, 1, 2],        # April 10th: Loft, 4.2 and 4.4
+    '2026-04-17': [1, 2, 3],        # April 17th: 4.2, 4.4 and 4.7
+    '2026-04-24': [4, 1, 2],        # April 24th: Loft, 4.2 and 4.4
 }
 
 # ============================================================================
@@ -390,9 +390,9 @@ def get_availability(date, room_id):
         for slot in range(booking.start_slot, booking.end_slot):
             booked_slots.add(slot)
     
-    # Special case: March 20th, 2025 - Room 4.2 (id=1) only available until 2:30pm
+    # Special case: March 20th, 2026 - Room 4.2 (id=1) only available until 2:30pm
     # Slot 7 = 2:30pm, so slots 8, 9, 10 (3:00pm-4:00pm) are unavailable
-    if date_str == '2025-03-20' and room_id == 1:
+    if date_str == '2026-03-20' and room_id == 1:
         for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
             booked_slots.add(slot_idx)
     
