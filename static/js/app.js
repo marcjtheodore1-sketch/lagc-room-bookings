@@ -90,9 +90,10 @@ async function loadRooms() {
     }
 }
 
-async function loadFridays() {
+async function loadFridays(roomId = null) {
     try {
-        const response = await fetch('/api/fridays');
+        const url = roomId ? `/api/fridays?room_id=${roomId}` : '/api/fridays';
+        const response = await fetch(url);
         state.fridays = await response.json();
     } catch (error) {
         console.error('Failed to load fridays:', error);
@@ -351,7 +352,7 @@ function updateSelectionInfo() {
 // SELECTION HANDLERS
 // ============================================
 
-function selectRoom(roomId) {
+async function selectRoom(roomId) {
     state.selectedRoom = state.rooms.find(r => r.id === roomId);
     
     // Update UI
@@ -369,6 +370,9 @@ function selectRoom(roomId) {
             subtitle.classList.remove('hidden');
         }
     }
+    
+    // Load available dates for this specific room
+    await loadFridays(roomId);
     
     // Show next step
     showStep('date');

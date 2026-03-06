@@ -106,6 +106,21 @@ def get_time_slots():
 TIME_SLOTS = get_time_slots()
 
 # ============================================================================
+# ROOM AVAILABILITY SCHEDULE
+# Format: 'YYYY-MM-DD': [room_id, room_id, ...]
+# Rooms must match IDs in the database (1=Indigo 4.2, 2=Rose 4.4, 3=Clerkenwell 4.7, 4=The Loft)
+# ============================================================================
+ROOM_SCHEDULE = {
+    '2025-03-06': [3, 1, 2],        # March 6th: 4.7, 4.2 and 4.4
+    '2025-03-13': [4, 1, 2],        # March 13th: Loft, 4.2 and 4.4
+    '2025-03-20': [3, 2, 1],        # March 20th: 4.7 and 4.4 all day, 4.2 until 2:30pm (handled separately)
+    '2025-03-27': [4, 3, 1, 2],     # March 27th: Loft, 4.7, 4.2 and 4.4
+    '2025-04-10': [4, 1, 2],        # April 10th: Loft, 4.2 and 4.4
+    '2025-04-17': [1, 2, 3],        # April 17th: 4.2, 4.4 and 4.7
+    '2025-04-24': [4, 1, 2],        # April 24th: Loft, 4.2 and 4.4
+}
+
+# ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
 
@@ -152,14 +167,26 @@ To cancel your booking, visit:
 
 def init_default_data():
     """Initialize default rooms and settings"""
-    # Create default rooms if none exist
-    if Room.query.count() == 0:
-        default_rooms = [
-            Room(name='Conference Room A', building_location='Main Building, Floor 2'),
-            Room(name='Meeting Room B', building_location='Main Building, Floor 2'),
-            Room(name='Discussion Room C', building_location='Annex Building, Floor 1')
-        ]
-        db.session.add_all(default_rooms)
+    # Define expected rooms with their IDs matching ROOM_SCHEDULE
+    expected_rooms = {
+        1: {'name': 'Room 4.2 "Indigo"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+        2: {'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
+        3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+        4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
+    }
+    
+    # Create rooms if they don't exist, or update existing ones to match
+    for room_id, room_data in expected_rooms.items():
+        room = Room.query.get(room_id)
+        if not room:
+            room = Room(
+                id=room_id,
+                name=room_data['name'],
+                building_location=room_data['building_location'],
+                room_type=room_data['room_type'],
+                is_active=True
+            )
+            db.session.add(room)
     
     # Set default confirmation message
     if not get_setting('confirmation_message'):
@@ -213,13 +240,10 @@ def send_confirmation_email(to_email, subject, message):
         print(f"[ERROR] Type: {type(e).__name__}")
         return False
 
-def get_upcoming_fridays(count=8):
-    """Get upcoming Friday dates"""
+def get_upcoming_fridays(count=8, room_id=None):
+    """Get upcoming Friday dates, optionally filtered by room availability"""
     fridays = []
     today = datetime.now().date()
-    
-    # Last available booking date: Friday, March 27, 2026
-    last_booking_date = datetime(2026, 3, 27).date()
     
     # Find next Friday
     days_until_friday = (4 - today.weekday()) % 7
@@ -233,16 +257,19 @@ def get_upcoming_fridays(count=8):
     while len(fridays) < count:
         friday = next_friday + timedelta(weeks=i)
         
-        # Stop if we've reached the last booking date
-        if friday > last_booking_date:
-            break
+        # Check if this date is in our schedule
+        date_str = friday.isoformat()
+        if date_str in ROOM_SCHEDULE:
+            # If room_id specified, only include if room is available that day
+            if room_id is None or room_id in ROOM_SCHEDULE[date_str]:
+                fridays.append({
+                    'date': date_str,
+                    'display': friday.strftime('%A, %B %d, %Y')
+                })
         
-        # Skip April dates (safety check)
-        if friday.month != 4:
-            fridays.append({
-                'date': friday.isoformat(),
-                'display': friday.strftime('%A, %B %d, %Y')
-            })
+        # Safety limit - don't search too far ahead
+        if i > 52:  # One year max
+            break
         i += 1
     
     return fridays
@@ -329,7 +356,8 @@ def get_rooms():
 @app.route('/api/fridays')
 def get_fridays():
     """Get upcoming Fridays"""
-    return jsonify(get_upcoming_fridays())
+    room_id = request.args.get('room_id', type=int)
+    return jsonify(get_upcoming_fridays(room_id=room_id))
 
 @app.route('/api/slots')
 def get_slots():
@@ -344,6 +372,11 @@ def get_availability(date, room_id):
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
     
+    # Check if this room is available on this date
+    date_str = booking_date.isoformat()
+    if date_str not in ROOM_SCHEDULE or room_id not in ROOM_SCHEDULE[date_str]:
+        return jsonify({'error': 'Room not available on this date'}), 400
+    
     # Get all bookings for this date and room
     bookings = Booking.query.filter(
         Booking.room_id == room_id,
@@ -356,6 +389,12 @@ def get_availability(date, room_id):
     for booking in bookings:
         for slot in range(booking.start_slot, booking.end_slot):
             booked_slots.add(slot)
+    
+    # Special case: March 20th, 2025 - Room 4.2 (id=1) only available until 2:30pm
+    # Slot 7 = 2:30pm, so slots 8, 9, 10 (3:00pm-4:00pm) are unavailable
+    if date_str == '2025-03-20' and room_id == 1:
+        for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
+            booked_slots.add(slot_idx)
     
     # Build availability array
     availability = []
@@ -737,4 +776,4 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
         init_default_data()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)
