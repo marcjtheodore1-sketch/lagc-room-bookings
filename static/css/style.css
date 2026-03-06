@@ -697,6 +697,44 @@ h2 {
     font-size: 0.875rem;
 }
 
+/* Booking Counts */
+.booking-counts-container {
+    margin-bottom: 2rem;
+}
+
+.booking-count-date {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.booking-count-date h4 {
+    margin-bottom: 0.75rem;
+    color: var(--text);
+}
+
+.total-count {
+    font-weight: normal;
+    color: var(--text-light);
+    font-size: 0.9rem;
+}
+
+.room-counts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.room-count-badge {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
 /* Bookings Table */
 .bookings-table-container {
     overflow-x: auto;

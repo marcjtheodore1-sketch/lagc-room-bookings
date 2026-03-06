@@ -664,9 +664,15 @@ def admin_update_room(room_id):
 @app.route('/api/admin/rooms/<int:room_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_room(room_id):
-    """Delete a room (soft delete by deactivating)"""
+    """Delete a room (hard delete - permanently removes from database)"""
     room = Room.query.get_or_404(room_id)
-    room.is_active = False
+    
+    # Check if room has any bookings
+    has_bookings = Booking.query.filter_by(room_id=room_id).first() is not None
+    if has_bookings:
+        return jsonify({'error': 'Cannot delete room with existing bookings. Deactivate it instead.'}), 400
+    
+    db.session.delete(room)
     db.session.commit()
     return jsonify({'success': True})
 
@@ -712,6 +718,32 @@ def admin_get_bookings():
             'date_display': booking.booking_date.strftime('%A, %B %d, %Y'),
             'start_time': start_time,
             'end_time': end_time
+        })
+    
+    return jsonify(result)
+
+@app.route('/api/admin/booking-counts')
+@admin_required
+def admin_get_booking_counts():
+    """Get booking counts per room per date"""
+    from sqlalchemy import func
+    
+    counts = db.session.query(
+        Booking.booking_date,
+        Room.name.label('room_name'),
+        func.count(Booking.id).label('count')
+    ).join(Room).filter(
+        Booking.cancelled_at.is_(None),
+        Booking.booking_date >= datetime.now().date()
+    ).group_by(Booking.booking_date, Room.name).order_by(Booking.booking_date, Room.name).all()
+    
+    result = []
+    for row in counts:
+        result.append({
+            'date': row.booking_date.isoformat(),
+            'date_display': row.booking_date.strftime('%A, %B %d, %Y'),
+            'room_name': row.room_name,
+            'count': row.count
         })
     
     return jsonify(result)

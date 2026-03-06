@@ -222,22 +222,66 @@ function resetMessageTemplate() {
 
 async function loadAllBookings() {
     const tbody = document.querySelector('#admin-bookings-table tbody');
-    tbody.innerHTML = '<tr><td colspan="4" class="loading">Loading bookings...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="loading">Loading bookings...</td></tr>';
     
+    // Load both bookings and counts in parallel
     try {
-        const response = await fetch('/api/admin/bookings');
-        const bookings = await response.json();
+        const [bookingsResponse, countsResponse] = await Promise.all([
+            fetch('/api/admin/bookings'),
+            fetch('/api/admin/booking-counts')
+        ]);
+        
+        const bookings = await bookingsResponse.json();
+        const counts = await countsResponse.json();
+        
         renderBookingsTable(bookings);
+        renderBookingCounts(counts);
     } catch (error) {
-        tbody.innerHTML = '<tr><td colspan="4" class="error-text">Failed to load bookings</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="error-text">Failed to load bookings</td></tr>';
     }
+}
+
+function renderBookingCounts(counts) {
+    const container = document.getElementById('booking-counts');
+    
+    if (counts.length === 0) {
+        container.innerHTML = '<p>No upcoming bookings</p>';
+        return;
+    }
+    
+    // Group by date
+    const byDate = {};
+    counts.forEach(item => {
+        if (!byDate[item.date]) {
+            byDate[item.date] = [];
+        }
+        byDate[item.date].push(item);
+    });
+    
+    container.innerHTML = Object.keys(byDate).sort().map(date => {
+        const dateItems = byDate[date];
+        const total = dateItems.reduce((sum, item) => sum + item.count, 0);
+        
+        return `
+            <div class="booking-count-date">
+                <h4>${escapeHtml(dateItems[0].date_display)} <span class="total-count">(${total} total)</span></h4>
+                <div class="room-counts">
+                    ${dateItems.map(item => `
+                        <span class="room-count-badge">
+                            ${escapeHtml(item.room_name)}: <strong>${item.count}</strong>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderBookingsTable(bookings) {
     const tbody = document.querySelector('#admin-bookings-table tbody');
     
     if (bookings.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;">No upcoming bookings</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No upcoming bookings</td></tr>';
         return;
     }
     
