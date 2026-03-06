@@ -448,10 +448,18 @@ function showEmailStep() {
     
     let startTime, endTime;
     
+    // Special case: Room 4.2 "Indigo" on March 20th, 2026 - only available until 2:30pm
+    const isMarch20th = state.selectedDate === '2026-03-20';
+    const isRoom4_2 = state.selectedRoom.name.includes('4.2') || state.selectedRoom.name.toLowerCase().includes('indigo');
+    
     if (state.selectedRoom.room_type === 'open') {
-        // Open rooms: full day
+        // Open rooms: full day (or until 2:30pm for Room 4.2 on March 20th)
         startTime = state.timeSlots[0]?.display || '11:00 AM';
-        endTime = '4:00 PM';
+        if (isMarch20th && isRoom4_2) {
+            endTime = '2:30 PM';
+        } else {
+            endTime = '4:00 PM';
+        }
     } else {
         // Slot rooms: use selected slots
         const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
@@ -494,6 +502,16 @@ function showEmailStep() {
 function showEmailStepForOpenRoom() {
     // For open rooms, skip time selection and go straight to email step
     showEmailStep();
+}
+
+function showEmailStepBack() {
+    // For open rooms, go back to date selection (step 2)
+    // For slot rooms, go back to time selection (step 3)
+    if (state.selectedRoom.room_type === 'open') {
+        showStep('date');
+    } else {
+        showStep('time');
+    }
 }
 
 function resetBooking() {

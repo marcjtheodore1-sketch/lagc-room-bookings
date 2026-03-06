@@ -540,7 +540,15 @@ def create_booking():
     # Generate confirmation message
     template = get_setting('confirmation_message', get_default_confirmation_message())
     start_time = TIME_SLOTS[start_slot]['display']
-    end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '16:00'
+    
+    # Special case: Room 4.2 "Indigo" on March 20th, 2026 - only available until 2:30pm
+    is_march_20th = booking_date.isoformat() == '2026-03-20'
+    is_room_4_2 = '4.2' in room.name or 'indigo' in room.name.lower()
+    if is_march_20th and is_room_4_2:
+        end_time = '2:30 PM'
+    else:
+        end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '16:00'
+    
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     confirmation_message = format_confirmation_message(
