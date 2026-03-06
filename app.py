@@ -107,18 +107,36 @@ TIME_SLOTS = get_time_slots()
 
 # ============================================================================
 # ROOM AVAILABILITY SCHEDULE
-# Format: 'YYYY-MM-DD': [room_id, room_id, ...]
-# Rooms must match IDs in the database (1=Indigo 4.2, 2=Rose 4.4, 3=Clerkenwell 4.7, 4=The Loft)
+# Format: 'YYYY-MM-DD': ['Room Name', 'Room Name', ...]
+# Room names are matched against the database
 # ============================================================================
-ROOM_SCHEDULE = {
-    '2026-03-06': [3, 1, 2],        # March 6th: 4.7, 4.2 and 4.4
-    '2026-03-13': [4, 1, 2],        # March 13th: Loft, 4.2 and 4.4
-    '2026-03-20': [3, 2, 1],        # March 20th: 4.7 and 4.4 all day, 4.2 until 2:30pm (handled separately)
-    '2026-03-27': [4, 3, 1, 2],     # March 27th: Loft, 4.7, 4.2 and 4.4
-    '2026-04-10': [4, 1, 2],        # April 10th: Loft, 4.2 and 4.4
-    '2026-04-17': [1, 2, 3],        # April 17th: 4.2, 4.4 and 4.7
-    '2026-04-24': [4, 1, 2],        # April 24th: Loft, 4.2 and 4.4
+ROOM_SCHEDULE_BY_NAME = {
+    '2026-03-06': ['Room 4.7 "Clerkenwell"', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
+    '2026-03-13': ['The Loft', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
+    '2026-03-20': ['Room 4.7 "Clerkenwell"', 'Room 4.4 "Rose"', 'Room 4.2 "Indigo"'],
+    '2026-03-27': ['The Loft', 'Room 4.7 "Clerkenwell"', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
+    '2026-04-10': ['The Loft', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
+    '2026-04-17': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-04-24': ['The Loft', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
 }
+
+def get_room_schedule_ids():
+    """Convert room name schedule to ID schedule based on current database"""
+    schedule = {}
+    
+    # Build name to ID mapping
+    name_to_id = {}
+    for room in Room.query.all():
+        name_to_id[room.name] = room.id
+    
+    # Convert schedule
+    for date_str, room_names in ROOM_SCHEDULE_BY_NAME.items():
+        schedule[date_str] = []
+        for name in room_names:
+            if name in name_to_id:
+                schedule[date_str].append(name_to_id[name])
+    
+    return schedule
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -245,6 +263,9 @@ def get_upcoming_fridays(count=8, room_id=None):
     fridays = []
     today = datetime.now().date()
     
+    # Get current schedule with IDs
+    room_schedule = get_room_schedule_ids()
+    
     # Find next Friday
     days_until_friday = (4 - today.weekday()) % 7
     if days_until_friday == 0 and datetime.now().hour >= END_HOUR:
@@ -259,9 +280,9 @@ def get_upcoming_fridays(count=8, room_id=None):
         
         # Check if this date is in our schedule
         date_str = friday.isoformat()
-        if date_str in ROOM_SCHEDULE:
+        if date_str in room_schedule:
             # If room_id specified, only include if room is available that day
-            if room_id is None or room_id in ROOM_SCHEDULE[date_str]:
+            if room_id is None or room_id in room_schedule[date_str]:
                 fridays.append({
                     'date': date_str,
                     'display': friday.strftime('%A, %B %d, %Y')
@@ -372,9 +393,12 @@ def get_availability(date, room_id):
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
     
+    # Get current schedule with IDs
+    room_schedule = get_room_schedule_ids()
+    
     # Check if this room is available on this date
     date_str = booking_date.isoformat()
-    if date_str not in ROOM_SCHEDULE or room_id not in ROOM_SCHEDULE[date_str]:
+    if date_str not in room_schedule or room_id not in room_schedule[date_str]:
         return jsonify({'error': 'Room not available on this date'}), 400
     
     # Get all bookings for this date and room
@@ -390,9 +414,12 @@ def get_availability(date, room_id):
         for slot in range(booking.start_slot, booking.end_slot):
             booked_slots.add(slot)
     
-    # Special case: March 20th, 2026 - Room 4.2 (id=1) only available until 2:30pm
+    # Special case: March 20th, 2026 - Room 4.2 "Indigo" only available until 2:30pm
+    # Find the ID for Room 4.2
+    room_4_2 = Room.query.filter_by(name='Room 4.2 "Indigo"').first()
+    room_4_2_id = room_4_2.id if room_4_2 else None
     # Slot 7 = 2:30pm, so slots 8, 9, 10 (3:00pm-4:00pm) are unavailable
-    if date_str == '2026-03-20' and room_id == 1:
+    if date_str == '2026-03-20' and room_4_2_id and room_id == room_4_2_id:
         for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
             booked_slots.add(slot_idx)
     
