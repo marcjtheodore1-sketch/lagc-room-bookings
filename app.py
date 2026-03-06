@@ -124,17 +124,36 @@ def get_room_schedule_ids():
     """Convert room name schedule to ID schedule based on current database"""
     schedule = {}
     
-    # Build name to ID mapping
-    name_to_id = {}
+    # Build keyword to ID mapping for flexible matching
+    # Keywords: "4.2" or "Indigo", "4.4" or "Rose", "4.7" or "Clerkenwell", "Loft"
+    keyword_to_id = {}
     for room in Room.query.all():
-        name_to_id[room.name] = room.id
+        name_lower = room.name.lower()
+        if '4.2' in name_lower or 'indigo' in name_lower:
+            keyword_to_id['4.2'] = room.id
+            keyword_to_id['indigo'] = room.id
+        if '4.4' in name_lower or 'rose' in name_lower:
+            keyword_to_id['4.4'] = room.id
+            keyword_to_id['rose'] = room.id
+        if '4.7' in name_lower or 'clerkenwell' in name_lower:
+            keyword_to_id['4.7'] = room.id
+            keyword_to_id['clerkenwell'] = room.id
+        if 'loft' in name_lower:
+            keyword_to_id['loft'] = room.id
     
-    # Convert schedule
+    # Convert schedule using keywords
     for date_str, room_names in ROOM_SCHEDULE_BY_NAME.items():
         schedule[date_str] = []
         for name in room_names:
-            if name in name_to_id:
-                schedule[date_str].append(name_to_id[name])
+            name_lower = name.lower()
+            room_id = None
+            # Try to find matching keyword
+            for keyword, rid in keyword_to_id.items():
+                if keyword in name_lower:
+                    room_id = rid
+                    break
+            if room_id:
+                schedule[date_str].append(room_id)
     
     return schedule
 
@@ -415,9 +434,13 @@ def get_availability(date, room_id):
             booked_slots.add(slot)
     
     # Special case: March 20th, 2026 - Room 4.2 "Indigo" only available until 2:30pm
-    # Find the ID for Room 4.2
-    room_4_2 = Room.query.filter_by(name='Room 4.2 "Indigo"').first()
-    room_4_2_id = room_4_2.id if room_4_2 else None
+    # Find the ID for Room 4.2 using flexible matching
+    room_4_2_id = None
+    for room in Room.query.all():
+        name_lower = room.name.lower()
+        if '4.2' in name_lower or 'indigo' in name_lower:
+            room_4_2_id = room.id
+            break
     # Slot 7 = 2:30pm, so slots 8, 9, 10 (3:00pm-4:00pm) are unavailable
     if date_str == '2026-03-20' and room_4_2_id and room_id == room_4_2_id:
         for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
