@@ -472,11 +472,20 @@ function showEmailStep() {
     const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;
     const roomTypeLabel = state.selectedRoom.room_type === 'open' ? 'Open Booking' : 'Time Slot Booking';
     
+    // Determine if individual or shared use
+    const isRoom4_2_Indigo = state.selectedRoom.name.includes('4.2') || state.selectedRoom.name.toLowerCase().includes('indigo');
+    const useType = isRoom4_2_Indigo ? 'Individual Use' : 'Shared Use';
+    const useTypeClass = isRoom4_2_Indigo ? 'individual-use' : 'shared-use';
+    
     elements.bookingSummary.innerHTML = `
         <h3>Booking Summary</h3>
         <div class="summary-row">
             <span>Room:</span>
             <strong>${escapeHtml(state.selectedRoom.name)}</strong>
+        </div>
+        <div class="summary-row">
+            <span>Use:</span>
+            <span class="${useTypeClass}" style="font-weight: 600; color: ${isRoom4_2_Indigo ? '#dc2626' : '#16a34a'};">${useType}</span>
         </div>
         <div class="summary-row">
             <span>Location:</span>
