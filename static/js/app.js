@@ -473,9 +473,9 @@ function showEmailStep() {
     const roomTypeLabel = state.selectedRoom.room_type === 'open' ? 'Open Booking' : 'Time Slot Booking';
     
     // Determine if individual or shared use
-    const isRoom4_2_Indigo = state.selectedRoom.name.includes('4.2') || state.selectedRoom.name.toLowerCase().includes('indigo');
-    const useType = isRoom4_2_Indigo ? 'Individual Use' : 'Shared Use';
-    const useTypeClass = isRoom4_2_Indigo ? 'individual-use' : 'shared-use';
+    const isRoom4_4_Rose = state.selectedRoom.name.includes('4.4') || state.selectedRoom.name.toLowerCase().includes('rose');
+    const useType = isRoom4_4_Rose ? 'Individual Use' : 'Shared Use';
+    const useTypeClass = isRoom4_4_Rose ? 'individual-use' : 'shared-use';
     
     elements.bookingSummary.innerHTML = `
         <h3>Booking Summary</h3>
@@ -485,7 +485,7 @@ function showEmailStep() {
         </div>
         <div class="summary-row">
             <span>Use:</span>
-            <span class="${useTypeClass}" style="font-weight: 600; color: ${isRoom4_2_Indigo ? '#dc2626' : '#16a34a'};">${useType}</span>
+            <span class="${useTypeClass}" style="font-weight: 600; color: ${isRoom4_4_Rose ? '#dc2626' : '#16a34a'};">${useType}</span>
         </div>
         <div class="summary-row">
             <span>Location:</span>
