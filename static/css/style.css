@@ -807,6 +807,23 @@ h2 {
     display: block;
 }
 
+/* Archive styling */
+.date-booking-group.archive {
+    opacity: 0.9;
+}
+
+.date-booking-group.archive .date-header {
+    background: #f3f4f6;
+}
+
+.date-booking-group.archive .date-header:hover {
+    background: #e5e7eb;
+}
+
+.date-booking-group.archive .booking-row {
+    background: #fafafa;
+}
+
 .booking-row {
     display: flex;
     align-items: center;

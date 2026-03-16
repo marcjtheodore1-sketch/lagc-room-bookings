@@ -13,6 +13,7 @@
         <button class="tab-btn active" onclick="showTab('rooms')">Rooms</button>
         <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
         <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
+        <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
 
     <!-- Rooms Tab -->
@@ -75,6 +76,15 @@
         <h2>All Upcoming Bookings</h2>
         <div class="bookings-by-date-container" id="bookings-by-date">
             <p class="loading">Loading bookings...</p>
+        </div>
+    </div>
+
+    <!-- Archive Tab -->
+    <div class="tab-content" id="tab-archive">
+        <h2>📁 Booking Archive</h2>
+        <p class="hint">Past bookings from previous dates. These records are kept for reference.</p>
+        <div class="bookings-by-date-container" id="archive-bookings">
+            <p class="loading">Loading archived bookings...</p>
         </div>
     </div>
 </div>

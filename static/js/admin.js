@@ -20,6 +20,7 @@ function showTab(tabName) {
     if (tabName === 'rooms') loadRooms();
     if (tabName === 'messages') loadMessageTemplate();
     if (tabName === 'bookings') loadAllBookings();
+    if (tabName === 'archive') loadArchivedBookings();
 }
 
 // ============================================
@@ -239,6 +240,73 @@ async function loadAllBookings() {
     } catch (error) {
         container.innerHTML = '<p class="error-text">Failed to load bookings</p>';
     }
+}
+
+async function loadArchivedBookings() {
+    const container = document.getElementById('archive-bookings');
+    container.innerHTML = '<p class="loading">Loading archived bookings...</p>';
+    
+    try {
+        const response = await fetch('/api/admin/bookings/archive');
+        const bookings = await response.json();
+        
+        renderArchivedBookings(bookings);
+    } catch (error) {
+        container.innerHTML = '<p class="error-text">Failed to load archived bookings</p>';
+    }
+}
+
+function renderArchivedBookings(bookings) {
+    const container = document.getElementById('archive-bookings');
+    
+    if (bookings.length === 0) {
+        container.innerHTML = '<p class="no-bookings">No archived bookings found.</p>';
+        return;
+    }
+    
+    // Group bookings by date
+    const byDate = {};
+    bookings.forEach(booking => {
+        if (!byDate[booking.date]) {
+            byDate[booking.date] = {
+                display: booking.date_display,
+                bookings: []
+            };
+        }
+        byDate[booking.date].bookings.push(booking);
+    });
+    
+    // Sort dates (most recent first for archive)
+    const sortedDates = Object.keys(byDate).sort().reverse();
+    
+    container.innerHTML = sortedDates.map((date, index) => {
+        const dateData = byDate[date];
+        const isExpanded = index === 0 ? 'expanded' : ''; // First date expanded by default
+        
+        return `
+            <div class="date-booking-group ${isExpanded} archive">
+                <div class="date-header" onclick="toggleDateGroup(this)">
+                    <span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>
+                    <h4>${escapeHtml(dateData.display)}</h4>
+                    <span class="booking-count">(${dateData.bookings.length} booking${dateData.bookings.length !== 1 ? 's' : ''})</span>
+                </div>
+                <div class="date-bookings">
+                    ${dateData.bookings.map(booking => `
+                        <div class="booking-row">
+                            <div class="booking-info">
+                                <span class="room-name">${escapeHtml(booking.room_name)}</span>
+                                <span class="booking-time">${escapeHtml(booking.start_time)} - ${escapeHtml(booking.end_time)}</span>
+                            </div>
+                            <div class="booking-user">
+                                <span class="user-name">${escapeHtml(booking.user_name)}</span>
+                                <span class="user-email">${escapeHtml(booking.user_email)}</span>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+    }).join('');
 }
 
 function renderBookingCounts(counts) {

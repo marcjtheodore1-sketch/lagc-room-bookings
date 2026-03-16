@@ -806,6 +806,33 @@ def admin_get_bookings():
     
     return jsonify(result)
 
+@app.route('/api/admin/bookings/archive')
+@admin_required
+def admin_get_bookings_archive():
+    """Get all past bookings (archived)"""
+    bookings = Booking.query.filter(
+        Booking.cancelled_at.is_(None),
+        Booking.booking_date < datetime.now().date()
+    ).order_by(Booking.booking_date.desc(), Booking.start_slot).all()
+    
+    result = []
+    for booking in bookings:
+        start_time = TIME_SLOTS[booking.start_slot]['display']
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+        
+        result.append({
+            'id': booking.id,
+            'room_name': booking.room.name,
+            'user_name': booking.user_name,
+            'user_email': booking.user_email,
+            'date': booking.booking_date.isoformat(),
+            'date_display': booking.booking_date.strftime('%A, %B %d, %Y'),
+            'start_time': start_time,
+            'end_time': end_time
+        })
+    
+    return jsonify(result)
+
 @app.route('/api/admin/booking-counts')
 @admin_required
 def admin_get_booking_counts():
