@@ -940,6 +940,32 @@ h2 {
     margin-bottom: 0;
 }
 
+.room-purpose-summary {
+    background: #faf5ff;
+    border-left: 4px solid #9333ea;
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: var(--radius);
+}
+
+.room-purpose-summary h4 {
+    margin-bottom: 0.75rem;
+    color: var(--text);
+}
+
+.room-purpose-summary ul {
+    margin: 0;
+    padding-left: 1.5rem;
+}
+
+.room-purpose-summary li {
+    margin-bottom: 0.5rem;
+}
+
+.room-purpose-summary li:last-child {
+    margin-bottom: 0;
+}
+
 .notice-box.attendance-count {
     background: #eff6ff;
     border-color: #3b82f6;

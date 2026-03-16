@@ -24,7 +24,15 @@
             <div class="initiative-description">
                 <p><strong>This initiative is for autistic adults who need a safe, quiet, neuroaffirming space.</strong></p>
                 <p>You can use this space for whatever you need — whether that's work, study, planning, admin, creative projects, or simply taking time for yourself. <strong>You don't need to be employed or a student to attend.</strong></p>
-                <p>Our shared spaces (Clerkenwell Lounge and The Loft) are available for group socialising, quiet working, or studying in a comfortable, relaxed environment.</p>
+                <p>Our shared spaces (Room 4.7 "Clerkenwell Lounge" and The Loft) are available for group socialising, quiet working, or studying in a comfortable, relaxed environment.</p>
+            </div>
+            
+            <div class="room-purpose-summary">
+                <h4>About Our Spaces:</h4>
+                <ul>
+                    <li><strong>Room 4.2 "Indigo"</strong> — A shared quiet working space where you can work alongside others in a calm, focused environment.</li>
+                    <li><strong>Room 4.4 "Rose"</strong> — A private, individual-use room for when you need your own dedicated space for up to 3 hours.</li>
+                </ul>
             </div>
         </div>
 
@@ -87,7 +95,7 @@
                 </a>
 
                 <a href="https://drive.google.com/file/d/1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp/view?usp=sharing" target="_blank" class="room-info-card">
-                    <h3>🛋 Room 4.7 "Clerkenwell" - FOR SHARED USE</h3>
+                    <h3>🛋 Room 4.7 "Clerkenwell Lounge" - FOR SHARED USE</h3>
                     <p class="room-type">Social Lounge Space</p>
                     <p>A relaxed lounge-style room with sofas, board games and some sensory items available. Perfect for group socialising, quiet working, or studying in a comfortable environment.</p>
                     <span class="photo-link">View Photo →</span>
@@ -107,9 +115,7 @@
             <p>Free tea, coffee and water available. You're welcome to bring your own lunch and snacks.</p>
         </div>
 
-        <div class="notice-box attendance-count" id="open-booking-count">
-            <p class="loading">Loading attendance information...</p>
-        </div>
+
 
         <div class="guidelines-section">
             <p>
@@ -132,38 +138,4 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script>
-// Load open booking counts for display
-async function loadOpenBookingCounts() {
-    const container = document.getElementById('open-booking-count');
-    if (!container) return;
-    
-    try {
-        const response = await fetch('/api/open-booking-counts');
-        const counts = await response.json();
-        
-        if (counts.length === 0) {
-            container.innerHTML = '<p><strong>📊 Current Bookings:</strong> No open booking spaces currently reserved.</p>';
-            return;
-        }
-        
-        let html = '<h4>📊 Current Open Space Bookings</h4><div class="open-booking-list">';
-        counts.forEach(item => {
-            html += `<div class="open-booking-item">
-                <span class="booking-date">${item.date_display}</span>
-                <span class="booking-number">${item.count} registered</span>
-            </div>`;
-        });
-        html += '</div>';
-        
-        container.innerHTML = html;
-    } catch (error) {
-        container.innerHTML = '<p><strong>📊 Current Bookings:</strong> Unable to load attendance information.</p>';
-    }
-}
 
-// Load counts when page loads
-document.addEventListener('DOMContentLoaded', loadOpenBookingCounts);
-</script>
-{% endblock %}

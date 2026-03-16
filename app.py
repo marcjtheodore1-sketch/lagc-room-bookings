@@ -446,6 +446,12 @@ def get_availability(date, room_id):
         for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
             booked_slots.add(slot_idx)
     
+    # Special case: April 10th, 2026 - Room 4.2 "Indigo" only available until 1:30pm
+    # Slot 5 = 1:30pm, so slots 6, 7, 8, 9, 10 (2:00pm-4:00pm) are unavailable
+    if date_str == '2026-04-10' and room_4_2_id and room_id == room_4_2_id:
+        for slot_idx in [6, 7, 8, 9, 10]:  # 2:00pm - 4:00pm
+            booked_slots.add(slot_idx)
+    
     # Build availability array
     availability = []
     for slot in TIME_SLOTS:
@@ -541,11 +547,14 @@ def create_booking():
     template = get_setting('confirmation_message', get_default_confirmation_message())
     start_time = TIME_SLOTS[start_slot]['display']
     
-    # Special case: Room 4.2 "Indigo" on March 20th, 2026 - only available until 2:30pm
+    # Special cases for Room 4.2 "Indigo" on specific dates
     is_march_20th = booking_date.isoformat() == '2026-03-20'
+    is_april_10th = booking_date.isoformat() == '2026-04-10'
     is_room_4_2 = '4.2' in room.name or 'indigo' in room.name.lower()
     if is_march_20th and is_room_4_2:
         end_time = '2:30 PM'
+    elif is_april_10th and is_room_4_2:
+        end_time = '1:30 PM'
     else:
         end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '16:00'
     
