@@ -924,6 +924,61 @@ h2 {
     line-height: 1.7;
 }
 
+.initiative-description {
+    background: #f0fdf4;
+    border-left: 4px solid #16a34a;
+    padding: 1.25rem;
+    margin: 1.5rem 0;
+    border-radius: var(--radius);
+}
+
+.initiative-description p {
+    margin-bottom: 0.75rem;
+}
+
+.initiative-description p:last-child {
+    margin-bottom: 0;
+}
+
+.notice-box.attendance-count {
+    background: #eff6ff;
+    border-color: #3b82f6;
+}
+
+.notice-box.attendance-count h4 {
+    margin-bottom: 0.75rem;
+    color: var(--text);
+}
+
+.open-booking-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.open-booking-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+    padding: 0.5rem 0.75rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.booking-date {
+    font-weight: 500;
+}
+
+.booking-number {
+    background: #dbeafe;
+    color: #1e40af;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
 .info-section {
     margin-bottom: 2rem;
 }

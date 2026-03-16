@@ -823,6 +823,35 @@ def admin_get_booking_counts():
     
     return jsonify(result)
 
+@app.route('/api/open-booking-counts')
+def get_open_booking_counts():
+    """Get booking counts for open booking rooms only (public endpoint)"""
+    from sqlalchemy import func
+    
+    # Get all rooms that are "open" type
+    open_rooms = Room.query.filter_by(room_type='open', is_active=True).all()
+    open_room_ids = [r.id for r in open_rooms]
+    
+    # Get counts per date for open rooms
+    counts = db.session.query(
+        Booking.booking_date,
+        func.count(Booking.id).label('count')
+    ).filter(
+        Booking.room_id.in_(open_room_ids),
+        Booking.cancelled_at.is_(None),
+        Booking.booking_date >= datetime.now().date()
+    ).group_by(Booking.booking_date).order_by(Booking.booking_date).all()
+    
+    result = []
+    for row in counts:
+        result.append({
+            'date': row.booking_date.isoformat(),
+            'date_display': row.booking_date.strftime('%A, %B %d, %Y'),
+            'count': row.count
+        })
+    
+    return jsonify(result)
+
 @app.route('/api/admin/bookings/<int:booking_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_booking(booking_id):
