@@ -952,6 +952,13 @@ h2 {
     margin-bottom: 0.5rem;
 }
 
+.landing-header .lagc-logo {
+    max-width: 200px;
+    height: auto;
+    margin-bottom: 1rem;
+    border-radius: var(--radius);
+}
+
 .landing-content {
     line-height: 1.7;
 }
