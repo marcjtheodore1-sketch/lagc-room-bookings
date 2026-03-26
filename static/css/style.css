@@ -1490,9 +1490,7 @@ h2 {
     width: max-content;
 }
 
-.marquee-track:hover {
-    animation-play-state: paused;
-}
+/* Marquee runs continuously - no pause on hover/touch */
 
 @keyframes marquee {
     0% {
