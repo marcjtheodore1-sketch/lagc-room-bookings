@@ -1470,7 +1470,7 @@ h2 {
 .marquee-track {
     display: flex;
     gap: 2rem;
-    animation: marquee 30s linear infinite;
+    animation: marquee 45s linear infinite;
     width: max-content;
 }
 
@@ -1489,8 +1489,9 @@ h2 {
 
 .testimonial-slide {
     flex: 0 0 auto;
-    max-width: 400px;
-    padding: 0 1rem;
+    width: 500px;
+    max-width: 85vw;
+    padding: 0.75rem 1.5rem;
     border-right: 1px solid var(--border);
 }
 
@@ -1501,36 +1502,35 @@ h2 {
 .testimonial-slide p {
     color: var(--text);
     font-style: italic;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     line-height: 1.5;
     margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .testimonial-slide {
-        max-width: 300px;
+        width: 400px;
+        padding: 0.5rem 1rem;
     }
     
     .testimonial-slide p {
-        font-size: 0.85rem;
+        font-size: 0.8rem;
     }
     
     .marquee-track {
-        animation-duration: 25s;
+        animation-duration: 35s;
     }
 }
 
 @media (max-width: 480px) {
     .testimonial-slide {
-        max-width: 250px;
-        padding: 0 0.75rem;
+        width: 320px;
+        padding: 0.5rem 0.75rem;
     }
     
     .testimonial-slide p {
-        font-size: 0.8rem;
+        font-size: 0.75rem;
+        line-height: 1.4;
     }
 }
