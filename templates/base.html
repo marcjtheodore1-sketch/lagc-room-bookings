@@ -9,7 +9,10 @@
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <a href="/">📅 LAGC - Fridays @ Farringdon</a>
+            <a href="/">
+                <img src="{{ url_for('static', filename='images/lagc_logo.jpg') }}" alt="LAGC" class="nav-logo">
+                <span>LAGC - Fridays @ Farringdon</span>
+            </a>
         </div>
         <div class="nav-links">
             <a href="/book" class="nav-link">Book a Room</a>

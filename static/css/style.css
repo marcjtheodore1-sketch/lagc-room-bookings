@@ -59,6 +59,15 @@ body {
     font-weight: 700;
     color: var(--primary);
     text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.nav-brand .nav-logo {
+    height: 32px;
+    width: auto;
+    border-radius: 4px;
 }
 
 .nav-links {
