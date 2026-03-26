@@ -134,7 +134,16 @@ function renderRooms() {
         return;
     }
 
-    elements.roomGrid.innerHTML = state.rooms.map(room => {
+    // Add a special card for Peer Support Sessions
+    const peerSupportCard = `
+        <div class="room-card peer-support-room" onclick="selectPeerSupport()">
+            <h3>🎓 Peer Support Sessions for Autistic University Students</h3>
+            <p>Online or in-person (Room 4.4 "Rose")</p>
+            <small class="room-hint">30 min sessions – Click for details</small>
+        </div>
+    `;
+
+    const roomCards = state.rooms.map(room => {
         const typeBadge = room.room_type === 'open' 
             ? '<span class="room-type-badge open">Open Booking</span>' 
             : '<span class="room-type-badge slot">Time Slots</span>';
@@ -149,6 +158,8 @@ function renderRooms() {
             ${typeHint}
         </div>
     `}).join('');
+
+    elements.roomGrid.innerHTML = roomCards + peerSupportCard;
 }
 
 function renderDates() {
@@ -352,6 +363,11 @@ function updateSelectionInfo() {
 // ============================================
 // SELECTION HANDLERS
 // ============================================
+
+function selectPeerSupport() {
+    // Redirect to peer support information page
+    window.location.href = '/peer-support';
+}
 
 async function selectRoom(roomId) {
     state.selectedRoom = state.rooms.find(r => r.id === roomId);

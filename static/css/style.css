@@ -272,6 +272,16 @@ h2 {
     box-shadow: var(--shadow);
 }
 
+.room-card.peer-support-room {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.room-card.peer-support-room:hover {
+    border-color: #d97706;
+    background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+}
+
 .room-card.selected {
     border-color: var(--primary);
     background: rgba(79, 70, 229, 0.05);
@@ -308,6 +318,11 @@ h2 {
 .room-type-badge.slot {
     background: #f3e8ff;
     color: #7c3aed;
+}
+
+.room-type-badge.external {
+    background: #fef3c7;
+    color: #d97706;
 }
 
 .room-hint {
@@ -1137,6 +1152,41 @@ h2 {
     margin-bottom: 1.5rem;
 }
 
+/* 5-card symmetric layout: 3 on top, 2 on bottom (centered) */
+.room-cards.five-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+/* For the 2 bottom cards, center them */
+.room-cards.five-cards .room-info-card:nth-child(4) {
+    grid-column: 1;
+}
+
+.room-cards.five-cards .room-info-card:nth-child(5) {
+    grid-column: 2;
+}
+
+/* Responsive: on smaller screens, switch to 2 columns */
+@media (max-width: 900px) {
+    .room-cards.five-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .room-cards.five-cards .room-info-card:nth-child(4),
+    .room-cards.five-cards .room-info-card:nth-child(5) {
+        grid-column: auto;
+    }
+}
+
+/* On very small screens, single column */
+@media (max-width: 600px) {
+    .room-cards.five-cards {
+        grid-template-columns: 1fr;
+    }
+}
+
 .room-info-card {
     display: block;
     background: var(--card-bg);
@@ -1153,6 +1203,87 @@ h2 {
     border-color: var(--primary);
     box-shadow: var(--shadow);
     transform: translateY(-2px);
+}
+
+.room-info-card.peer-support-card {
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+}
+
+.room-info-card.peer-support-card:hover {
+    border-color: #d97706;
+    background: linear-gradient(135deg, #fef3c7 0%, #ffffff 100%);
+}
+
+.peer-support-links {
+    display: flex;
+    gap: 1rem;
+    margin-top: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.peer-support-links .photo-link {
+    display: inline-block;
+}
+
+.peer-support-links .register-link {
+    color: #d97706;
+    font-weight: 600;
+}
+
+/* ============================================
+   PENTAGON CARDS LAYOUT (3+2)
+   ============================================ */
+
+.pentagon-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.pentagon-row {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Top row: 3 cards */
+.top-row {
+    width: 100%;
+}
+
+/* Bottom row: 2 cards, centered */
+.bottom-row {
+    width: 100%;
+    justify-content: center;
+}
+
+/* Cards in pentagon layout */
+.pentagon-row .room-info-card {
+    flex: 0 1 320px;
+    max-width: 320px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1050px) {
+    .pentagon-row {
+        flex-wrap: wrap;
+    }
+    
+    .pentagon-row .room-info-card {
+        flex: 0 1 280px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 600px) {
+    .pentagon-row .room-info-card {
+        flex: 1 1 100%;
+        max-width: 100%;
+    }
 }
 
 /* Activity-first room cards */

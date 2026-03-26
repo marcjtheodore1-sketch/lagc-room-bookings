@@ -338,6 +338,11 @@ def landing():
     """Landing page with information about the initiative"""
     return render_template('landing.html')
 
+@app.route('/peer-support')
+def peer_support():
+    """Peer support sessions information page"""
+    return render_template('peer_support.html')
+
 @app.route('/book')
 def index():
     """Main booking page"""
