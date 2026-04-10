@@ -248,8 +248,8 @@ def send_confirmation_email(to_email, subject, message):
         return True
     
     try:
-        # Clean the password (remove any spaces that might have been copied)
-        smtp_password = app.config['SMTP_PASSWORD'].replace(' ', '').replace('-', '')
+        # Use password as-is (no cleaning needed for hardcoded password)
+        smtp_password = app.config['SMTP_PASSWORD']
         
         print(f"[DEBUG] Attempting to send email via {app.config['SMTP_HOST']}:{app.config['SMTP_PORT']}")
         print(f"[DEBUG] Login user: {app.config['SMTP_USER']}")
