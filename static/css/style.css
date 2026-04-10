@@ -1461,7 +1461,7 @@ h2 {
 }
 
 /* ============================================
-   TESTIMONIALS SECTION - AUTO SCROLLING
+   TESTIMONIALS SECTION - CAROUSEL
    ============================================ */
 
 .testimonials-section {
@@ -1475,76 +1475,84 @@ h2 {
     font-size: 1.1rem;
 }
 
-.testimonials-marquee {
-    overflow: hidden;
+.testimonials-carousel {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 0.75rem 0;
+    padding: 1.5rem;
 }
 
-.marquee-track {
-    display: flex;
-    gap: 2rem;
-    animation: marquee 45s linear infinite;
-    width: max-content;
+.carousel-container {
+    position: relative;
+    min-height: 120px;
 }
 
-/* Marquee runs continuously - no pause on hover/touch */
-
-@keyframes marquee {
-    0% {
-        transform: translateX(0);
-    }
-    100% {
-        transform: translateX(-50%);
-    }
+.testimonial-card {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
 }
 
-.testimonial-slide {
-    flex: 0 0 auto;
-    width: 500px;
-    max-width: 85vw;
-    padding: 0.75rem 1.5rem;
-    border-right: 1px solid var(--border);
+.testimonial-card.active {
+    display: block;
+    opacity: 1;
 }
 
-.testimonial-slide:last-of-type {
-    border-right: none;
-}
-
-.testimonial-slide p {
+.testimonial-card p {
     color: var(--text);
     font-style: italic;
-    font-size: 0.85rem;
-    line-height: 1.5;
+    font-size: 0.95rem;
+    line-height: 1.6;
     margin: 0;
+    text-align: center;
+}
+
+.carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.carousel-dots .dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--border);
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+.carousel-dots .dot.active {
+    background: var(--primary);
 }
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-    .testimonial-slide {
-        width: 400px;
-        padding: 0.5rem 1rem;
+    .testimonials-carousel {
+        padding: 1rem;
     }
     
-    .testimonial-slide p {
-        font-size: 0.8rem;
+    .carousel-container {
+        min-height: 140px;
     }
     
-    .marquee-track {
-        animation-duration: 35s;
+    .testimonial-card p {
+        font-size: 0.9rem;
     }
 }
 
 @media (max-width: 480px) {
-    .testimonial-slide {
-        width: 320px;
-        padding: 0.5rem 0.75rem;
+    .testimonials-carousel {
+        padding: 0.75rem;
     }
     
-    .testimonial-slide p {
-        font-size: 0.75rem;
-        line-height: 1.4;
+    .carousel-container {
+        min-height: 160px;
+    }
+    
+    .testimonial-card p {
+        font-size: 0.85rem;
+        line-height: 1.5;
     }
 }

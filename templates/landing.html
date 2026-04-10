@@ -77,27 +77,26 @@
 
         <div class="testimonials-section">
             <h2>💬 What People Say</h2>
-            <div class="testimonials-marquee">
-                <div class="marquee-track">
-                    <div class="testimonial-slide">
+            <div class="testimonials-carousel">
+                <div class="carousel-container">
+                    <div class="testimonial-card active" data-index="0">
                         <p>"A welcoming and relaxed space with beautiful views over central London and St Paul's Cathedral. It's nice and quiet on Fridays, with a good choice of areas depending on whether you want to work alone or socialise. I liked the free tea and coffee, and the hosts are friendly and approachable. I've enjoyed coming here and would definitely recommend it."</p>
                     </div>
-                    <div class="testimonial-slide">
+                    <div class="testimonial-card" data-index="1">
                         <p>"I really enjoyed attending Fridays @ Farringdon. The first time I came, I booked the private Rose room. It was a great quiet space to do some work. The office is very quiet on Fridays, and there is a large and bright cafeteria space and comfy booths, so I could easily have worked there too. While my initial interest in the space was as a quiet work space, I really appreciated being around other members of the charity in a comfortable, friendly environment. It really feels like a community, and that makes it feel less intimidating to go to a corporate office space. The lighting, furnishing and plants inside make it feel quite homely compared to any other office I've been in, and the Clerkenwell room had very comfy chairs and sofas — a great room for a break, or to play board games. I plan to attend every week now, when I can. I would definitely recommend it to anyone who wants to socialise with other autistic people, or have a comfortable quiet space to just exist in, or to work/study!"</p>
                     </div>
-                    <div class="testimonial-slide">
+                    <div class="testimonial-card" data-index="2">
                         <p>"I love the fact that we have this space. Having used it once already and with two bookings coming up, I'm really excited to continue using it as a work environment where I know there are fellow autistic people around. It's great to have the opportunity to socialise during breaks and potentially collaborate as well—the possibilities feel really open and I'm looking forward to seeing how it develops. I think it's an amazing initiative and I'm so glad it's being put to such good use. Thank you to Pan Macmillan and LAG for making it possible."</p>
                     </div>
-                    <!-- Duplicate for seamless loop -->
-                    <div class="testimonial-slide">
-                        <p>"A welcoming and relaxed space with beautiful views over central London and St Paul's Cathedral. It's nice and quiet on Fridays, with a good choice of areas depending on whether you want to work alone or socialise. I liked the free tea and coffee, and the hosts are friendly and approachable. I've enjoyed coming here and would definitely recommend it."</p>
+                    <div class="testimonial-card" data-index="3">
+                        <p>"I will definitely be back. It's a lovely, safe, comfortable set of spaces that you can use for different purposes like individual work time, or if you want to work or study quietly with other people, or just hang out and do your thing in one of the social areas. I really like the cafe too. And the LAGC volunteer team are the best. It's great we have this space and I recommend it to other autistic people."</p>
                     </div>
-                    <div class="testimonial-slide">
-                        <p>"I really enjoyed attending Fridays @ Farringdon. The first time I came, I booked the private Rose room. It was a great quiet space to do some work. The office is very quiet on Fridays, and there is a large and bright cafeteria space and comfy booths, so I could easily have worked there too. While my initial interest in the space was as a quiet work space, I really appreciated being around other members of the charity in a comfortable, friendly environment. It really feels like a community, and that makes it feel less intimidating to go to a corporate office space. The lighting, furnishing and plants inside make it feel quite homely compared to any other office I've been in, and the Clerkenwell room had very comfy chairs and sofas — a great room for a break, or to play board games. I plan to attend every week now, when I can. I would definitely recommend it to anyone who wants to socialise with other autistic people, or have a comfortable quiet space to just exist in, or to work/study!"</p>
-                    </div>
-                    <div class="testimonial-slide">
-                        <p>"I love the fact that we have this space. Having used it once already and with two bookings coming up, I'm really excited to continue using it as a work environment where I know there are fellow autistic people around. It's great to have the opportunity to socialise during breaks and potentially collaborate as well—the possibilities feel really open and I'm looking forward to seeing how it develops. I think it's an amazing initiative and I'm so glad it's being put to such good use. Thank you to Pan Macmillan and LAG for making it possible."</p>
-                    </div>
+                </div>
+                <div class="carousel-dots">
+                    <span class="dot active" data-index="0"></span>
+                    <span class="dot" data-index="1"></span>
+                    <span class="dot" data-index="2"></span>
+                    <span class="dot" data-index="3"></span>
                 </div>
             </div>
         </div>
@@ -164,4 +163,47 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Testimonials Carousel
+    document.addEventListener('DOMContentLoaded', function() {
+        const cards = document.querySelectorAll('.testimonial-card');
+        const dots = document.querySelectorAll('.carousel-dots .dot');
+        let currentIndex = 0;
+        const totalCards = cards.length;
+        const intervalTime = 10000; // 10 seconds
+
+        function showTestimonial(index) {
+            // Hide all cards
+            cards.forEach(card => {
+                card.classList.remove('active');
+            });
+            dots.forEach(dot => {
+                dot.classList.remove('active');
+            });
+
+            // Show current card
+            cards[index].classList.add('active');
+            dots[index].classList.add('active');
+        }
+
+        function nextTestimonial() {
+            currentIndex = (currentIndex + 1) % totalCards;
+            showTestimonial(currentIndex);
+        }
+
+        // Auto-rotate every 10 seconds
+        setInterval(nextTestimonial, intervalTime);
+
+        // Dot click handlers
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', function() {
+                currentIndex = index;
+                showTestimonial(currentIndex);
+            });
+        });
+    });
+</script>
 {% endblock %}
