@@ -394,6 +394,19 @@ async function selectRoom(roomId) {
     // Show next step
     showStep('date');
     renderDates();
+    
+    // Show Loft availability message if The Loft is selected
+    const isLoft = state.selectedRoom.name.toLowerCase().includes('loft');
+    if (isLoft) {
+        const dateStep = document.getElementById('step-date');
+        let loftMessage = dateStep.querySelector('.loft-message');
+        if (!loftMessage) {
+            loftMessage = document.createElement('div');
+            loftMessage.className = 'notice-box info loft-message';
+            loftMessage.innerHTML = '<p><strong>🏢 The Loft:</strong> The Loft space will be available again in <strong>May</strong>. Please check back soon for available dates!</p>';
+            dateStep.insertBefore(loftMessage, dateStep.querySelector('.date-grid'));
+        }
+    }
 }
 
 function selectDate(date) {

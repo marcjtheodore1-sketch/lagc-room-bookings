@@ -1189,6 +1189,11 @@ h2 {
     border-color: #fca5a5;
 }
 
+.notice-box.info {
+    background: #dbeafe;
+    border-color: #93c5fd;
+}
+
 .notice-box.limit {
     background: #dbeafe;
     border-color: #93c5fd;
