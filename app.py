@@ -653,8 +653,33 @@ def cancel_booking(token):
     if booking.cancelled_at:
         return jsonify({'error': 'This booking has already been cancelled'}), 410
     
+    # Get booking details before cancelling
+    room_name = booking.room.name
+    user_name = booking.user_name
+    user_email = booking.user_email
+    booking_date = booking.booking_date.strftime('%A, %B %d, %Y')
+    start_time = TIME_SLOTS[booking.start_slot]['display']
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+    
     booking.cancelled_at = datetime.utcnow()
     db.session.commit()
+    
+    # Send admin notification about cancellation
+    admin_emails = ['londonautismgroupcharity@gmail.com', 'zara.lagc@gmail.com']
+    admin_subject = f"Booking Cancelled: {user_name} cancelled {room_name}"
+    admin_message = f"""A booking has been cancelled:
+
+Name: {user_name}
+Email: {user_email}
+Room: {room_name}
+Date: {booking_date}
+Time: {start_time} - {end_time}
+
+This booking has been cancelled by the user.
+"""
+    
+    for admin_email in admin_emails:
+        send_confirmation_email(admin_email, admin_subject, admin_message)
     
     return jsonify({
         'success': True,
