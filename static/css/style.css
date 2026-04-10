@@ -1527,6 +1527,29 @@ h2 {
     background: var(--primary);
 }
 
+.pause-btn {
+    display: block;
+    margin: 1rem auto 0;
+    padding: 0.5rem 1rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.pause-btn:hover {
+    background: var(--border);
+}
+
+.pause-btn.paused {
+    background: var(--primary);
+    color: white;
+    border-color: var(--primary);
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
     .testimonials-carousel {

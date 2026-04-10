@@ -171,9 +171,12 @@
     document.addEventListener('DOMContentLoaded', function() {
         const cards = document.querySelectorAll('.testimonial-card');
         const dots = document.querySelectorAll('.carousel-dots .dot');
+        const carousel = document.querySelector('.testimonials-carousel');
         let currentIndex = 0;
         const totalCards = cards.length;
-        const intervalTime = 10000; // 10 seconds
+        const intervalTime = 25000; // 25 seconds
+        let isPaused = false;
+        let intervalId;
 
         function showTestimonial(index) {
             // Hide all cards
@@ -190,12 +193,56 @@
         }
 
         function nextTestimonial() {
-            currentIndex = (currentIndex + 1) % totalCards;
-            showTestimonial(currentIndex);
+            if (!isPaused) {
+                currentIndex = (currentIndex + 1) % totalCards;
+                showTestimonial(currentIndex);
+            }
         }
 
-        // Auto-rotate every 10 seconds
-        setInterval(nextTestimonial, intervalTime);
+        function startCarousel() {
+            intervalId = setInterval(nextTestimonial, intervalTime);
+        }
+
+        function pauseCarousel() {
+            isPaused = true;
+            updatePauseButton();
+        }
+
+        function unpauseCarousel() {
+            isPaused = false;
+            updatePauseButton();
+        }
+
+        function togglePause() {
+            if (isPaused) {
+                unpauseCarousel();
+            } else {
+                pauseCarousel();
+            }
+        }
+
+        function updatePauseButton() {
+            const btn = document.getElementById('pause-btn');
+            if (btn) {
+                btn.textContent = isPaused ? '▶ Play' : '⏸ Pause';
+                btn.classList.toggle('paused', isPaused);
+            }
+        }
+
+        // Create pause button
+        const pauseBtn = document.createElement('button');
+        pauseBtn.id = 'pause-btn';
+        pauseBtn.className = 'pause-btn';
+        pauseBtn.textContent = '⏸ Pause';
+        pauseBtn.addEventListener('click', togglePause);
+        carousel.appendChild(pauseBtn);
+
+        // Pause on hover
+        carousel.addEventListener('mouseenter', pauseCarousel);
+        carousel.addEventListener('mouseleave', unpauseCarousel);
+
+        // Start auto-rotation
+        startCarousel();
 
         // Dot click handlers
         dots.forEach((dot, index) => {
