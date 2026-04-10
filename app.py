@@ -28,13 +28,13 @@ else:
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Email configuration (configure these for your SMTP server)
-app.config['SMTP_HOST'] = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
-app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', 587))
-app.config['SMTP_USER'] = os.environ.get('SMTP_USER', '')
-app.config['SMTP_PASSWORD'] = os.environ.get('SMTP_PASSWORD', '')
-app.config['SMTP_FROM'] = os.environ.get('SMTP_FROM', 'bookings@example.com')
-app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'false').lower() == 'true'
+# Email configuration (hardcoded for PythonAnywhere deployment)
+app.config['SMTP_HOST'] = 'smtp.gmail.com'
+app.config['SMTP_PORT'] = 587
+app.config['SMTP_USER'] = 'miles.lagc@gmail.com'
+app.config['SMTP_PASSWORD'] = 'gidxqeqyvdifqzqs'
+app.config['SMTP_FROM'] = 'miles.lagc@gmail.com'
+app.config['ENABLE_EMAIL'] = True
 
 # Admin password (set via environment variable or use default 'Moonlight')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'Moonlight')
