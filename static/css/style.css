@@ -68,6 +68,30 @@ body {
     height: 32px;
     width: auto;
     border-radius: 4px;
+    transition: transform 0.2s;
+}
+
+.charity-logo-link:hover .nav-logo {
+    transform: scale(1.05);
+}
+
+.landing-header .lagc-logo {
+    transition: transform 0.2s;
+}
+
+.landing-header a:hover .lagc-logo {
+    transform: scale(1.02);
+}
+
+.footer-charity-link {
+    color: var(--text-light);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.footer-charity-link:hover {
+    color: var(--primary);
+    text-decoration: underline;
 }
 
 .nav-links {
