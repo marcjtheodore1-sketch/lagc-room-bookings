@@ -176,56 +176,48 @@
         const totalCards = cards.length;
         const intervalTime = 25000; // 25 seconds
         let isPaused = false;
-        let intervalId;
+        let intervalId = null;
 
         function showTestimonial(index) {
-            // Hide all cards
-            cards.forEach(card => {
-                card.classList.remove('active');
-            });
-            dots.forEach(dot => {
-                dot.classList.remove('active');
-            });
-
-            // Show current card
+            cards.forEach(card => card.classList.remove('active'));
+            dots.forEach(dot => dot.classList.remove('active'));
             cards[index].classList.add('active');
             dots[index].classList.add('active');
         }
 
         function nextTestimonial() {
-            if (!isPaused) {
-                currentIndex = (currentIndex + 1) % totalCards;
-                showTestimonial(currentIndex);
-            }
+            currentIndex = (currentIndex + 1) % totalCards;
+            showTestimonial(currentIndex);
         }
 
         function startCarousel() {
+            if (intervalId) clearInterval(intervalId);
             intervalId = setInterval(nextTestimonial, intervalTime);
         }
 
-        function pauseCarousel() {
-            isPaused = true;
-            updatePauseButton();
-        }
-
-        function unpauseCarousel() {
-            isPaused = false;
-            updatePauseButton();
-        }
-
-        function togglePause() {
-            if (isPaused) {
-                unpauseCarousel();
-            } else {
-                pauseCarousel();
+        function stopCarousel() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
             }
         }
 
-        function updatePauseButton() {
+        function togglePause() {
+            isPaused = !isPaused;
             const btn = document.getElementById('pause-btn');
-            if (btn) {
-                btn.textContent = isPaused ? '▶ Play' : '⏸ Pause';
-                btn.classList.toggle('paused', isPaused);
+            
+            if (isPaused) {
+                stopCarousel();
+                if (btn) {
+                    btn.textContent = '▶ Play';
+                    btn.classList.add('paused');
+                }
+            } else {
+                startCarousel();
+                if (btn) {
+                    btn.textContent = '⏸ Pause';
+                    btn.classList.remove('paused');
+                }
             }
         }
 
@@ -236,10 +228,6 @@
         pauseBtn.textContent = '⏸ Pause';
         pauseBtn.addEventListener('click', togglePause);
         carousel.appendChild(pauseBtn);
-
-        // Pause on hover
-        carousel.addEventListener('mouseenter', pauseCarousel);
-        carousel.addEventListener('mouseleave', unpauseCarousel);
 
         // Start auto-rotation
         startCarousel();
