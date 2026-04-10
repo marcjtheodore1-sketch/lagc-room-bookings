@@ -262,19 +262,35 @@ def send_confirmation_email(to_email, subject, message):
         msg['Subject'] = subject
         msg.attach(MIMEText(message, 'plain'))
         
-        with smtplib.SMTP(app.config['SMTP_HOST'], app.config['SMTP_PORT']) as server:
-            server.set_debuglevel(1)  # Enable debug output
-            server.starttls()
-            print(f"[DEBUG] Logging in...")
-            server.login(app.config['SMTP_USER'], smtp_password)
-            print(f"[DEBUG] Login successful, sending message...")
-            server.send_message(msg)
-            print(f"[DEBUG] Message sent!")
+        # Try SMTP_SSL on port 465 first (often works better on PythonAnywhere)
+        try:
+            print(f"[DEBUG] Trying SMTP_SSL on port 465...")
+            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465) as server:
+                server.set_debuglevel(1)
+                print(f"[DEBUG] Logging in with SSL...")
+                server.login(app.config['SMTP_USER'], smtp_password)
+                print(f"[DEBUG] Login successful, sending message...")
+                server.send_message(msg)
+                print(f"[DEBUG] Message sent via SSL!")
+                return True
+        except Exception as ssl_error:
+            print(f"[DEBUG] SSL failed ({ssl_error}), trying STARTTLS on port 587...")
+            # Fall back to STARTTLS on port 587
+            with smtplib.SMTP(app.config['SMTP_HOST'], 587) as server:
+                server.set_debuglevel(1)
+                server.starttls()
+                print(f"[DEBUG] Logging in with STARTTLS...")
+                server.login(app.config['SMTP_USER'], smtp_password)
+                print(f"[DEBUG] Login successful, sending message...")
+                server.send_message(msg)
+                print(f"[DEBUG] Message sent via STARTTLS!")
+                return True
         
-        return True
     except Exception as e:
         print(f"[ERROR] Failed to send email: {e}")
         print(f"[ERROR] Type: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
         return False
 
 def get_upcoming_fridays(count=8, room_id=None):
