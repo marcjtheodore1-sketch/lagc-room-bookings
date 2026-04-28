@@ -1650,3 +1650,40 @@ h2 {
         line-height: 1.5;
     }
 }
+
+/* ============================================
+   ANNOUNCEMENT MARQUEE
+   ============================================ */
+
+.notice-marquee {
+    overflow: hidden;
+    white-space: nowrap;
+    position: relative;
+}
+
+.marquee-text {
+    display: inline-block;
+    animation: marquee-scroll 25s linear infinite;
+    padding: 0.75rem 0;
+}
+
+.marquee-text span {
+    display: inline-block;
+    padding-right: 2rem;
+    color: #1e40af;
+    font-size: 0.95rem;
+}
+
+@keyframes marquee-scroll {
+    0% {
+        transform: translateX(0);
+    }
+    100% {
+        transform: translateX(-50%);
+    }
+}
+
+/* Pause on hover */
+.notice-marquee:hover .marquee-text {
+    animation-play-state: paused;
+}
