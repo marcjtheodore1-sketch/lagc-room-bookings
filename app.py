@@ -116,8 +116,11 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-03-20': ['Room 4.7 "Clerkenwell"', 'Room 4.4 "Rose"', 'Room 4.2 "Indigo"'],
     '2026-03-27': ['The Loft', 'Room 4.7 "Clerkenwell"', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
     '2026-04-17': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
-    '2026-04-24': [],  # No rooms available
     '2026-05-01': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-05-08': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-05-15': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-05-22': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-05-29': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
 }
 
 def get_room_schedule_ids():
