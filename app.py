@@ -470,6 +470,21 @@ def get_availability(date, room_id):
         for slot_idx in [8, 9, 10]:  # 3:00pm, 3:30pm, 4:00pm
             booked_slots.add(slot_idx)
     
+    # Special case: May 8th, 2026 - Rooms 4.2 "Indigo" and 4.7 "Clerkenwell" start at 12:30pm
+    # Find the IDs for Room 4.2 and Room 4.7 using flexible matching
+    room_4_2_id = None
+    room_4_7_id = None
+    for room in Room.query.all():
+        name_lower = room.name.lower()
+        if '4.2' in name_lower or 'indigo' in name_lower:
+            room_4_2_id = room.id
+        if '4.7' in name_lower or 'clerkenwell' in name_lower:
+            room_4_7_id = room.id
+    # Slots 0, 1, 2 = 11:00am, 11:30am, 12:00pm are unavailable for these rooms
+    if date_str == '2026-05-08' and room_id in (room_4_2_id, room_4_7_id):
+        for slot_idx in [0, 1, 2]:  # 11:00am, 11:30am, 12:00pm
+            booked_slots.add(slot_idx)
+    
     # Build availability array
     availability = []
     for slot in TIME_SLOTS:
@@ -525,6 +540,13 @@ def create_booking():
         # Open rooms: book the entire day (11am - 4pm)
         start_slot = 0
         end_slot = len(TIME_SLOTS)  # Exclusive end (covers all slots 0-10)
+        
+        # Special case: May 8th, 2026 - Rooms 4.2 and 4.7 start at 12:30pm
+        date_str = booking_date.isoformat()
+        is_room_4_2 = '4.2' in room.name or 'indigo' in room.name.lower()
+        is_room_4_7 = '4.7' in room.name or 'clerkenwell' in room.name.lower()
+        if date_str == '2026-05-08' and (is_room_4_2 or is_room_4_7):
+            start_slot = 3  # 12:30pm
     else:
         # Slot rooms: require start_slot and end_slot from request
         if 'start_slot' not in data or 'end_slot' not in data:
