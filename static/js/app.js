@@ -489,14 +489,24 @@ function showEmailStep() {
     const isApril10th = state.selectedDate === '2026-04-10';
     const isRoom4_2 = state.selectedRoom.name.includes('4.2') || state.selectedRoom.name.toLowerCase().includes('indigo');
     
+    // Check for May 8th special case
+    const isMay8th = state.selectedDate === '2026-05-08';
+    const isRoom4_7 = state.selectedRoom.name.includes('4.7') || state.selectedRoom.name.toLowerCase().includes('clerkenwell');
+    
     if (state.selectedRoom.room_type === 'open') {
-        // Open rooms: full day (or special hours for Room 4.2 on specific dates)
-        startTime = state.timeSlots[0]?.display || '11:00 AM';
-        if (isMarch20th && isRoom4_2) {
+        // Open rooms: full day (or special hours for specific dates/rooms)
+        if (isMay8th && (isRoom4_2 || isRoom4_7)) {
+            // May 8th: Rooms 4.2 and 4.7 start at 12:30pm
+            startTime = state.timeSlots[3]?.display || '12:30 PM';
+            endTime = '4:00 PM';
+        } else if (isMarch20th && isRoom4_2) {
+            startTime = state.timeSlots[0]?.display || '11:00 AM';
             endTime = '2:30 PM';
         } else if (isApril10th && isRoom4_2) {
+            startTime = state.timeSlots[0]?.display || '11:00 AM';
             endTime = '1:30 PM';
         } else {
+            startTime = state.timeSlots[0]?.display || '11:00 AM';
             endTime = '4:00 PM';
         }
     } else {
