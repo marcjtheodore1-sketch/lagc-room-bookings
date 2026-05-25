@@ -998,28 +998,33 @@ h2 {
    LANDING PAGE
    ============================================ */
 
+.container.landing-wide {
+    max-width: 1200px;
+}
+
 .landing-page {
-    max-width: 800px;
+    max-width: 100%;
     margin: 0 auto;
 }
 
 .landing-header {
     text-align: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1.5rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
     border-bottom: 2px solid var(--border);
 }
 
 .landing-header h1 {
     color: var(--primary);
-    font-size: 2.5rem;
-    margin-bottom: 0.5rem;
+    font-size: 3rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.2;
 }
 
 .landing-header .lagc-logo {
-    max-width: 200px;
+    max-width: 240px;
     height: auto;
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
     border-radius: var(--radius);
 }
 
@@ -1109,26 +1114,29 @@ h2 {
 }
 
 .info-section {
-    margin-bottom: 2rem;
+    margin-bottom: 2.5rem;
 }
 
 .intro-text {
-    font-size: 1.1rem;
+    font-size: 1.2rem;
     color: var(--text);
+    max-width: 900px;
+    margin: 0 auto;
 }
 
 .info-card {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 2rem;
+    margin-bottom: 2rem;
     box-shadow: var(--shadow);
 }
 
 .info-card h2 {
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
     color: var(--text);
+    font-size: 1.5rem;
 }
 
 .map-link {
@@ -1143,37 +1151,37 @@ h2 {
 
 .features-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 1rem;
-    margin-bottom: 2rem;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2.5rem;
 }
 
 .feature-item {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1.25rem;
+    padding: 1.5rem;
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 1rem;
 }
 
 .feature-icon {
-    font-size: 1.5rem;
+    font-size: 1.75rem;
     flex-shrink: 0;
 }
 
 .feature-item p {
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 1rem;
 }
 
 .notice-box {
     background: #fef3c7;
     border: 1px solid #fcd34d;
     border-radius: var(--radius);
-    padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 1.25rem 2rem;
+    margin-bottom: 2rem;
 }
 
 .notice-box p {
@@ -1268,7 +1276,7 @@ h2 {
     background: var(--card-bg);
     border: 2px solid var(--border);
     border-radius: var(--radius-lg);
-    padding: 1.5rem;
+    padding: 2rem;
     transition: all 0.2s;
     text-decoration: none;
     color: inherit;
@@ -1339,19 +1347,19 @@ h2 {
 
 /* Cards in pentagon layout */
 .pentagon-row .room-info-card {
-    flex: 0 1 320px;
-    max-width: 320px;
+    flex: 1 1 340px;
+    max-width: 380px;
 }
 
 /* Responsive adjustments */
-@media (max-width: 1050px) {
+@media (max-width: 1150px) {
     .pentagon-row {
         flex-wrap: wrap;
     }
     
     .pentagon-row .room-info-card {
-        flex: 0 1 280px;
-        max-width: 280px;
+        flex: 1 1 300px;
+        max-width: 340px;
     }
 }
 
@@ -1385,8 +1393,8 @@ h2 {
 
 .room-info-card h3 {
     color: var(--text);
-    margin-bottom: 0.5rem;
-    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
 }
 
 .room-type {
@@ -1399,8 +1407,8 @@ h2 {
 }
 
 .room-info-card p {
-    margin-bottom: 1rem;
-    font-size: 0.95rem;
+    margin-bottom: 1.25rem;
+    font-size: 1rem;
 }
 
 .photo-link {
@@ -1423,8 +1431,8 @@ h2 {
 .guidelines-section {
     background: var(--bg);
     border-radius: var(--radius);
-    padding: 1.5rem;
-    margin-bottom: 2rem;
+    padding: 2rem;
+    margin-bottom: 2.5rem;
     text-align: center;
 }
 
@@ -1441,7 +1449,7 @@ h2 {
 
 .cta-section {
     text-align: center;
-    padding: 2rem;
+    padding: 3rem 2rem;
     background: var(--card-bg);
     border: 2px solid var(--primary);
     border-radius: var(--radius-lg);
@@ -1449,8 +1457,8 @@ h2 {
 }
 
 .btn-large {
-    font-size: 1.25rem;
-    padding: 1rem 2rem;
+    font-size: 1.4rem;
+    padding: 1.25rem 2.5rem;
     font-weight: 600;
 }
 
@@ -1536,26 +1544,26 @@ h2 {
    ============================================ */
 
 .testimonials-section {
-    margin: 1.5rem 0;
+    margin: 2.5rem 0;
 }
 
 .testimonials-section h2 {
     text-align: center;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
     color: var(--text);
-    font-size: 1.1rem;
+    font-size: 1.5rem;
 }
 
 .testimonials-carousel {
     background: var(--card-bg);
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    padding: 1.5rem;
+    padding: 2rem 2.5rem;
 }
 
 .carousel-container {
     position: relative;
-    min-height: 120px;
+    min-height: 140px;
 }
 
 .testimonial-card {
@@ -1572,8 +1580,8 @@ h2 {
 .testimonial-card p {
     color: var(--text);
     font-style: italic;
-    font-size: 0.95rem;
-    line-height: 1.6;
+    font-size: 1.05rem;
+    line-height: 1.7;
     margin: 0;
     text-align: center;
 }
@@ -1670,8 +1678,8 @@ h2 {
 .marquee-text span {
     display: inline-block;
     padding-right: 2rem;
-    color: #1e40af;
-    font-size: 0.95rem;
+    color: #991b1b;
+    font-size: 1.05rem;
 }
 
 @keyframes marquee-scroll {
