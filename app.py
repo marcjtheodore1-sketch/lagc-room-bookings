@@ -121,6 +121,10 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-05-15': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-05-22': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-05-29': ['Room 4.2 "Indigo"', 'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-06-05': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'Room 4.6 "Farringdon"'],
+    '2026-06-12': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'The Loft'],
+    '2026-06-19': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'The Loft'],
+    '2026-06-26': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'Room 4.7 "Clerkenwell"'],
 }
 
 def get_room_schedule_ids():
@@ -143,6 +147,9 @@ def get_room_schedule_ids():
             keyword_to_id['clerkenwell'] = room.id
         if 'loft' in name_lower:
             keyword_to_id['loft'] = room.id
+        if '4.6' in name_lower or 'farringdon' in name_lower:
+            keyword_to_id['4.6'] = room.id
+            keyword_to_id['farringdon'] = room.id
     
     # Convert schedule using keywords
     for date_str, room_names in ROOM_SCHEDULE_BY_NAME.items():
@@ -213,6 +220,7 @@ def init_default_data():
         2: {'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
         3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
         4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
+        5: {'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
     }
     
     # Create rooms if they don't exist, or update existing ones to match
