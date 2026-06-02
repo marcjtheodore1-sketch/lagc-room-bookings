@@ -128,13 +128,25 @@ async function loadAvailability() {
 // RENDERING
 // ============================================
 
-const ROOM_PHOTOS = {
-    1: 'https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800',
-    2: 'https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800',
-    3: 'https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800',
-    4: 'https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800',
-    5: '/static/images/room-4-6-farringdon.jpg'
-};
+function getRoomPhotoUrl(room) {
+    const nameLower = room.name.toLowerCase();
+    if (nameLower.includes('indigo') || nameLower.includes('4.2')) {
+        return 'https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800';
+    }
+    if (nameLower.includes('rose') || nameLower.includes('4.4')) {
+        return 'https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800';
+    }
+    if (nameLower.includes('clerkenwell') || nameLower.includes('4.7')) {
+        return 'https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800';
+    }
+    if (nameLower.includes('loft')) {
+        return 'https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800';
+    }
+    if (nameLower.includes('farringdon') || nameLower.includes('4.6')) {
+        return '/static/images/room-4-6-farringdon.jpg';
+    }
+    return '';
+}
 
 function renderRooms() {
     if (state.rooms.length === 0) {
@@ -158,7 +170,7 @@ function renderRooms() {
         const typeHint = room.room_type === 'open'
             ? '<small class="room-hint">11am - 4pm</small>'
             : '<small class="room-hint">30 min slots</small>';
-        const photoUrl = ROOM_PHOTOS[room.id] || '';
+        const photoUrl = getRoomPhotoUrl(room);
         const photoHtml = photoUrl 
             ? `<div class="room-card-image"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(room.name)}" loading="lazy"></div>` 
             : '';
