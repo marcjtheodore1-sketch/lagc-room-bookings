@@ -1036,10 +1036,27 @@ h2 {
 }
 
 .landing-header h1 {
-    color: var(--primary);
     font-size: 3rem;
     margin-bottom: 0.75rem;
     line-height: 1.2;
+    background: linear-gradient(90deg, #312e81, #818cf8, #4f46e5, #4338ca, #4f46e5, #818cf8, #312e81);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: indigo-wave 5s ease-in-out infinite;
+}
+
+@keyframes indigo-wave {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
 }
 
 .landing-header .lagc-logo {
