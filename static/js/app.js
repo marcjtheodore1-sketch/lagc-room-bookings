@@ -128,6 +128,14 @@ async function loadAvailability() {
 // RENDERING
 // ============================================
 
+const ROOM_PHOTOS = {
+    1: 'https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800',
+    2: 'https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800',
+    3: 'https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800',
+    4: 'https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800',
+    5: '/static/images/room-4-6-farringdon.jpg'
+};
+
 function renderRooms() {
     if (state.rooms.length === 0) {
         elements.roomGrid.innerHTML = '<p>No rooms available</p>';
@@ -150,9 +158,14 @@ function renderRooms() {
         const typeHint = room.room_type === 'open'
             ? '<small class="room-hint">11am - 4pm</small>'
             : '<small class="room-hint">30 min slots</small>';
+        const photoUrl = ROOM_PHOTOS[room.id] || '';
+        const photoHtml = photoUrl 
+            ? `<div class="room-card-image"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(room.name)}" loading="lazy"></div>` 
+            : '';
         
         return `
         <div class="room-card" onclick="selectRoom(${room.id})">
+            ${photoHtml}
             <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
             ${typeHint}

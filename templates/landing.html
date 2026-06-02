@@ -42,6 +42,9 @@
                 <!-- Top row: 3 cards -->
                 <div class="pentagon-row top-row">
                     <a href="https://drive.google.com/file/d/1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk/view?usp=sharing" target="_blank" class="room-info-card">
+                        <div class="room-card-image">
+                            <img src="https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800" alt="Room 4.2 Indigo" loading="lazy">
+                        </div>
                         <h3>📚 Work quietly alongside others</h3>
                         <p class="room-type">Room 4.2 "Indigo" — Shared Workspace</p>
                         <p>A calm, focused environment where you can work independently while being around others. Perfect for body-doubling and quiet productivity.</p>
@@ -49,6 +52,9 @@
                     </a>
 
                     <a href="https://drive.google.com/file/d/1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9/view?usp=sharing" target="_blank" class="room-info-card">
+                        <div class="room-card-image">
+                            <img src="https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800" alt="Room 4.4 Rose" loading="lazy">
+                        </div>
                         <h3>🔒 Have your own private space</h3>
                         <p class="room-type">Room 4.4 "Rose" — Individual Focus Room</p>
                         <p>A quiet, single-use room just for you. Book in 30-minute slots for up to 3 hours when you need dedicated, interruption-free time.</p>
@@ -56,6 +62,9 @@
                     </a>
 
                     <a href="https://drive.google.com/file/d/1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp/view?usp=sharing" target="_blank" class="room-info-card">
+                        <div class="room-card-image">
+                            <img src="https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800" alt="Room 4.7 Clerkenwell" loading="lazy">
+                        </div>
                         <h3>🤝 Socialise or relax in a lounge</h3>
                         <p class="room-type">Room 4.7 "Clerkenwell Lounge" — Social Space</p>
                         <p>A relaxed lounge with sofas, board games and sensory items. Drop in anytime for casual socialising, quiet working, or just unwinding.</p>
@@ -66,6 +75,9 @@
                 <!-- Bottom row: 3 cards -->
                 <div class="pentagon-row bottom-row">
                     <a href="https://drive.google.com/file/d/1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL/view?usp=sharing" target="_blank" class="room-info-card">
+                        <div class="room-card-image">
+                            <img src="https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800" alt="The Loft" loading="lazy">
+                        </div>
                         <h3>🌟 Gather with a group or spread out</h3>
                         <p class="room-type">The Loft — Large Event Space</p>
                         <p>A stunning space with panoramic London views. Great for group activities, collaborative work, or having plenty of room to yourself.</p>
@@ -73,6 +85,9 @@
                     </a>
 
                     <a href="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" target="_blank" class="room-info-card">
+                        <div class="room-card-image">
+                            <img src="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" alt="Room 4.6 Farringdon" loading="lazy">
+                        </div>
                         <h3>📊 Meet, present or collaborate as a group</h3>
                         <p class="room-type">Room 4.6 "Farringdon" — Large Meeting Room</p>
                         <p>A spacious 12-person meeting room with screens for presenting and video calls, whiteboard, and Wi-Fi. Perfect for group work, presentations, or collaborative projects.</p>
@@ -96,6 +111,47 @@
             <h2>🤝 A Shared Community Space</h2>
             <p><strong>Fridays @ Farringdon is primarily a shared community space,</strong> not a private venue-hire system. Most of our rooms are open booking or shared workspaces where autistic adults can connect, work, study, or simply be alongside one another.</p>
             <p>However, if you have a <strong>specific group activity or project idea</strong> that you think would benefit the community, we'd be happy to hear about it. Please email us at <a href="mailto:contact@londonautismgroupcharity.org">contact@londonautismgroupcharity.org</a> and we can consider it on a case-by-case basis.</p>
+        </div>
+
+        <div class="photo-gallery">
+            <h2>📸 Explore the Space</h2>
+            <p class="gallery-intro">Take a look around the cafeteria, breakout areas, and outdoor terrace available on Fridays.</p>
+
+            <div class="gallery-section">
+                <h3>☕ Cafeteria & Indoor Spaces</h3>
+                <div class="gallery-grid">
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables and artwork" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-3.jpg') }}" alt="Spacious cafeteria with green bench seating and flowers" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-2.jpg') }}" alt="Private booth seating with green cushions" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-4.jpg') }}" alt="High tables by the window overlooking the terrace" loading="lazy">
+                    </div>
+                </div>
+            </div>
+
+            <div class="gallery-section">
+                <h3>🌿 Outdoor Terrace</h3>
+                <div class="gallery-grid">
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-1.jpg') }}" alt="Outdoor terrace with long tables and chairs" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-2.jpg') }}" alt="Terrace seating area with books and plants" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Terrace view with glass railing and city skyline" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-4.jpg') }}" alt="Sunny terrace walkway with panoramic views" loading="lazy">
+                    </div>
+                </div>
+            </div>
         </div>
 
         <div class="testimonials-section">
