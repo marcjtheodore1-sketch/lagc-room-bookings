@@ -419,8 +419,7 @@ async function selectRoom(roomId) {
     // Show next step
     showStep('date');
     renderDates();
-    
-
+}
 
 function selectDate(date) {
     state.selectedDate = date;
