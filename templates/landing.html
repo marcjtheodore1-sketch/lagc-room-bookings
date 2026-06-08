@@ -16,11 +16,9 @@
 
     <div class="landing-content">
         <div class="info-section">
-            <div class="notice-marquee" style="background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; margin-bottom: 1rem; overflow: hidden;">
-                <div class="marquee-text">
-                    <span>📅 <strong>June 2026 bookings are now available!</strong> Spaces for 5th, 12th, 19th and 26th June are open for booking. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                    <span>📅 <strong>June 2026 bookings are now available!</strong> Spaces for 5th, 12th, 19th and 26th June are open for booking. &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
-                </div>
+            <div class="announcement-banner" role="status" aria-live="polite">
+                <span class="announcement-badge">📣 Latest News</span>
+                <p class="announcement-text">📅 <strong>June 2026 bookings are now available!</strong> Spaces for 5th, 12th, 19th and 26th June are open for booking.</p>
             </div>
             <p class="intro-text">
                 This is a <strong>safe, quiet, neuroaffirming space for autistic adults</strong> to connect, work, study, or simply take time for yourself.
@@ -178,6 +176,46 @@
                     <span class="dot" data-index="3"></span>
                 </div>
             </div>
+            <div class="testimonial-cta">
+                <p class="testimonial-cta-text">Have you spent time with us at Fridays @ Farringdon? We'd love to hear about it.</p>
+                <button type="button" class="btn btn-secondary" id="open-testimonial-btn">✍️ Share Your Experience</button>
+            </div>
+        </div>
+
+        <!-- Testimonial submission modal -->
+        <div class="testimonial-modal" id="testimonial-modal" hidden>
+            <div class="testimonial-modal-backdrop" data-close-modal></div>
+            <div class="testimonial-modal-content" role="dialog" aria-modal="true" aria-labelledby="testimonial-modal-title">
+                <button type="button" class="modal-close" id="close-testimonial-btn" aria-label="Close">&times;</button>
+                <h2 id="testimonial-modal-title">✍️ Share Your Experience</h2>
+                <p class="modal-intro">Tell us about your time at Fridays @ Farringdon. With your permission, your words may be shared on this page to help others feel welcome.</p>
+                <form id="testimonial-form">
+                    <label for="testimonial-text">Your experience <span class="required">*</span></label>
+                    <textarea id="testimonial-text" name="testimonial" rows="6" required placeholder="What was your experience like?"></textarea>
+
+                    <fieldset class="attribution-fieldset">
+                        <legend>How would you like to be credited?</legend>
+                        <label class="radio-row"><input type="radio" name="attribution" value="anonymous" checked> Anonymously</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="first_name"> First name only</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="full_name"> Full name</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="other"> Something else</label>
+                    </fieldset>
+
+                    <div class="name-field" id="name-field" hidden>
+                        <label for="testimonial-name" id="name-label">Name</label>
+                        <input type="text" id="testimonial-name" name="name" placeholder="">
+                    </div>
+
+                    <label for="testimonial-email">Your email <span class="optional">(optional — so we can verify your message)</span></label>
+                    <input type="email" id="testimonial-email" name="email" placeholder="you@example.com">
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submit-testimonial-btn">Submit</button>
+                    </div>
+                    <p class="form-status" id="testimonial-status" role="status" aria-live="polite"></p>
+                </form>
+            </div>
         </div>
 
         <div class="info-card venue-card">
@@ -324,6 +362,116 @@
                 currentIndex = index;
                 showTestimonial(currentIndex);
             });
+        });
+    });
+
+    // Testimonial submission modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('testimonial-modal');
+        const openBtn = document.getElementById('open-testimonial-btn');
+        const form = document.getElementById('testimonial-form');
+        if (!modal || !openBtn || !form) return;
+
+        const nameField = document.getElementById('name-field');
+        const nameLabel = document.getElementById('name-label');
+        const nameInput = document.getElementById('testimonial-name');
+        const statusEl = document.getElementById('testimonial-status');
+        const submitBtn = document.getElementById('submit-testimonial-btn');
+        let lastFocused = null;
+
+        const nameConfig = {
+            first_name: { label: 'Your first name', placeholder: 'e.g. Alex', required: true },
+            full_name:  { label: 'Your full name', placeholder: 'e.g. Alex Smith', required: true },
+            other:      { label: 'How should we credit you?', placeholder: 'e.g. "A regular attendee" or your initials', required: true }
+        };
+
+        function updateNameField() {
+            const choice = form.querySelector('input[name="attribution"]:checked').value;
+            const cfg = nameConfig[choice];
+            if (cfg) {
+                nameLabel.textContent = cfg.label;
+                nameInput.placeholder = cfg.placeholder;
+                nameInput.required = cfg.required;
+                nameField.hidden = false;
+            } else {
+                nameInput.required = false;
+                nameInput.value = '';
+                nameField.hidden = true;
+            }
+        }
+
+        function openModal() {
+            lastFocused = document.activeElement;
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            updateNameField();
+            setTimeout(() => document.getElementById('testimonial-text').focus(), 50);
+        }
+
+        function closeModal() {
+            modal.hidden = true;
+            document.body.style.overflow = '';
+            if (lastFocused) lastFocused.focus();
+        }
+
+        openBtn.addEventListener('click', openModal);
+        modal.querySelectorAll('[data-close-modal]').forEach(el => el.addEventListener('click', closeModal));
+        document.getElementById('close-testimonial-btn').addEventListener('click', closeModal);
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !modal.hidden) closeModal();
+        });
+        form.querySelectorAll('input[name="attribution"]').forEach(r => r.addEventListener('change', updateNameField));
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            statusEl.className = 'form-status';
+            statusEl.textContent = '';
+
+            const payload = {
+                testimonial: document.getElementById('testimonial-text').value.trim(),
+                attribution: form.querySelector('input[name="attribution"]:checked').value,
+                name: nameInput.value.trim(),
+                email: document.getElementById('testimonial-email').value.trim()
+            };
+
+            if (!payload.testimonial) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Please enter your experience before submitting.';
+                return;
+            }
+            if (nameInput.required && !payload.name) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Please enter how you would like to be credited.';
+                nameInput.focus();
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending…';
+            try {
+                const res = await fetch('/api/testimonial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    statusEl.className = 'form-status success';
+                    statusEl.textContent = 'Thank you! Your message has been sent. 💜';
+                    form.reset();
+                    updateNameField();
+                    setTimeout(closeModal, 2500);
+                } else {
+                    statusEl.className = 'form-status error';
+                    statusEl.textContent = (data && data.error) || 'Something went wrong. Please try again.';
+                }
+            } catch (err) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Could not send your message. Please try again later.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            }
         });
     });
 </script>

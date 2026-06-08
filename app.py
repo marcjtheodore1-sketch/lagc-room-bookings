@@ -34,7 +34,7 @@ app.config['SMTP_PORT'] = 587
 app.config['SMTP_USER'] = 'miles.lagc@gmail.com'
 app.config['SMTP_PASSWORD'] = 'gidxqeqyvdifqzqs'
 app.config['SMTP_FROM'] = 'miles.lagc@gmail.com'
-app.config['ENABLE_EMAIL'] = True
+app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'true').lower() not in ('false', '0', 'no')
 
 # Admin password (set via environment variable or use default 'Moonlight')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'Moonlight')
@@ -648,6 +648,54 @@ View all bookings at: {request.host_url.rstrip('/')}/admin
         'cancel_token': cancel_token,
         'email_sent': email_sent
     })
+
+@app.route('/api/testimonial', methods=['POST'])
+def submit_testimonial():
+    """Receive a testimonial submission and email it to the charity."""
+    data = request.get_json(silent=True) or {}
+    testimonial = (data.get('testimonial') or '').strip()
+    attribution = (data.get('attribution') or 'anonymous').strip()
+    name = (data.get('name') or '').strip()
+    email = (data.get('email') or '').strip()
+
+    if not testimonial:
+        return jsonify({'success': False, 'error': 'Please enter your experience before submitting.'}), 400
+
+    attribution_labels = {
+        'anonymous': 'Anonymously',
+        'first_name': 'First name only',
+        'full_name': 'Full name',
+        'other': 'Something else'
+    }
+    attribution_label = attribution_labels.get(attribution, attribution)
+
+    if attribution == 'anonymous':
+        credited_as = 'Anonymous'
+    elif name:
+        credited_as = name
+    else:
+        credited_as = '(not provided)'
+
+    body = f"""A new testimonial has been submitted via the Fridays @ Farringdon website.
+
+How they would like to be credited: {attribution_label}
+Credit name / label: {credited_as}
+Contact email: {email if email else '(not provided)'}
+
+--- Testimonial ---
+{testimonial}
+"""
+
+    sent = send_confirmation_email(
+        'contact@londonautismgroupcharity.org',
+        'New testimonial submission — Fridays @ Farringdon',
+        body
+    )
+
+    if not sent:
+        return jsonify({'success': False, 'error': 'We could not send your message right now. Please try again later.'}), 502
+
+    return jsonify({'success': True})
 
 @app.route('/api/booking/<token>')
 def get_booking(token):
