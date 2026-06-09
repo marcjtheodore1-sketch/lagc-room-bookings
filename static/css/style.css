@@ -2082,6 +2082,17 @@ h2 {
     color: var(--text);
 }
 
+.email-date-row.sent {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+}
+
+.email-sent-badge {
+    color: #16a34a;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
 .email-blast-modal-content {
     max-width: 720px;
 }

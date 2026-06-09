@@ -418,26 +418,46 @@ function toggleDateGroup(header) {
 // ============================================
 
 let emailBlastRecipients = [];
+let emailBlastDate = null;
 
 async function loadEmailBlastDates() {
     const container = document.getElementById('email-blast-dates');
     container.innerHTML = '<p class="loading">Loading dates...</p>';
 
     try {
-        const response = await fetch('/api/fridays');
-        const fridays = await response.json();
+        const [fridaysRes, statusRes] = await Promise.all([
+            fetch('/api/fridays'),
+            fetch('/api/admin/availability-email-status')
+        ]);
+        const fridays = await fridaysRes.json();
+        const sentStatus = await statusRes.json();
 
         if (fridays.length === 0) {
             container.innerHTML = '<p>No upcoming Fridays are scheduled.</p>';
             return;
         }
 
-        container.innerHTML = fridays.map(friday => `
-            <div class="email-date-row">
-                <span class="email-date-label">${escapeHtml(friday.display)}</span>
-                <button class="btn btn-primary btn-small" onclick="openEmailBlast('${friday.date}')">📧 Draft Email</button>
-            </div>
-        `).join('');
+        container.innerHTML = fridays.map(friday => {
+            const sent = sentStatus[friday.date];
+            if (sent) {
+                const countText = (sent.count != null)
+                    ? ` to ${sent.count} recipient${sent.count !== 1 ? 's' : ''}`
+                    : '';
+                const whenText = sent.sent_at_display ? ` on ${escapeHtml(sent.sent_at_display)}` : '';
+                return `
+                    <div class="email-date-row sent">
+                        <span class="email-date-label">${escapeHtml(friday.display)}</span>
+                        <span class="email-sent-badge">✅ Sent${whenText}${countText}</span>
+                    </div>
+                `;
+            }
+            return `
+                <div class="email-date-row">
+                    <span class="email-date-label">${escapeHtml(friday.display)}</span>
+                    <button class="btn btn-primary btn-small" onclick="openEmailBlast('${friday.date}')">📧 Draft Email</button>
+                </div>
+            `;
+        }).join('');
     } catch (error) {
         container.innerHTML = '<p class="error-text">Failed to load dates</p>';
     }
@@ -448,10 +468,19 @@ async function openEmailBlast(date) {
         const response = await fetch(`/api/admin/availability-email-draft/${date}`);
         const draft = await response.json();
 
+        if (response.status === 409 && draft.error === 'already_sent') {
+            const when = draft.sent && draft.sent.sent_at_display ? ` on ${draft.sent.sent_at_display}` : '';
+            alert(`An availability email for this Friday has already been sent${when}. It can only be sent once per date.`);
+            loadEmailBlastDates();
+            return;
+        }
+
         if (!response.ok) {
             alert(draft.error || 'Failed to draft email');
             return;
         }
+
+        emailBlastDate = date;
 
         document.getElementById('email-blast-date-label').textContent =
             `Availability email for ${draft.date_display}. Review and edit before sending.`;
@@ -550,7 +579,8 @@ async function sendEmailBlast() {
             body: JSON.stringify({
                 subject: subject,
                 body: body,
-                recipients: emailBlastRecipients
+                recipients: emailBlastRecipients,
+                date: emailBlastDate
             })
         });
 
@@ -559,10 +589,14 @@ async function sendEmailBlast() {
         if (response.ok) {
             statusEl.className = 'form-status success';
             statusEl.textContent = `✅ Email sent to ${result.sent_to} recipient${result.sent_to !== 1 ? 's' : ''}.`;
-            setTimeout(closeEmailBlast, 2500);
+            setTimeout(() => { closeEmailBlast(); loadEmailBlastDates(); }, 2500);
         } else {
             statusEl.className = 'form-status error';
             statusEl.textContent = result.error || 'Failed to send email';
+            // If it was already sent (e.g. another admin just did it), refresh the list
+            if (result.already_sent) {
+                setTimeout(() => { closeEmailBlast(); loadEmailBlastDates(); }, 2500);
+            }
         }
     } catch (error) {
         statusEl.className = 'form-status error';

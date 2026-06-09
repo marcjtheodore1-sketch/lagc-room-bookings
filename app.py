@@ -1088,6 +1088,34 @@ def admin_get_booking_counts():
     
     return jsonify(result)
 
+def blast_sent_key(date_str):
+    """Setting key that records an availability blast was sent for a date"""
+    return f'availability_email_sent:{date_str}'
+
+def get_blast_sent_status(date_str):
+    """Return the sent record for a date, or None if not yet sent"""
+    raw = get_setting(blast_sent_key(date_str))
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return {'sent_at_display': raw, 'count': None}
+
+@app.route('/api/admin/availability-email-status')
+@admin_required
+def admin_availability_email_status():
+    """Return a map of date -> sent record for dates that have been blasted"""
+    records = Setting.query.filter(Setting.key.like('availability_email_sent:%')).all()
+    status = {}
+    for s in records:
+        date_str = s.key.split(':', 1)[1]
+        try:
+            status[date_str] = json.loads(s.value)
+        except (ValueError, TypeError):
+            status[date_str] = {'sent_at_display': s.value, 'count': None}
+    return jsonify(status)
+
 @app.route('/api/admin/availability-email-draft/<date>')
 @admin_required
 def admin_availability_email_draft(date):
@@ -1099,6 +1127,14 @@ def admin_availability_email_draft(date):
         return jsonify({'error': 'Invalid date format'}), 400
 
     date_str = booking_date.isoformat()
+
+    # Block if a blast has already gone out for this Friday
+    sent = get_blast_sent_status(date_str)
+    if sent:
+        return jsonify({
+            'error': 'already_sent',
+            'sent': sent
+        }), 409
     room_schedule = get_room_schedule_ids()
     if date_str not in room_schedule:
         return jsonify({'error': 'No rooms are scheduled for this date'}), 400
@@ -1169,9 +1205,26 @@ def admin_send_availability_email():
     subject = (data.get('subject') or '').strip()
     body = (data.get('body') or '').strip()
     recipients = data.get('recipients') or []
+    date = (data.get('date') or '').strip()
 
     if not subject or not body:
         return jsonify({'error': 'Subject and message are both required'}), 400
+
+    # Require a valid date and enforce one blast per Friday
+    try:
+        booking_date = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid or missing date'}), 400
+    date_str = booking_date.isoformat()
+
+    existing = get_blast_sent_status(date_str)
+    if existing:
+        when = existing.get('sent_at_display', 'earlier')
+        return jsonify({
+            'error': f'An availability email for this Friday has already been sent ({when}). It can only be sent once per date.',
+            'already_sent': True,
+            'sent': existing
+        }), 409
 
     seen = set()
     clean = []
@@ -1191,6 +1244,14 @@ def admin_send_availability_email():
     success, error = send_bulk_email(clean, subject, body)
     if not success:
         return jsonify({'error': f'Failed to send email: {error}'}), 502
+
+    # Record that the blast has gone out so it can't be sent again
+    sent_at = datetime.now()
+    set_setting(blast_sent_key(date_str), json.dumps({
+        'sent_at': sent_at.isoformat(),
+        'sent_at_display': sent_at.strftime('%d %b %Y at %H:%M').lstrip('0'),
+        'count': len(clean)
+    }))
 
     return jsonify({'success': True, 'sent_to': len(clean)})
 
