@@ -13,6 +13,7 @@
         <button class="tab-btn active" onclick="showTab('rooms')">Rooms</button>
         <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
         <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
+        <button class="tab-btn" onclick="showTab('emailblast')">📣 Email Blast</button>
         <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
 
@@ -79,6 +80,15 @@
         </div>
     </div>
 
+    <!-- Email Blast Tab -->
+    <div class="tab-content" id="tab-emailblast">
+        <h2>📣 Availability Email Blast</h2>
+        <p class="hint">Pick a Friday to draft an email to everyone who has previously registered, highlighting the rooms still available that day. You can edit the email and the recipient list before anything is sent.</p>
+        <div class="email-blast-dates" id="email-blast-dates">
+            <p class="loading">Loading dates...</p>
+        </div>
+    </div>
+
     <!-- Archive Tab -->
     <div class="tab-content" id="tab-archive">
         <h2>📁 Booking Archive</h2>
@@ -87,9 +97,39 @@
             <p class="loading">Loading archived bookings...</p>
         </div>
     </div>
+
+    <!-- Email blast review/send modal -->
+    <div class="testimonial-modal" id="email-blast-modal" hidden>
+        <div class="testimonial-modal-backdrop" onclick="closeEmailBlast()"></div>
+        <div class="testimonial-modal-content email-blast-modal-content" role="dialog" aria-modal="true" aria-labelledby="email-blast-title">
+            <button type="button" class="modal-close" onclick="closeEmailBlast()" aria-label="Close">&times;</button>
+            <h2 id="email-blast-title">📣 Review Availability Email</h2>
+            <p class="modal-intro" id="email-blast-date-label"></p>
+
+            <label for="email-blast-subject"><strong>Subject:</strong></label>
+            <input type="text" id="email-blast-subject" class="email-blast-input">
+
+            <label for="email-blast-body"><strong>Message:</strong></label>
+            <textarea id="email-blast-body" rows="14" class="code-editor"></textarea>
+
+            <label><strong>Recipients</strong> <span class="recipient-count" id="recipient-count"></span></label>
+            <p class="hint">Recipients are everyone who has previously registered. Click × to remove someone, or add an email below. Recipients are emailed via BCC so they can't see each other's addresses.</p>
+            <div class="recipient-chips" id="recipient-chips"></div>
+            <div class="form-inline recipient-add-row">
+                <input type="email" id="new-recipient-email" placeholder="add@another-email.com">
+                <button type="button" class="btn btn-secondary btn-small" onclick="addRecipient()">+ Add</button>
+            </div>
+
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeEmailBlast()">Cancel</button>
+                <button type="button" class="btn btn-primary" id="send-email-blast-btn" onclick="sendEmailBlast()">Send Email</button>
+            </div>
+            <p class="form-status" id="email-blast-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=2"></script>
 {% endblock %}

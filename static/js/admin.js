@@ -20,6 +20,7 @@ function showTab(tabName) {
     if (tabName === 'rooms') loadRooms();
     if (tabName === 'messages') loadMessageTemplate();
     if (tabName === 'bookings') loadAllBookings();
+    if (tabName === 'emailblast') loadEmailBlastDates();
     if (tabName === 'archive') loadArchivedBookings();
 }
 
@@ -409,6 +410,166 @@ function toggleDateGroup(header) {
     } else {
         group.classList.add('expanded');
         header.querySelector('.toggle-icon').textContent = '▼';
+    }
+}
+
+// ============================================
+// AVAILABILITY EMAIL BLAST
+// ============================================
+
+let emailBlastRecipients = [];
+
+async function loadEmailBlastDates() {
+    const container = document.getElementById('email-blast-dates');
+    container.innerHTML = '<p class="loading">Loading dates...</p>';
+
+    try {
+        const response = await fetch('/api/fridays');
+        const fridays = await response.json();
+
+        if (fridays.length === 0) {
+            container.innerHTML = '<p>No upcoming Fridays are scheduled.</p>';
+            return;
+        }
+
+        container.innerHTML = fridays.map(friday => `
+            <div class="email-date-row">
+                <span class="email-date-label">${escapeHtml(friday.display)}</span>
+                <button class="btn btn-primary btn-small" onclick="openEmailBlast('${friday.date}')">📧 Draft Email</button>
+            </div>
+        `).join('');
+    } catch (error) {
+        container.innerHTML = '<p class="error-text">Failed to load dates</p>';
+    }
+}
+
+async function openEmailBlast(date) {
+    try {
+        const response = await fetch(`/api/admin/availability-email-draft/${date}`);
+        const draft = await response.json();
+
+        if (!response.ok) {
+            alert(draft.error || 'Failed to draft email');
+            return;
+        }
+
+        document.getElementById('email-blast-date-label').textContent =
+            `Availability email for ${draft.date_display}. Review and edit before sending.`;
+        document.getElementById('email-blast-subject').value = draft.subject;
+        document.getElementById('email-blast-body').value = draft.body;
+
+        emailBlastRecipients = draft.recipients;
+        renderRecipients();
+
+        const statusEl = document.getElementById('email-blast-status');
+        statusEl.className = 'form-status';
+        statusEl.textContent = '';
+
+        document.getElementById('email-blast-modal').hidden = false;
+        document.body.style.overflow = 'hidden';
+    } catch (error) {
+        alert('Network error. Please try again.');
+    }
+}
+
+function closeEmailBlast() {
+    document.getElementById('email-blast-modal').hidden = true;
+    document.body.style.overflow = '';
+}
+
+function renderRecipients() {
+    const chips = document.getElementById('recipient-chips');
+    const count = document.getElementById('recipient-count');
+
+    count.textContent = `(${emailBlastRecipients.length})`;
+
+    if (emailBlastRecipients.length === 0) {
+        chips.innerHTML = '<p class="hint">No recipients — add at least one email below.</p>';
+        return;
+    }
+
+    chips.innerHTML = emailBlastRecipients.map((email, i) => `
+        <span class="recipient-chip">
+            ${escapeHtml(email)}
+            <button type="button" class="chip-remove" onclick="removeRecipient(${i})" aria-label="Remove ${escapeHtml(email)}">&times;</button>
+        </span>
+    `).join('');
+}
+
+function removeRecipient(index) {
+    emailBlastRecipients.splice(index, 1);
+    renderRecipients();
+}
+
+function addRecipient() {
+    const input = document.getElementById('new-recipient-email');
+    const email = input.value.trim().toLowerCase();
+
+    if (!email || !email.includes('@')) {
+        alert('Please enter a valid email address');
+        return;
+    }
+    if (emailBlastRecipients.includes(email)) {
+        alert('That email is already in the recipient list');
+        return;
+    }
+
+    emailBlastRecipients.push(email);
+    input.value = '';
+    renderRecipients();
+}
+
+async function sendEmailBlast() {
+    const subject = document.getElementById('email-blast-subject').value.trim();
+    const body = document.getElementById('email-blast-body').value.trim();
+    const statusEl = document.getElementById('email-blast-status');
+    const sendBtn = document.getElementById('send-email-blast-btn');
+
+    if (!subject || !body) {
+        alert('Subject and message are both required');
+        return;
+    }
+    if (emailBlastRecipients.length === 0) {
+        alert('Please add at least one recipient');
+        return;
+    }
+
+    if (!confirm(`Send this email to ${emailBlastRecipients.length} recipient${emailBlastRecipients.length !== 1 ? 's' : ''}?`)) {
+        return;
+    }
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending…';
+    statusEl.className = 'form-status';
+    statusEl.textContent = '';
+
+    try {
+        const response = await fetch('/api/admin/availability-email/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                subject: subject,
+                body: body,
+                recipients: emailBlastRecipients
+            })
+        });
+
+        const result = await response.json();
+
+        if (response.ok) {
+            statusEl.className = 'form-status success';
+            statusEl.textContent = `✅ Email sent to ${result.sent_to} recipient${result.sent_to !== 1 ? 's' : ''}.`;
+            setTimeout(closeEmailBlast, 2500);
+        } else {
+            statusEl.className = 'form-status error';
+            statusEl.textContent = result.error || 'Failed to send email';
+        }
+    } catch (error) {
+        statusEl.className = 'form-status error';
+        statusEl.textContent = 'Network error. Please try again.';
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Email';
     }
 }
 

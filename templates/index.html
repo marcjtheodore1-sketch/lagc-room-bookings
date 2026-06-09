@@ -7,21 +7,22 @@
     <p class="subtitle" id="booking-subtitle">Select a Friday to book your space. <strong>Time Slot</strong> rooms let you choose specific 30-minute slots (up to 3 hours). <strong>Open Booking</strong> rooms reserve the full day from 11am to 4pm.</p>
 
     <div class="booking-form">
-        <!-- Step 1: Select Room -->
-        <div class="form-step" id="step-room">
-            <h2>Step 1: Select a Room</h2>
-            <div class="room-grid" id="room-grid">
-                <p class="loading">Loading rooms...</p>
-            </div>
-        </div>
-
-        <!-- Step 2: Select Date -->
-        <div class="form-step hidden" id="step-date">
-            <h2>Step 2: Select a Friday</h2>
+        <!-- Step 1: Select Date -->
+        <div class="form-step" id="step-date">
+            <h2>Step 1: Select a Friday</h2>
             <div class="date-grid" id="date-grid">
                 <p class="loading">Loading dates...</p>
             </div>
-            <button class="btn btn-secondary" onclick="resetRoom()">← Back</button>
+        </div>
+
+        <!-- Step 2: Select Room -->
+        <div class="form-step hidden" id="step-room">
+            <h2>Step 2: Select a Room</h2>
+            <p class="hint" id="room-step-date-label"></p>
+            <div class="room-grid" id="room-grid">
+                <p class="loading">Loading rooms...</p>
+            </div>
+            <button class="btn btn-secondary" onclick="backToDate()">← Back</button>
         </div>
 
         <!-- Step 3: Select Time Slots -->
@@ -33,7 +34,7 @@
             </div>
             <div class="selection-info" id="selection-info"></div>
             <div class="step-actions">
-                <button class="btn btn-secondary" onclick="resetDate()">← Back</button>
+                <button class="btn btn-secondary" onclick="backToRoom()">← Back</button>
                 <button class="btn btn-primary hidden" id="btn-continue" onclick="showEmailStep()">Continue →</button>
             </div>
         </div>
@@ -86,5 +87,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=6"></script>
 {% endblock %}

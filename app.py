@@ -304,6 +304,47 @@ def send_confirmation_email(to_email, subject, message):
         traceback.print_exc()
         return False
 
+def send_bulk_email(recipients, subject, message):
+    """Send one email to many recipients via BCC so addresses stay private.
+
+    Returns (success, error_message)."""
+    if not recipients:
+        return False, 'No recipients'
+
+    if not app.config['ENABLE_EMAIL'] or not app.config['SMTP_USER']:
+        print(f"[BULK EMAIL WOULD BE SENT TO {len(recipients)} RECIPIENTS]")
+        print(f"Subject: {subject}")
+        print(f"Recipients: {recipients}")
+        print(f"---\n{message}\n---")
+        return True, None
+
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = app.config['SMTP_FROM']
+        # To: ourselves; real recipients go in the SMTP envelope (BCC)
+        msg['To'] = app.config['SMTP_FROM']
+        msg['Subject'] = subject
+        msg.attach(MIMEText(message, 'plain'))
+
+        smtp_password = app.config['SMTP_PASSWORD']
+        try:
+            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465) as server:
+                server.login(app.config['SMTP_USER'], smtp_password)
+                server.send_message(msg, to_addrs=recipients)
+                return True, None
+        except Exception as ssl_error:
+            print(f"[DEBUG] Bulk SSL failed ({ssl_error}), trying STARTTLS on port 587...")
+            with smtplib.SMTP(app.config['SMTP_HOST'], 587) as server:
+                server.starttls()
+                server.login(app.config['SMTP_USER'], smtp_password)
+                server.send_message(msg, to_addrs=recipients)
+                return True, None
+    except Exception as e:
+        print(f"[ERROR] Failed to send bulk email: {e}")
+        import traceback
+        traceback.print_exc()
+        return False, str(e)
+
 def get_upcoming_fridays(count=8, room_id=None):
     """Get upcoming Friday dates, optionally filtered by room availability"""
     fridays = []
@@ -353,8 +394,55 @@ def check_availability(room_id, booking_date, start_slot, end_slot, exclude_book
     
     if exclude_booking_id:
         query = query.filter(Booking.id != exclude_booking_id)
-    
+
     return query.count() == 0
+
+# Short reminder descriptions used in the availability email blast,
+# matched by room name keywords (same pattern as get_room_schedule_ids)
+ROOM_EMAIL_DESCRIPTIONS = [
+    (('4.2', 'indigo'), 'a calm shared workspace where you can work or study quietly alongside others — great for body-doubling and focused productivity'),
+    (('4.4', 'rose'), 'a private room just for you, booked in 30-minute slots (up to 3 hours) for dedicated, interruption-free time'),
+    (('4.7', 'clerkenwell'), 'a relaxed social lounge with sofas, board games and sensory items — drop in to socialise, unwind or work casually'),
+    (('loft',), 'a stunning large space with panoramic London views — great for group activities or having plenty of room to yourself'),
+    (('4.6', 'farringdon'), 'a spacious 12-person meeting room with presentation screens, whiteboard and Wi-Fi — perfect for group work and collaboration'),
+]
+
+def get_room_email_description(room_name):
+    name_lower = room_name.lower()
+    for keywords, desc in ROOM_EMAIL_DESCRIPTIONS:
+        if any(k in name_lower for k in keywords):
+            return desc
+    return 'a comfortable space available on Fridays'
+
+def get_free_time_ranges(room_id, booking_date):
+    """Return human-readable free time ranges for a slot room on a date,
+    e.g. ['11:00 AM – 1:00 PM', '2:30 PM – 4:00 PM']"""
+    bookings = Booking.query.filter(
+        Booking.room_id == room_id,
+        Booking.booking_date == booking_date,
+        Booking.cancelled_at.is_(None)
+    ).all()
+    booked = set()
+    for b in bookings:
+        for s in range(b.start_slot, b.end_slot):
+            booked.add(s)
+
+    # Bookable half-hour slots run 0..9 (last starts 3:30 PM, day ends 4:00 PM)
+    free = [i for i in range(len(TIME_SLOTS) - 1) if i not in booked]
+
+    ranges = []
+    start = prev = None
+    for i in free:
+        if start is None:
+            start = i
+        elif i != prev + 1:
+            ranges.append((start, prev))
+            start = i
+        prev = i
+    if start is not None:
+        ranges.append((start, prev))
+
+    return [f"{TIME_SLOTS[a]['display']} – {TIME_SLOTS[b + 1]['display']}" for a, b in ranges]
 
 # ============================================================================
 # ROUTES - MAIN PAGES
@@ -416,14 +504,37 @@ def cancel_page(token):
 
 @app.route('/api/rooms')
 def get_rooms():
-    """Get all active rooms"""
+    """Get all active rooms; with ?date=YYYY-MM-DD, only rooms scheduled that
+    day (in schedule order) including booking counts for open rooms"""
+    date_str = request.args.get('date')
     rooms = Room.query.filter_by(is_active=True).all()
-    return jsonify([{
-        'id': r.id,
-        'name': r.name,
-        'building_location': r.building_location,
-        'room_type': r.room_type
-    } for r in rooms])
+
+    booking_date = None
+    if date_str:
+        try:
+            booking_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format'}), 400
+        scheduled_ids = get_room_schedule_ids().get(booking_date.isoformat(), [])
+        rooms_by_id = {r.id: r for r in rooms}
+        rooms = [rooms_by_id[rid] for rid in scheduled_ids if rid in rooms_by_id]
+
+    result = []
+    for r in rooms:
+        item = {
+            'id': r.id,
+            'name': r.name,
+            'building_location': r.building_location,
+            'room_type': r.room_type
+        }
+        if booking_date and r.room_type == 'open':
+            item['booking_count'] = Booking.query.filter(
+                Booking.room_id == r.id,
+                Booking.booking_date == booking_date,
+                Booking.cancelled_at.is_(None)
+            ).count()
+        result.append(item)
+    return jsonify(result)
 
 @app.route('/api/fridays')
 def get_fridays():
@@ -976,6 +1087,112 @@ def admin_get_booking_counts():
         })
     
     return jsonify(result)
+
+@app.route('/api/admin/availability-email-draft/<date>')
+@admin_required
+def admin_availability_email_draft(date):
+    """Draft an availability email for a given Friday: subject, body and
+    the default recipient list (everyone who has previously booked)"""
+    try:
+        booking_date = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format'}), 400
+
+    date_str = booking_date.isoformat()
+    room_schedule = get_room_schedule_ids()
+    if date_str not in room_schedule:
+        return jsonify({'error': 'No rooms are scheduled for this date'}), 400
+
+    room_lines = []
+    for room_id in room_schedule[date_str]:
+        room = Room.query.get(room_id)
+        if not room or not room.is_active:
+            continue
+        desc = get_room_email_description(room.name)
+        if room.room_type == 'slot':
+            free_ranges = get_free_time_ranges(room.id, booking_date)
+            if not free_ranges:
+                continue  # fully booked — leave it out of the email
+            room_lines.append(f"• {room.name} — {desc}.\n   Times still available: {', '.join(free_ranges)}")
+        else:
+            room_lines.append(f"• {room.name} — {desc}.")
+
+    if not room_lines:
+        return jsonify({'error': 'No rooms with availability on this date'}), 400
+
+    date_display = booking_date.strftime('%A %d %B %Y').replace(' 0', ' ')
+    booking_url = f"{request.host_url.rstrip('/')}/"
+
+    subject = f"Spaces available this Friday ({booking_date.strftime('%d %B').lstrip('0')}) — Fridays @ Farringdon"
+    rooms_text = '\n\n'.join(room_lines)
+    body = f"""Hello,
+
+There are still spaces available at Fridays @ Farringdon this week, on {date_display} (11am – 4pm).
+
+Here's what's on offer this Friday:
+
+{rooms_text}
+
+If you'd like to join us, you can register here:
+{booking_url}
+
+We'd love to see you there!
+
+Best wishes,
+London Autism Group Charity
+Fridays @ Farringdon
+"""
+
+    # Default recipients: everyone who has ever made a booking (deduplicated)
+    seen = set()
+    recipients = []
+    for (email,) in db.session.query(Booking.user_email).distinct().all():
+        email_clean = (email or '').strip().lower()
+        if email_clean and email_clean not in seen:
+            seen.add(email_clean)
+            recipients.append(email_clean)
+    recipients.sort()
+
+    return jsonify({
+        'date': date_str,
+        'date_display': date_display,
+        'subject': subject,
+        'body': body,
+        'recipients': recipients
+    })
+
+@app.route('/api/admin/availability-email/send', methods=['POST'])
+@admin_required
+def admin_send_availability_email():
+    """Send the (possibly edited) availability email to the recipient list"""
+    data = request.get_json(silent=True) or {}
+    subject = (data.get('subject') or '').strip()
+    body = (data.get('body') or '').strip()
+    recipients = data.get('recipients') or []
+
+    if not subject or not body:
+        return jsonify({'error': 'Subject and message are both required'}), 400
+
+    seen = set()
+    clean = []
+    for r in recipients:
+        r = (r or '').strip().lower()
+        if not r:
+            continue
+        if '@' not in r or '.' not in r.split('@')[1]:
+            return jsonify({'error': f'Invalid email address: {r}'}), 400
+        if r not in seen:
+            seen.add(r)
+            clean.append(r)
+
+    if not clean:
+        return jsonify({'error': 'At least one recipient is required'}), 400
+
+    success, error = send_bulk_email(clean, subject, body)
+    if not success:
+        return jsonify({'error': f'Failed to send email: {error}'}), 502
+
+    return jsonify({'success': True, 'sent_to': len(clean)})
 
 @app.route('/api/open-booking-counts')
 def get_open_booking_counts():

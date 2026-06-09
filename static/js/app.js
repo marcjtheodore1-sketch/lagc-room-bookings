@@ -43,11 +43,11 @@ const steps = {
 // INITIALIZATION
 // ============================================
 
-document.addEventListener('DOMContentLoaded', () => {
-    loadRooms();
-    loadFridays();
+document.addEventListener('DOMContentLoaded', async () => {
     loadTimeSlots();
-    
+    await loadFridays();
+    renderDates();
+
     // Check for email in URL (coming from cancel page)
     checkUrlForEmail();
 });
@@ -81,9 +81,10 @@ function checkUrlForEmail() {
 // DATA LOADING
 // ============================================
 
-async function loadRooms() {
+async function loadRooms(date = null) {
     try {
-        const response = await fetch('/api/rooms');
+        const url = date ? `/api/rooms?date=${date}` : '/api/rooms';
+        const response = await fetch(url);
         state.rooms = await response.json();
         renderRooms();
     } catch (error) {
@@ -149,8 +150,15 @@ function getRoomPhotoUrl(room) {
 }
 
 function renderRooms() {
+    // Show which Friday the rooms are for
+    const dateLabel = document.getElementById('room-step-date-label');
+    if (dateLabel) {
+        const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;
+        dateLabel.textContent = dateDisplay ? `Rooms available on ${dateDisplay}:` : '';
+    }
+
     if (state.rooms.length === 0) {
-        elements.roomGrid.innerHTML = '<p>No rooms available</p>';
+        elements.roomGrid.innerHTML = '<p>No rooms available on this date</p>';
         return;
     }
 
@@ -164,22 +172,33 @@ function renderRooms() {
     `;
 
     const roomCards = state.rooms.map(room => {
-        const typeBadge = room.room_type === 'open' 
-            ? '<span class="room-type-badge open">Open Booking</span>' 
+        const typeBadge = room.room_type === 'open'
+            ? '<span class="room-type-badge open">Open Booking</span>'
             : '<span class="room-type-badge slot">Time Slots</span>';
         const typeHint = room.room_type === 'open'
             ? '<small class="room-hint">11am - 4pm</small>'
             : '<small class="room-hint">30 min slots</small>';
         const photoUrl = getRoomPhotoUrl(room);
-        const photoHtml = photoUrl 
-            ? `<div class="room-card-image"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(room.name)}" loading="lazy"></div>` 
+        const photoHtml = photoUrl
+            ? `<div class="room-card-image"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(room.name)}" loading="lazy"></div>`
             : '';
-        
+
+        // For shared open rooms, show how many people have booked so far
+        let occupancyHtml = '';
+        if (room.room_type === 'open' && typeof room.booking_count === 'number') {
+            const count = room.booking_count;
+            const label = count === 0
+                ? '👥 No one booked yet — be the first!'
+                : `👥 ${count} ${count === 1 ? 'person has' : 'people have'} booked this space so far`;
+            occupancyHtml = `<p class="room-occupancy">${label}</p>`;
+        }
+
         return `
         <div class="room-card" onclick="selectRoom(${room.id})">
             ${photoHtml}
             <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
+            ${occupancyHtml}
             ${typeHint}
         </div>
     `}).join('');
@@ -394,15 +413,35 @@ function selectPeerSupport() {
     window.location.href = '/peer-support';
 }
 
-async function selectRoom(roomId) {
+async function selectDate(date) {
+    // Step 1: pick a Friday first
+    state.selectedDate = date;
+    state.selectedRoom = null;
+    state.selectedSlots = [];
+
+    // Update UI
+    document.querySelectorAll('.date-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    event.currentTarget.classList.add('selected');
+
+    // Load the rooms available on this date, then show them
+    elements.roomGrid.innerHTML = '<p class="loading">Loading rooms...</p>';
+    showStep('room');
+    await loadRooms(date);
+}
+
+function selectRoom(roomId) {
+    // Step 2: pick a room available on the chosen Friday
     state.selectedRoom = state.rooms.find(r => r.id === roomId);
-    
+    state.selectedSlots = [];
+
     // Update UI
     document.querySelectorAll('.room-card').forEach(card => {
         card.classList.remove('selected');
     });
     event.currentTarget.classList.add('selected');
-    
+
     // Show/hide subtitle based on room type
     const subtitle = document.getElementById('booking-subtitle');
     if (subtitle) {
@@ -412,31 +451,11 @@ async function selectRoom(roomId) {
             subtitle.classList.remove('hidden');
         }
     }
-    
-    // Load available dates for this specific room
-    await loadFridays(roomId);
-    
-    // Show next step
-    showStep('date');
-    renderDates();
-}
 
-function selectDate(date) {
-    state.selectedDate = date;
-    state.selectedSlots = [];
-    
-    // Update UI
-    document.querySelectorAll('.date-card').forEach(card => {
-        card.classList.remove('selected');
-    });
-    event.currentTarget.classList.add('selected');
-    
-    // Check room type - open rooms skip time selection
+    // Open rooms book the whole day, so skip time selection
     if (state.selectedRoom.room_type === 'open') {
-        // For open rooms, auto-select full day (11am-4pm)
         showEmailStepForOpenRoom();
     } else {
-        // For slot rooms, show time selection
         showStep('time');
         loadAvailability();
     }
@@ -458,25 +477,22 @@ function showStep(stepName) {
     });
 }
 
-function resetRoom() {
+function backToDate() {
     state.selectedRoom = null;
-    state.selectedDate = null;
     state.selectedSlots = [];
-    
+
     // Reset subtitle visibility
     const subtitle = document.getElementById('booking-subtitle');
     if (subtitle) {
         subtitle.classList.remove('hidden');
     }
-    
-    showStep('room');
-    renderRooms();
+
+    showStep('date');
 }
 
-function resetDate() {
-    state.selectedDate = null;
+function backToRoom() {
     state.selectedSlots = [];
-    showStep('date');
+    showStep('room');
 }
 
 function showTimeStep() {
@@ -568,10 +584,10 @@ function showEmailStepForOpenRoom() {
 }
 
 function showEmailStepBack() {
-    // For open rooms, go back to date selection (step 2)
+    // For open rooms, go back to room selection (step 2)
     // For slot rooms, go back to time selection (step 3)
     if (state.selectedRoom.room_type === 'open') {
-        showStep('date');
+        showStep('room');
     } else {
         showStep('time');
     }
@@ -584,15 +600,15 @@ function resetBooking() {
     elements.firstNameInput.value = '';
     elements.lastNameInput.value = '';
     elements.emailInput.value = '';
-    
+
     // Reset subtitle visibility
     const subtitle = document.getElementById('booking-subtitle');
     if (subtitle) {
         subtitle.classList.remove('hidden');
     }
-    
-    showStep('room');
-    renderRooms();
+
+    showStep('date');
+    renderDates();
 }
 
 // ============================================
