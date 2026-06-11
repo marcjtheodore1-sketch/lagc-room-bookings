@@ -1365,6 +1365,22 @@ h2 {
     font-weight: 600;
 }
 
+.peer-support-website-note {
+    margin-top: 0.75rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.peer-support-website-link {
+    color: #4f46e5;
+    text-decoration: underline;
+    font-weight: 500;
+}
+
+.peer-support-website-link:hover {
+    color: #3730a3;
+}
+
 /* ============================================
    PENTAGON CARDS LAYOUT (3+2)
    ============================================ */
