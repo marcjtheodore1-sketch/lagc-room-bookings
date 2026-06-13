@@ -1855,11 +1855,64 @@ h2 {
     animation: announcement-pulse 1.6s ease-in-out infinite;
 }
 
+/* Rotator stacks all announcements in one grid cell so the banner height
+   stays steady (sized to the tallest) and we can cross-fade between them. */
+.announcement-rotator {
+    display: grid;
+    flex: 1 1 240px;
+    min-width: 0;
+}
+
 .announcement-text {
+    grid-area: 1 / 1;
     margin: 0;
     color: #991b1b;
     font-size: 1.05rem;
     line-height: 1.5;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.55s ease;
+    pointer-events: none;
+}
+
+.announcement-text.is-active {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.announcement-text a {
+    color: #7f1d1d;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.announcement-text a:hover {
+    color: #450a0a;
+}
+
+.announcement-dots {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-left: auto;
+}
+
+.announcement-dot {
+    width: 9px;
+    height: 9px;
+    padding: 0;
+    border: none;
+    border-radius: 999px;
+    background: #fca5a5;
+    cursor: pointer;
+    transition: background 0.25s ease, transform 0.25s ease;
+}
+
+.announcement-dot.is-active {
+    background: #dc2626;
+    transform: scale(1.25);
 }
 
 @keyframes announcement-pulse {
@@ -1872,11 +1925,35 @@ h2 {
     50% { box-shadow: 0 0 12px 1px rgba(220, 38, 38, 0.28); }
 }
 
-/* Respect users who prefer reduced motion (important for motion sensitivity) */
+/* Respect users who prefer reduced motion (important for motion sensitivity).
+   No pulse/glow, and instead of cross-fading we show every announcement
+   stacked and static so nothing moves. */
 @media (prefers-reduced-motion: reduce) {
     .announcement-banner,
     .announcement-badge {
         animation: none;
+    }
+
+    .announcement-rotator {
+        display: block;
+    }
+
+    .announcement-text {
+        position: static;
+        opacity: 1;
+        visibility: visible;
+        transition: none;
+        pointer-events: auto;
+    }
+
+    .announcement-text + .announcement-text {
+        margin-top: 0.55rem;
+        padding-top: 0.55rem;
+        border-top: 1px solid #fca5a5;
+    }
+
+    .announcement-dots {
+        display: none;
     }
 }
 
