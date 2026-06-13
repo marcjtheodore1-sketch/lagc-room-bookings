@@ -304,6 +304,30 @@
 
 {% block scripts %}
 <script>
+    // Reusable horizontal swipe detector (mobile). Calls onLeft/onRight on a
+    // deliberate horizontal swipe; ignores vertical scrolls and taps so links
+    // and buttons still work normally.
+    function addSwipe(el, onLeft, onRight) {
+        if (!el) return;
+        let startX = 0, startY = 0, tracking = false;
+        el.addEventListener('touchstart', function(e) {
+            const t = e.changedTouches[0];
+            startX = t.clientX;
+            startY = t.clientY;
+            tracking = true;
+        }, { passive: true });
+        el.addEventListener('touchend', function(e) {
+            if (!tracking) return;
+            tracking = false;
+            const t = e.changedTouches[0];
+            const dx = t.clientX - startX;
+            const dy = t.clientY - startY;
+            if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) {
+                if (dx < 0) { onLeft(); } else { onRight(); }
+            }
+        }, { passive: true });
+    }
+
     // Cycling announcement banner
     document.addEventListener('DOMContentLoaded', function() {
         const rotator = document.getElementById('announcement-rotator');
@@ -319,6 +343,7 @@
         let current = 0;
         const intervalTime = 7000; // 7 seconds per announcement
         let intervalId = null;
+        let isPaused = false; // explicit pause via the pause button
 
         // Build clickable dots
         const dots = items.map((_, i) => {
@@ -335,6 +360,28 @@
             return dot;
         });
 
+        // Pause / play button
+        const pauseBtn = document.createElement('button');
+        pauseBtn.type = 'button';
+        pauseBtn.className = 'announcement-pause';
+        pauseBtn.textContent = '⏸';
+        pauseBtn.setAttribute('aria-label', 'Pause announcements');
+        pauseBtn.addEventListener('click', function() {
+            isPaused = !isPaused;
+            if (isPaused) {
+                stop();
+                pauseBtn.textContent = '▶';
+                pauseBtn.setAttribute('aria-label', 'Play announcements');
+                pauseBtn.classList.add('is-paused');
+            } else {
+                pauseBtn.textContent = '⏸';
+                pauseBtn.setAttribute('aria-label', 'Pause announcements');
+                pauseBtn.classList.remove('is-paused');
+                start();
+            }
+        });
+        dotsWrap.appendChild(pauseBtn);
+
         function show(index) {
             items.forEach((el, i) => el.classList.toggle('is-active', i === index));
             dots.forEach((d, i) => d.classList.toggle('is-active', i === index));
@@ -345,7 +392,13 @@
             show((current + 1) % items.length);
         }
 
+        function prev() {
+            show((current - 1 + items.length) % items.length);
+        }
+
         function start() {
+            if (isPaused) return; // don't auto-resume while explicitly paused
+            stop();
             intervalId = setInterval(next, intervalTime);
         }
 
@@ -364,6 +417,11 @@
         banner.addEventListener('mouseleave', start);
         banner.addEventListener('focusin', stop);
         banner.addEventListener('focusout', start);
+
+        // Swipe left/right on touch screens
+        addSwipe(banner,
+            function() { next(); restart(); },
+            function() { prev(); restart(); });
 
         start();
     });
@@ -388,6 +446,11 @@
 
         function nextTestimonial() {
             currentIndex = (currentIndex + 1) % totalCards;
+            showTestimonial(currentIndex);
+        }
+
+        function prevTestimonial() {
+            currentIndex = (currentIndex - 1 + totalCards) % totalCards;
             showTestimonial(currentIndex);
         }
 
@@ -440,6 +503,11 @@
                 showTestimonial(currentIndex);
             });
         });
+
+        // Swipe left/right on touch screens
+        addSwipe(carousel,
+            function() { nextTestimonial(); },
+            function() { prevTestimonial(); });
     });
 
     // Testimonial submission modal
