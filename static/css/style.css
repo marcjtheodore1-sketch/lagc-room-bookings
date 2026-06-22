@@ -2432,6 +2432,14 @@ html {
     font-size: 0.85rem;
 }
 
+.vol-section {
+    margin-top: 2rem;
+}
+
+.vol-archived-row {
+    opacity: 0.75;
+}
+
 @media (max-width: 480px) {
     .testimonial-modal-content {
         padding: 1.5rem 1.25rem 1.25rem;

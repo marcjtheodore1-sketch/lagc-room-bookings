@@ -478,34 +478,73 @@ def get_upcoming_fridays(count=8, room_id=None):
     return fridays
 
 def get_rota_fridays(count=8):
-    """Fridays the rota covers — the actual scheduled operating Fridays
-    (from the room schedule), so volunteers only see real session dates."""
+    """Fridays the rota covers — the actual scheduled, bookable operating
+    Fridays (same source as the user booking page), so volunteers only ever
+    see dates that are genuinely open for sessions."""
     return get_upcoming_fridays(count=count)
 
-def get_volunteer_rota(count=8):
-    """Build the volunteer rota for the upcoming Fridays: the date list plus
-    each volunteer grouped with the dates they can support."""
-    fridays = get_rota_fridays(count)
-    date_strs = {f['date'] for f in fridays}
-    today = datetime.now().date()
+VOLUNTEER_ARCHIVED_KEY = 'volunteer_archived_dates'
 
-    rows = VolunteerAvailability.query.filter(
-        VolunteerAvailability.booking_date >= today
-    ).all()
+def get_archived_volunteer_dates():
+    raw = get_setting(VOLUNTEER_ARCHIVED_KEY)
+    if not raw:
+        return []
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+
+def set_archived_volunteer_dates(dates):
+    set_setting(VOLUNTEER_ARCHIVED_KEY, json.dumps(sorted(set(dates))))
+
+def _friday_display(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').strftime('%A, %B %d, %Y')
+    except ValueError:
+        return date_str
+
+def get_volunteer_rota(count=8):
+    """Build the volunteer rota:
+      - fridays/volunteers: upcoming bookable Fridays and who can support them
+      - past: Fridays that have passed and still have sign-ups (archivable)
+      - archived: past Fridays the admin team has archived (kept for the record)
+    """
+    fridays = get_rota_fridays(count)
+    upcoming_strs = {f['date'] for f in fridays}
+    today = datetime.now().date()
+    archived_strs = set(get_archived_volunteer_dates())
+
+    rows = VolunteerAvailability.query.all()
 
     volunteers = {}
+    past_map = {}      # date_str -> [{name, note}]
+    archived_map = {}  # date_str -> [{name, note}]
     for r in rows:
         ds = r.booking_date.isoformat()
-        if ds not in date_strs:
-            continue
-        v = volunteers.setdefault(r.name, {'name': r.name, 'dates': [], 'note': ''})
-        v['dates'].append(ds)
-        if r.note:
-            v['note'] = r.note
+        if ds in upcoming_strs:
+            v = volunteers.setdefault(r.name, {'name': r.name, 'dates': [], 'note': ''})
+            v['dates'].append(ds)
+            if r.note:
+                v['note'] = r.note
+        elif r.booking_date < today:
+            entry = {'name': r.name, 'note': r.note or ''}
+            if ds in archived_strs:
+                archived_map.setdefault(ds, []).append(entry)
+            else:
+                past_map.setdefault(ds, []).append(entry)
+
+    def build_date_list(date_map, reverse=True):
+        out = []
+        for ds in sorted(date_map, reverse=reverse):
+            people = sorted(date_map[ds], key=lambda p: p['name'].lower())
+            out.append({'date': ds, 'display': _friday_display(ds), 'volunteers': people})
+        return out
 
     return {
         'fridays': fridays,
         'volunteers': sorted(volunteers.values(), key=lambda v: v['name'].lower()),
+        'past': build_date_list(past_map),
+        'archived': build_date_list(archived_map),
     }
 
 def check_availability(room_id, booking_date, start_slot, end_slot, exclude_booking_id=None):
@@ -1196,6 +1235,30 @@ def admin_remove_volunteer():
     for row in rows:
         db.session.delete(row)
     db.session.commit()
+    return jsonify(get_volunteer_rota())
+
+@app.route('/api/admin/volunteers/archive', methods=['POST'])
+@admin_required
+def admin_archive_volunteer_date():
+    """Archive a passed Friday so it drops out of the active rota (kept for the record)."""
+    data = request.get_json(silent=True) or {}
+    date_str = (data.get('date') or '').strip()
+    if not date_str:
+        return jsonify({'error': 'Missing date.'}), 400
+    archived = get_archived_volunteer_dates()
+    if date_str not in archived:
+        archived.append(date_str)
+        set_archived_volunteer_dates(archived)
+    return jsonify(get_volunteer_rota())
+
+@app.route('/api/admin/volunteers/unarchive', methods=['POST'])
+@admin_required
+def admin_unarchive_volunteer_date():
+    """Restore an archived Friday back into the Past list."""
+    data = request.get_json(silent=True) or {}
+    date_str = (data.get('date') or '').strip()
+    archived = [d for d in get_archived_volunteer_dates() if d != date_str]
+    set_archived_volunteer_dates(archived)
     return jsonify(get_volunteer_rota())
 
 @app.route('/api/admin/settings')

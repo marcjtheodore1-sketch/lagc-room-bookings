@@ -42,9 +42,89 @@ async function loadVolunteers() {
         volunteerRota = await res.json();
         renderVolunteerCheckboxes();
         renderVolunteerCoverage();
+        renderVolunteerPast();
+        renderVolunteerArchived();
     } catch (e) {
         coverage.innerHTML = '<p class="error-text">Failed to load the rota</p>';
         checkboxes.innerHTML = '<p class="error-text">Failed to load dates</p>';
+    }
+}
+
+function volChips(people) {
+    return people.length
+        ? people.map(p => `<span class="vol-chip">${escapeHtml(p.name)}${p.note ? ` <em>(${escapeHtml(p.note)})</em>` : ''}</span>`).join('')
+        : '<span class="vol-none">No one</span>';
+}
+
+function renderVolunteerPast() {
+    const section = document.getElementById('volunteer-past-section');
+    const wrap = document.getElementById('volunteer-past');
+    const past = volunteerRota.past || [];
+    if (!past.length) {
+        section.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
+    }
+    section.style.display = '';
+    wrap.innerHTML = past.map(d => `
+        <div class="vol-date-row">
+            <div class="vol-date-head">
+                <span class="vol-date-label">${escapeHtml(d.display)}</span>
+                <button class="btn btn-secondary btn-small" onclick="archiveVolunteerDate('${d.date}')">Archive</button>
+            </div>
+            <div class="vol-chips">${volChips(d.volunteers)}</div>
+        </div>`).join('');
+}
+
+function renderVolunteerArchived() {
+    const section = document.getElementById('volunteer-archived-section');
+    const wrap = document.getElementById('volunteer-archived');
+    const archived = volunteerRota.archived || [];
+    if (!archived.length) {
+        section.style.display = 'none';
+        wrap.innerHTML = '';
+        return;
+    }
+    section.style.display = '';
+    wrap.innerHTML = archived.map(d => `
+        <div class="vol-date-row vol-archived-row">
+            <div class="vol-date-head">
+                <span class="vol-date-label">${escapeHtml(d.display)}</span>
+                <button class="btn btn-secondary btn-small" onclick="unarchiveVolunteerDate('${d.date}')">Restore</button>
+            </div>
+            <div class="vol-chips">${volChips(d.volunteers)}</div>
+        </div>`).join('');
+}
+
+async function archiveVolunteerDate(date) {
+    try {
+        const res = await fetch('/api/admin/volunteers/archive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date }),
+        });
+        if (!res.ok) { volunteerStatus('Failed to archive. Please try again.', true); return; }
+        volunteerRota = await res.json();
+        renderVolunteerPast();
+        renderVolunteerArchived();
+    } catch (e) {
+        volunteerStatus('Failed to archive. Please try again.', true);
+    }
+}
+
+async function unarchiveVolunteerDate(date) {
+    try {
+        const res = await fetch('/api/admin/volunteers/unarchive', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date }),
+        });
+        if (!res.ok) { volunteerStatus('Failed to restore. Please try again.', true); return; }
+        volunteerRota = await res.json();
+        renderVolunteerPast();
+        renderVolunteerArchived();
+    } catch (e) {
+        volunteerStatus('Failed to restore. Please try again.', true);
     }
 }
 

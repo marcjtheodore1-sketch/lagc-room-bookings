@@ -150,6 +150,17 @@
         <div class="volunteer-coverage" id="volunteer-coverage">
             <p class="loading">Loading rota...</p>
         </div>
+
+        <div class="vol-section" id="volunteer-past-section" style="display:none;">
+            <h3>🕗 Past Fridays</h3>
+            <p class="hint">These session dates have passed. Archive a date to tidy the rota — the record of who helped is kept under Archived.</p>
+            <div class="volunteer-coverage" id="volunteer-past"></div>
+        </div>
+
+        <div class="vol-section" id="volunteer-archived-section" style="display:none;">
+            <h3>📁 Archived Fridays</h3>
+            <div class="volunteer-coverage" id="volunteer-archived"></div>
+        </div>
     </div>
 
     <!-- Email Blast Tab -->
@@ -203,5 +214,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=5"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=6"></script>
 {% endblock %}
