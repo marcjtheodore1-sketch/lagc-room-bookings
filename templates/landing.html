@@ -20,19 +20,17 @@
 
     <div class="landing-content">
         <div class="info-section">
+            {% if announcements %}
             <div class="announcement-banner" id="announcement-banner" role="region" aria-label="Latest news">
                 <span class="announcement-badge">📣 Latest News</span>
                 <div class="announcement-rotator" id="announcement-rotator" aria-live="polite">
-                    <p class="announcement-text is-active">📅 <strong>Friday 26th June is open for booking!</strong> Rooms 4.4 "Rose", 4.2 "Indigo" and 4.7 "Clerkenwell" are all available — and Peer Support sessions for autistic university students are running on the 26th too.</p>
-                    <p class="announcement-text">📰 <strong>The June newsletter is out!</strong> <a href="https://www.londonautismgroupcharity.org/so/01Pwi__EK?languageTag=en" target="_blank" rel="noopener">Read the latest news →</a></p>
-                    <p class="announcement-text">🚶 <strong>Strolling with Neurokin — Ealing this Saturday 20th June, 11.15am.</strong> <a href="https://swn-londonautismgroupcharity.pythonanywhere.com/location/ealing" target="_blank" rel="noopener">Book your place →</a></p>
-                    <p class="announcement-text">☕ <strong>Tooting Community Café is now up and running!</strong> Tooting Grove Community Clubhouse, Effort Street, Tooting, SW17 0QR — 1pm–3pm, every second Sunday of the month. Free and autistic-led, all welcome.</p>
-                    <p class="announcement-text">☕ <strong>Old Street Community Café this Sunday 21st June, 11am–1pm.</strong> Vibast Community Centre, 167 Old St, London EC1V 9NH — held the third Sunday of every month. We'll have a visit from an emotional-assistance-trained Dalmatian! Free and autistic-led, all welcome.</p>
-                    <p class="announcement-text">💼 <strong>Autistic Workplace Support Session — 27th June.</strong> 1pm–4pm · Kings Square Community Centre, Islington. Please register ahead: <a href="https://docs.google.com/forms/d/e/1FAIpQLScA0qBWyqaxJWuZdTlyexTfxSXxYHuyCBktM8qY-i7bV4IRzw/viewform" target="_blank" rel="noopener">register here →</a></p>
-                    <p class="announcement-text">☕ <strong>South Woodford Community Café — Sunday 28th June.</strong> 1pm–3pm · St Mary's, Woodford, 207 High Rd, E18 2PA. Free and autistic-led.</p>
+                    {% for a in announcements %}
+                    <p class="announcement-text{% if loop.first %} is-active{% endif %}">{% if a.emoji %}{{ a.emoji }} {% endif %}{% if a.headline %}<strong>{{ a.headline }}</strong>{% endif %}{% if a.details %} {{ a.details }}{% endif %}{% if a.link_url and a.link_text %} <a href="{{ a.link_url }}" target="_blank" rel="noopener">{{ a.link_text }}</a>{% endif %}</p>
+                    {% endfor %}
                 </div>
                 <div class="announcement-dots" id="announcement-dots" role="tablist" aria-label="Choose an announcement"></div>
             </div>
+            {% endif %}
             <p class="intro-text">
                 This is a <strong>safe, quiet, neuroaffirming space for autistic adults</strong> to connect, work, study, or simply take time for yourself.
             </p>

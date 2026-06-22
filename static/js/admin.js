@@ -20,8 +20,172 @@ function showTab(tabName) {
     if (tabName === 'rooms') loadRooms();
     if (tabName === 'messages') loadMessageTemplate();
     if (tabName === 'bookings') loadAllBookings();
+    if (tabName === 'announcements') loadAnnouncements();
     if (tabName === 'emailblast') loadEmailBlastDates();
     if (tabName === 'archive') loadArchivedBookings();
+}
+
+// ============================================
+// HOMEPAGE ANNOUNCEMENTS (NOTIFICATIONS)
+// ============================================
+
+let announcements = [];
+let editingAnnId = null;
+
+async function loadAnnouncements() {
+    const container = document.getElementById('announcement-admin-list');
+    container.innerHTML = '<p class="loading">Loading announcements...</p>';
+    try {
+        const res = await fetch('/api/admin/announcements');
+        announcements = await res.json();
+        renderAnnouncementList();
+    } catch (e) {
+        container.innerHTML = '<p class="error-text">Failed to load announcements</p>';
+    }
+}
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : str;
+    return div.innerHTML;
+}
+
+function renderAnnouncementList() {
+    const container = document.getElementById('announcement-admin-list');
+    if (!announcements.length) {
+        container.innerHTML = '<p class="hint">No announcements yet. Add one below — it will appear in the homepage banner.</p>';
+        return;
+    }
+    container.innerHTML = announcements.map((a, i) => {
+        const linkPreview = (a.link_url && a.link_text)
+            ? ` <span class="ann-link-preview">🔗 ${escapeHtml(a.link_text)}</span>`
+            : '';
+        return `
+        <div class="ann-row">
+            <div class="ann-row-main">
+                <div class="ann-row-text">
+                    ${a.emoji ? `<span class="ann-emoji">${escapeHtml(a.emoji)}</span> ` : ''}
+                    <strong>${escapeHtml(a.headline)}</strong>
+                    ${a.details ? ` ${escapeHtml(a.details)}` : ''}
+                    ${linkPreview}
+                </div>
+            </div>
+            <div class="ann-row-actions">
+                <button class="btn btn-secondary btn-small" onclick="moveAnnouncement(${i}, -1)" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+                <button class="btn btn-secondary btn-small" onclick="moveAnnouncement(${i}, 1)" ${i === announcements.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+                <button class="btn btn-secondary btn-small" onclick="editAnnouncement(${i})">Edit</button>
+                <button class="btn btn-danger btn-small" onclick="deleteAnnouncement(${i})">Delete</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function announcementStatus(msg, isError) {
+    const el = document.getElementById('announcement-status');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.className = 'form-status' + (msg ? (isError ? ' error' : ' success') : '');
+}
+
+function readAnnouncementForm() {
+    return {
+        emoji: document.getElementById('ann-emoji').value.trim(),
+        headline: document.getElementById('ann-headline').value.trim(),
+        details: document.getElementById('ann-details').value.trim(),
+        link_url: document.getElementById('ann-link-url').value.trim(),
+        link_text: document.getElementById('ann-link-text').value.trim(),
+    };
+}
+
+function resetAnnouncementForm() {
+    editingAnnId = null;
+    document.getElementById('ann-emoji').value = '';
+    document.getElementById('ann-headline').value = '';
+    document.getElementById('ann-details').value = '';
+    document.getElementById('ann-link-url').value = '';
+    document.getElementById('ann-link-text').value = '';
+    document.getElementById('announcement-form-title').textContent = 'Add Announcement';
+    document.getElementById('ann-save-btn').textContent = 'Add Announcement';
+    document.getElementById('ann-cancel-btn').style.display = 'none';
+}
+
+function cancelAnnouncementEdit() {
+    resetAnnouncementForm();
+    announcementStatus('');
+}
+
+async function saveAnnouncement() {
+    const item = readAnnouncementForm();
+    if (!item.headline && !item.details && !item.emoji) {
+        announcementStatus('Please add at least a headline.', true);
+        return;
+    }
+    if ((item.link_url && !item.link_text) || (!item.link_url && item.link_text)) {
+        announcementStatus('A link needs BOTH a URL and link text (or leave both blank).', true);
+        return;
+    }
+
+    if (editingAnnId !== null) {
+        announcements[editingAnnId] = item;
+    } else {
+        announcements.push(item);
+    }
+    await persistAnnouncements(editingAnnId !== null ? 'Announcement updated.' : 'Announcement added.');
+    resetAnnouncementForm();
+}
+
+function editAnnouncement(index) {
+    const a = announcements[index];
+    editingAnnId = index;
+    document.getElementById('ann-emoji').value = a.emoji || '';
+    document.getElementById('ann-headline').value = a.headline || '';
+    document.getElementById('ann-details').value = a.details || '';
+    document.getElementById('ann-link-url').value = a.link_url || '';
+    document.getElementById('ann-link-text').value = a.link_text || '';
+    document.getElementById('announcement-form-title').textContent = 'Edit Announcement';
+    document.getElementById('ann-save-btn').textContent = 'Save Changes';
+    document.getElementById('ann-cancel-btn').style.display = '';
+    document.getElementById('ann-headline').focus();
+    document.getElementById('announcement-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+async function deleteAnnouncement(index) {
+    const a = announcements[index];
+    const label = a.headline || a.details || 'this announcement';
+    if (!confirm(`Delete "${label}"? This removes it from the homepage straight away.`)) return;
+    announcements.splice(index, 1);
+    if (editingAnnId !== null) resetAnnouncementForm();
+    await persistAnnouncements('Announcement deleted.');
+}
+
+async function moveAnnouncement(index, dir) {
+    const target = index + dir;
+    if (target < 0 || target >= announcements.length) return;
+    const tmp = announcements[index];
+    announcements[index] = announcements[target];
+    announcements[target] = tmp;
+    await persistAnnouncements('Order updated.');
+}
+
+async function persistAnnouncements(successMsg) {
+    try {
+        const res = await fetch('/api/admin/announcements', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ announcements }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            announcementStatus(err.error || 'Failed to save. Please try again.', true);
+            await loadAnnouncements();
+            return;
+        }
+        announcements = await res.json();
+        renderAnnouncementList();
+        announcementStatus(successMsg || 'Saved.', false);
+    } catch (e) {
+        announcementStatus('Failed to save. Please try again.', true);
+    }
 }
 
 // ============================================

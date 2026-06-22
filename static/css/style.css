@@ -2229,6 +2229,64 @@ html {
     font-weight: 600;
 }
 
+/* Admin announcement (notifications) rows */
+.announcement-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    margin-bottom: 1.5rem;
+}
+
+.ann-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+}
+
+.ann-row-main {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.ann-row-text {
+    line-height: 1.5;
+    word-break: break-word;
+}
+
+.ann-row-text .ann-emoji {
+    font-size: 1.1rem;
+}
+
+.ann-link-preview {
+    display: inline-block;
+    margin-top: 0.2rem;
+    color: var(--primary);
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.ann-row-actions {
+    flex-shrink: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    justify-content: flex-end;
+}
+
+@media (max-width: 600px) {
+    .ann-row {
+        flex-direction: column;
+    }
+    .ann-row-actions {
+        justify-content: flex-start;
+    }
+}
+
 @media (max-width: 480px) {
     .testimonial-modal-content {
         padding: 1.5rem 1.25rem 1.25rem;

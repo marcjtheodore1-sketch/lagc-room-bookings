@@ -13,6 +13,7 @@
         <button class="tab-btn active" onclick="showTab('rooms')">Rooms</button>
         <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
         <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
+        <button class="tab-btn" onclick="showTab('announcements')">📢 Notifications</button>
         <button class="tab-btn" onclick="showTab('emailblast')">📣 Email Blast</button>
         <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
@@ -80,6 +81,44 @@
         </div>
     </div>
 
+    <!-- Notifications / Announcements Tab -->
+    <div class="tab-content" id="tab-announcements">
+        <h2>📢 Homepage Announcements</h2>
+        <p class="hint">These show in the rotating "Latest News" banner on the homepage, in the order below. Changes are saved and go live straight away.</p>
+        <div class="announcement-admin-list" id="announcement-admin-list">
+            <p class="loading">Loading announcements...</p>
+        </div>
+
+        <div class="add-room-form">
+            <h3 id="announcement-form-title">Add Announcement</h3>
+            <div class="form-group">
+                <label for="ann-emoji">Emoji (optional):</label>
+                <input type="text" id="ann-emoji" maxlength="8" placeholder="📅">
+                <small class="hint">A single emoji shown at the start, e.g. 📅 📰 ☕ 💼 🚶</small>
+            </div>
+            <div class="form-group">
+                <label for="ann-headline">Headline (bold lead text):</label>
+                <input type="text" id="ann-headline" placeholder="e.g. Friday 26th June is open for booking!">
+            </div>
+            <div class="form-group">
+                <label for="ann-details">Details (optional):</label>
+                <textarea id="ann-details" rows="3" placeholder="The rest of the message (times, address, etc.)"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="ann-link-url">Link URL (optional):</label>
+                <input type="text" id="ann-link-url" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label for="ann-link-text">Link text (optional):</label>
+                <input type="text" id="ann-link-text" placeholder="e.g. Read more →">
+                <small class="hint">A clickable link only appears if BOTH the URL and link text are filled in.</small>
+            </div>
+            <button class="btn btn-primary" id="ann-save-btn" onclick="saveAnnouncement()">Add Announcement</button>
+            <button class="btn btn-secondary" id="ann-cancel-btn" onclick="cancelAnnouncementEdit()" style="display:none;">Cancel Edit</button>
+            <p class="form-status" id="announcement-status" role="status" aria-live="polite"></p>
+        </div>
+    </div>
+
     <!-- Email Blast Tab -->
     <div class="tab-content" id="tab-emailblast">
         <h2>📣 Availability Email Blast</h2>
@@ -131,5 +170,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=3"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=4"></script>
 {% endblock %}

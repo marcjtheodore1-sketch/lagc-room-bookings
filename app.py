@@ -195,6 +195,93 @@ def admin_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
+# ----------------------------------------------------------------------------
+# Homepage announcements (rotating banner) — admin-managed via the Setting table
+# ----------------------------------------------------------------------------
+ANNOUNCEMENTS_KEY = 'announcements'
+
+# Seed list used the first time the setting doesn't exist yet. After that the
+# admin manages everything from the Notifications tab, so this is never used
+# again. (Past-dated items have been left out on purpose.)
+DEFAULT_ANNOUNCEMENTS = [
+    {
+        'emoji': '📅',
+        'headline': 'Friday 26th June is open for booking!',
+        'details': 'Rooms 4.4 "Rose", 4.2 "Indigo" and 4.7 "Clerkenwell" are all available — and Peer Support sessions for autistic university students are running on the 26th too.',
+        'link_url': '',
+        'link_text': '',
+    },
+    {
+        'emoji': '📰',
+        'headline': 'The June newsletter is out!',
+        'details': '',
+        'link_url': 'https://www.londonautismgroupcharity.org/so/01Pwi__EK?languageTag=en',
+        'link_text': 'Read the latest news →',
+    },
+    {
+        'emoji': '☕',
+        'headline': 'Tooting Community Café is now up and running!',
+        'details': 'Tooting Grove Community Clubhouse, Effort Street, Tooting, SW17 0QR — 1pm–3pm, every second Sunday of the month. Free and autistic-led, all welcome.',
+        'link_url': '',
+        'link_text': '',
+    },
+    {
+        'emoji': '💼',
+        'headline': 'Autistic Workplace Support Session — 27th June.',
+        'details': '1pm–4pm · Kings Square Community Centre, Islington. Please register ahead:',
+        'link_url': 'https://docs.google.com/forms/d/e/1FAIpQLScA0qBWyqaxJWuZdTlyexTfxSXxYHuyCBktM8qY-i7bV4IRzw/viewform',
+        'link_text': 'register here →',
+    },
+    {
+        'emoji': '☕',
+        'headline': 'South Woodford Community Café — Sunday 28th June.',
+        'details': "1pm–3pm · St Mary's, Woodford, 207 High Rd, E18 2PA. Free and autistic-led.",
+        'link_url': '',
+        'link_text': '',
+    },
+]
+
+def _normalise_announcement(raw, new_id):
+    """Coerce a raw dict into a clean announcement with a stable id."""
+    return {
+        'id': new_id,
+        'emoji': (raw.get('emoji') or '').strip()[:8],
+        'headline': (raw.get('headline') or '').strip(),
+        'details': (raw.get('details') or '').strip(),
+        'link_url': (raw.get('link_url') or '').strip(),
+        'link_text': (raw.get('link_text') or '').strip(),
+    }
+
+def get_announcements():
+    """Return the current announcement list, seeding defaults on first use."""
+    raw = get_setting(ANNOUNCEMENTS_KEY)
+    if raw is None:
+        seeded = [_normalise_announcement(a, i + 1) for i, a in enumerate(DEFAULT_ANNOUNCEMENTS)]
+        set_setting(ANNOUNCEMENTS_KEY, json.dumps(seeded))
+        return seeded
+    try:
+        items = json.loads(raw)
+    except (ValueError, TypeError):
+        return []
+    # Re-id sequentially so ids are always clean/consistent
+    return [_normalise_announcement(a, i + 1) for i, a in enumerate(items)]
+
+def save_announcements(items):
+    """Persist an announcement list (drops empties) and return the saved list."""
+    cleaned = []
+    for raw in items:
+        ann = _normalise_announcement(raw, len(cleaned) + 1)
+        # Skip rows with no visible content at all
+        if not ann['headline'] and not ann['details'] and not ann['emoji']:
+            continue
+        # A link needs both a url and link text to render
+        if not ann['link_url'] or not ann['link_text']:
+            ann['link_url'] = ''
+            ann['link_text'] = ''
+        cleaned.append(ann)
+    set_setting(ANNOUNCEMENTS_KEY, json.dumps(cleaned))
+    return cleaned
+
 def get_default_confirmation_message():
     return """Dear {{name}},
 
@@ -451,7 +538,7 @@ def get_free_time_ranges(room_id, booking_date):
 @app.route('/')
 def landing():
     """Landing page with information about the initiative"""
-    return render_template('landing.html')
+    return render_template('landing.html', announcements=get_announcements())
 
 @app.route('/peer-support')
 def peer_support():
@@ -988,6 +1075,23 @@ def admin_delete_room(room_id):
     db.session.delete(room)
     db.session.commit()
     return jsonify({'success': True})
+
+@app.route('/api/admin/announcements')
+@admin_required
+def admin_get_announcements():
+    """Get the homepage announcement list."""
+    return jsonify(get_announcements())
+
+@app.route('/api/admin/announcements', methods=['PUT'])
+@admin_required
+def admin_save_announcements():
+    """Replace the whole announcement list with the submitted, ordered list."""
+    data = request.get_json(silent=True) or {}
+    items = data.get('announcements')
+    if not isinstance(items, list):
+        return jsonify({'error': 'Expected an "announcements" list.'}), 400
+    saved = save_announcements(items)
+    return jsonify(saved)
 
 @app.route('/api/admin/settings')
 @admin_required
