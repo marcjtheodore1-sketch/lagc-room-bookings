@@ -1633,22 +1633,35 @@ html {
     }
 
     .navbar {
-        padding: 1rem;
+        position: sticky;
+        top: 0;
+        padding: 0.6rem 0.85rem;
         flex-wrap: wrap;
     }
-    
+
+    /* Hide the small charity logo in the navbar on mobile (keeps the header tidy) */
+    .navbar .charity-logo-link {
+        display: none;
+    }
+
     .nav-brand {
-        margin-bottom: 0.5rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .nav-brand a {
+        font-size: 1.05rem;
     }
 
     .nav-links {
-        gap: 0.75rem;
+        gap: 0.4rem 0.9rem;        /* row-gap col-gap: lets links wrap onto 2 lines */
         width: 100%;
+        flex-wrap: wrap;            /* wrap so every link stays fully visible */
         justify-content: center;
     }
-    
+
     .nav-link {
-        font-size: 0.8rem;
+        font-size: 0.82rem;
+        white-space: nowrap;
     }
 
     .form-step {
