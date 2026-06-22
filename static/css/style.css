@@ -2294,6 +2294,144 @@ html {
     }
 }
 
+/* Volunteer rota */
+.volunteer-form {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.vol-date-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.vol-date-option {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.7rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.vol-date-option input {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.vol-coverage-title {
+    margin-top: 0.5rem;
+}
+
+.volunteer-coverage {
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+}
+
+.vol-date-row {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem 1rem;
+}
+
+.vol-date-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.5rem;
+}
+
+.vol-date-label {
+    font-weight: 600;
+}
+
+.vol-count {
+    flex-shrink: 0;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+}
+
+.vol-count-zero {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.vol-count-low {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.vol-count-ok {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.vol-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+.vol-chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.2rem 0.7rem;
+    font-size: 0.9rem;
+}
+
+.vol-chip em {
+    color: var(--text-light);
+    font-size: 0.82rem;
+}
+
+.vol-none {
+    color: var(--text-light);
+    font-style: italic;
+    font-size: 0.9rem;
+}
+
+.vol-people {
+    margin-top: 1.5rem;
+}
+
+.vol-people h4 {
+    margin-bottom: 0.6rem;
+}
+
+.vol-person {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0;
+    border-top: 1px solid var(--border);
+}
+
+.vol-person-name {
+    font-weight: 600;
+}
+
+.vol-person-count {
+    color: var(--text-light);
+    font-size: 0.85rem;
+}
+
 @media (max-width: 480px) {
     .testimonial-modal-content {
         padding: 1.5rem 1.25rem 1.25rem;

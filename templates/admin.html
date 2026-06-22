@@ -14,6 +14,7 @@
         <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
         <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
         <button class="tab-btn" onclick="showTab('announcements')">📢 Notifications</button>
+        <button class="tab-btn" onclick="showTab('volunteers')">🙋 Volunteer Rota</button>
         <button class="tab-btn" onclick="showTab('emailblast')">📣 Email Blast</button>
         <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
@@ -119,6 +120,38 @@
         </div>
     </div>
 
+    <!-- Volunteer Rota Tab -->
+    <div class="tab-content" id="tab-volunteers">
+        <h2>🙋 Volunteer Rota</h2>
+        <p class="hint">Volunteers: enter your name, tick the Fridays you can support, and save. Everyone's availability is shown below so we can see coverage at a glance — no more juggling it on WhatsApp.</p>
+
+        <div class="volunteer-form">
+            <h3>Add / update your availability</h3>
+            <div class="form-group">
+                <label for="vol-name">Your name:</label>
+                <input type="text" id="vol-name" placeholder="e.g. Alex Smith" autocomplete="off">
+                <small class="hint">Use the same name each time to update your existing availability.</small>
+            </div>
+            <div class="form-group">
+                <label>Which Fridays can you support?</label>
+                <div class="vol-date-checkboxes" id="vol-date-checkboxes">
+                    <p class="loading">Loading dates...</p>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="vol-note">Note (optional):</label>
+                <input type="text" id="vol-note" maxlength="200" placeholder="e.g. mornings only, or can open up">
+            </div>
+            <button class="btn btn-primary" id="vol-save-btn" onclick="saveVolunteer()">Save my availability</button>
+            <p class="form-status" id="volunteer-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <h3 class="vol-coverage-title">📋 Coverage by date</h3>
+        <div class="volunteer-coverage" id="volunteer-coverage">
+            <p class="loading">Loading rota...</p>
+        </div>
+    </div>
+
     <!-- Email Blast Tab -->
     <div class="tab-content" id="tab-emailblast">
         <h2>📣 Availability Email Blast</h2>
@@ -170,5 +203,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=4"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=5"></script>
 {% endblock %}

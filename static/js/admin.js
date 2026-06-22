@@ -21,8 +21,157 @@ function showTab(tabName) {
     if (tabName === 'messages') loadMessageTemplate();
     if (tabName === 'bookings') loadAllBookings();
     if (tabName === 'announcements') loadAnnouncements();
+    if (tabName === 'volunteers') loadVolunteers();
     if (tabName === 'emailblast') loadEmailBlastDates();
     if (tabName === 'archive') loadArchivedBookings();
+}
+
+// ============================================
+// VOLUNTEER ROTA
+// ============================================
+
+let volunteerRota = { fridays: [], volunteers: [] };
+
+async function loadVolunteers() {
+    const coverage = document.getElementById('volunteer-coverage');
+    const checkboxes = document.getElementById('vol-date-checkboxes');
+    coverage.innerHTML = '<p class="loading">Loading rota...</p>';
+    checkboxes.innerHTML = '<p class="loading">Loading dates...</p>';
+    try {
+        const res = await fetch('/api/admin/volunteers');
+        volunteerRota = await res.json();
+        renderVolunteerCheckboxes();
+        renderVolunteerCoverage();
+    } catch (e) {
+        coverage.innerHTML = '<p class="error-text">Failed to load the rota</p>';
+        checkboxes.innerHTML = '<p class="error-text">Failed to load dates</p>';
+    }
+}
+
+function renderVolunteerCheckboxes() {
+    const wrap = document.getElementById('vol-date-checkboxes');
+    if (!volunteerRota.fridays.length) {
+        wrap.innerHTML = '<p class="hint">No upcoming Fridays found.</p>';
+        return;
+    }
+    wrap.innerHTML = volunteerRota.fridays.map(f => `
+        <label class="vol-date-option">
+            <input type="checkbox" class="vol-date-cb" value="${f.date}">
+            <span>${escapeHtml(f.display)}</span>
+        </label>
+    `).join('');
+}
+
+function renderVolunteerCoverage() {
+    const wrap = document.getElementById('volunteer-coverage');
+    const { fridays, volunteers } = volunteerRota;
+    if (!fridays.length) {
+        wrap.innerHTML = '<p class="hint">No upcoming Fridays to show.</p>';
+        return;
+    }
+
+    let html = fridays.map(f => {
+        const available = volunteers.filter(v => v.dates.includes(f.date));
+        const chips = available.length
+            ? available.map(v => `<span class="vol-chip">${escapeHtml(v.name)}${v.note ? ` <em>(${escapeHtml(v.note)})</em>` : ''}</span>`).join('')
+            : '<span class="vol-none">No one yet</span>';
+        const countClass = available.length === 0 ? 'vol-count-zero' : (available.length === 1 ? 'vol-count-low' : 'vol-count-ok');
+        return `
+            <div class="vol-date-row">
+                <div class="vol-date-head">
+                    <span class="vol-date-label">${escapeHtml(f.display)}</span>
+                    <span class="vol-count ${countClass}">${available.length} ${available.length === 1 ? 'volunteer' : 'volunteers'}</span>
+                </div>
+                <div class="vol-chips">${chips}</div>
+            </div>`;
+    }).join('');
+
+    if (volunteers.length) {
+        html += `<div class="vol-people">
+            <h4>Volunteers</h4>
+            ${volunteers.map(v => `
+                <div class="vol-person">
+                    <button class="btn btn-secondary btn-small" onclick="editVolunteer('${encodeURIComponent(v.name)}')">Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="removeVolunteer('${encodeURIComponent(v.name)}')">Remove</button>
+                    <span class="vol-person-name">${escapeHtml(v.name)}</span>
+                    <span class="vol-person-count">${v.dates.length} date${v.dates.length === 1 ? '' : 's'}</span>
+                </div>
+            `).join('')}
+        </div>`;
+    }
+
+    wrap.innerHTML = html;
+}
+
+function volunteerStatus(msg, isError) {
+    const el = document.getElementById('volunteer-status');
+    if (!el) return;
+    el.textContent = msg || '';
+    el.className = 'form-status' + (msg ? (isError ? ' error' : ' success') : '');
+}
+
+function editVolunteer(encodedName) {
+    const name = decodeURIComponent(encodedName);
+    const v = volunteerRota.volunteers.find(x => x.name === name);
+    if (!v) return;
+    document.getElementById('vol-name').value = v.name;
+    document.getElementById('vol-note').value = v.note || '';
+    document.querySelectorAll('.vol-date-cb').forEach(cb => {
+        cb.checked = v.dates.includes(cb.value);
+    });
+    document.querySelector('.volunteer-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    volunteerStatus(`Editing ${v.name}'s availability — make changes and save.`, false);
+}
+
+async function saveVolunteer() {
+    const name = document.getElementById('vol-name').value.trim();
+    const note = document.getElementById('vol-note').value.trim();
+    const dates = [...document.querySelectorAll('.vol-date-cb:checked')].map(cb => cb.value);
+
+    if (!name) {
+        volunteerStatus('Please enter your name.', true);
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/admin/volunteers', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, note, dates }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            volunteerStatus(err.error || 'Failed to save. Please try again.', true);
+            return;
+        }
+        volunteerRota = await res.json();
+        renderVolunteerCoverage();
+        // Clear the form for the next person
+        document.getElementById('vol-name').value = '';
+        document.getElementById('vol-note').value = '';
+        document.querySelectorAll('.vol-date-cb').forEach(cb => { cb.checked = false; });
+        volunteerStatus(dates.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
+    } catch (e) {
+        volunteerStatus('Failed to save. Please try again.', true);
+    }
+}
+
+async function removeVolunteer(encodedName) {
+    const name = decodeURIComponent(encodedName);
+    if (!confirm(`Remove ${name} from the upcoming rota?`)) return;
+    try {
+        const res = await fetch('/api/admin/volunteers/remove', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+        });
+        if (!res.ok) { volunteerStatus('Failed to remove. Please try again.', true); return; }
+        volunteerRota = await res.json();
+        renderVolunteerCoverage();
+        volunteerStatus(`${name} removed from the rota.`, false);
+    } catch (e) {
+        volunteerStatus('Failed to remove. Please try again.', true);
+    }
 }
 
 // ============================================

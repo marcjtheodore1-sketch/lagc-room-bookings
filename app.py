@@ -74,6 +74,14 @@ class Setting(db.Model):
     key = db.Column(db.String(100), primary_key=True)
     value = db.Column(db.Text, nullable=False)
 
+class VolunteerAvailability(db.Model):
+    """A volunteer marking they can support on a given Friday"""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    booking_date = db.Column(db.Date, nullable=False)  # The Friday they can support
+    note = db.Column(db.String(200), default='')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # ============================================================================
 # CONSTANTS
 # ============================================================================
@@ -466,8 +474,48 @@ def get_upcoming_fridays(count=8, room_id=None):
         if i > 52:  # One year max
             break
         i += 1
-    
+
     return fridays
+
+def get_upcoming_friday_dates(count=8):
+    """Next `count` Fridays by date (independent of the room schedule), so
+    volunteers can mark availability even before rooms are scheduled."""
+    today = datetime.now().date()
+    days_until_friday = (4 - today.weekday()) % 7
+    first = today + timedelta(days=days_until_friday)
+    return [
+        {
+            'date': (first + timedelta(weeks=i)).isoformat(),
+            'display': (first + timedelta(weeks=i)).strftime('%A, %B %d, %Y'),
+        }
+        for i in range(count)
+    ]
+
+def get_volunteer_rota(count=8):
+    """Build the volunteer rota for the upcoming Fridays: the date list plus
+    each volunteer grouped with the dates they can support."""
+    fridays = get_upcoming_friday_dates(count)
+    date_strs = {f['date'] for f in fridays}
+    today = datetime.now().date()
+
+    rows = VolunteerAvailability.query.filter(
+        VolunteerAvailability.booking_date >= today
+    ).all()
+
+    volunteers = {}
+    for r in rows:
+        ds = r.booking_date.isoformat()
+        if ds not in date_strs:
+            continue
+        v = volunteers.setdefault(r.name, {'name': r.name, 'dates': [], 'note': ''})
+        v['dates'].append(ds)
+        if r.note:
+            v['note'] = r.note
+
+    return {
+        'fridays': fridays,
+        'volunteers': sorted(volunteers.values(), key=lambda v: v['name'].lower()),
+    }
 
 def check_availability(room_id, booking_date, start_slot, end_slot, exclude_booking_id=None):
     """Check if a time range is available for booking"""
@@ -1092,6 +1140,72 @@ def admin_save_announcements():
         return jsonify({'error': 'Expected an "announcements" list.'}), 400
     saved = save_announcements(items)
     return jsonify(saved)
+
+@app.route('/api/admin/volunteers')
+@admin_required
+def admin_get_volunteers():
+    """Get the volunteer availability rota for upcoming Fridays."""
+    return jsonify(get_volunteer_rota())
+
+@app.route('/api/admin/volunteers', methods=['POST'])
+@admin_required
+def admin_set_volunteer():
+    """Set one volunteer's availability across the upcoming Fridays.
+
+    Body: {name, dates: [YYYY-MM-DD, ...], note}. Replaces that volunteer's
+    rows within the upcoming-Friday window with the selected dates."""
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    note = (data.get('note') or '').strip()[:200]
+    dates = data.get('dates') or []
+
+    if not name:
+        return jsonify({'error': 'Please enter your name.'}), 400
+
+    upcoming = {f['date'] for f in get_upcoming_friday_dates()}
+    selected = []
+    for ds in dates:
+        if ds in upcoming and ds not in selected:
+            selected.append(ds)
+
+    # Replace this volunteer's entries within the upcoming window
+    today = datetime.now().date()
+    existing = VolunteerAvailability.query.filter(
+        db.func.lower(VolunteerAvailability.name) == name.lower(),
+        VolunteerAvailability.booking_date >= today,
+    ).all()
+    for row in existing:
+        if row.booking_date.isoformat() in upcoming:
+            db.session.delete(row)
+
+    for ds in selected:
+        db.session.add(VolunteerAvailability(
+            name=name,
+            booking_date=datetime.strptime(ds, '%Y-%m-%d').date(),
+            note=note,
+        ))
+    db.session.commit()
+
+    return jsonify(get_volunteer_rota())
+
+@app.route('/api/admin/volunteers/remove', methods=['POST'])
+@admin_required
+def admin_remove_volunteer():
+    """Remove a volunteer entirely from the upcoming rota."""
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Missing name.'}), 400
+
+    today = datetime.now().date()
+    rows = VolunteerAvailability.query.filter(
+        db.func.lower(VolunteerAvailability.name) == name.lower(),
+        VolunteerAvailability.booking_date >= today,
+    ).all()
+    for row in rows:
+        db.session.delete(row)
+    db.session.commit()
+    return jsonify(get_volunteer_rota())
 
 @app.route('/api/admin/settings')
 @admin_required
