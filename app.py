@@ -477,24 +477,15 @@ def get_upcoming_fridays(count=8, room_id=None):
 
     return fridays
 
-def get_upcoming_friday_dates(count=8):
-    """Next `count` Fridays by date (independent of the room schedule), so
-    volunteers can mark availability even before rooms are scheduled."""
-    today = datetime.now().date()
-    days_until_friday = (4 - today.weekday()) % 7
-    first = today + timedelta(days=days_until_friday)
-    return [
-        {
-            'date': (first + timedelta(weeks=i)).isoformat(),
-            'display': (first + timedelta(weeks=i)).strftime('%A, %B %d, %Y'),
-        }
-        for i in range(count)
-    ]
+def get_rota_fridays(count=8):
+    """Fridays the rota covers — the actual scheduled operating Fridays
+    (from the room schedule), so volunteers only see real session dates."""
+    return get_upcoming_fridays(count=count)
 
 def get_volunteer_rota(count=8):
     """Build the volunteer rota for the upcoming Fridays: the date list plus
     each volunteer grouped with the dates they can support."""
-    fridays = get_upcoming_friday_dates(count)
+    fridays = get_rota_fridays(count)
     date_strs = {f['date'] for f in fridays}
     today = datetime.now().date()
 
@@ -1162,7 +1153,7 @@ def admin_set_volunteer():
     if not name:
         return jsonify({'error': 'Please enter your name.'}), 400
 
-    upcoming = {f['date'] for f in get_upcoming_friday_dates()}
+    upcoming = {f['date'] for f in get_rota_fridays()}
     selected = []
     for ds in dates:
         if ds in upcoming and ds not in selected:
@@ -1558,8 +1549,15 @@ London Autism Group Charity - Fridays @ The Smithson Team
 # INITIALIZATION
 # ============================================================================
 
+# Ensure all tables exist on every startup — including under WSGI on
+# PythonAnywhere, where the __main__ block below does NOT run. create_all()
+# only creates missing tables, so it never touches existing data. This is what
+# makes new tables (e.g. VolunteerAvailability) appear after a plain git pull +
+# Reload, with no manual migration.
+with app.app_context():
+    db.create_all()
+
 if __name__ == '__main__':
     with app.app_context():
-        db.create_all()
         init_default_data()
     app.run(debug=True, host='0.0.0.0', port=5001)
