@@ -1936,30 +1936,30 @@ html {
     animation: announcement-pulse 1.6s ease-in-out infinite;
 }
 
-/* Rotator stacks all announcements in one grid cell so the banner height
-   stays steady (sized to the tallest) and we can cross-fade between them. */
+/* Rotator shows one announcement at a time; the box always sizes to exactly
+   the active item, so text can never spill out of the banner. */
 .announcement-rotator {
-    display: grid;
     flex: 1 1 240px;
     min-width: 0;
 }
 
 .announcement-text {
-    grid-area: 1 / 1;
+    display: none;
     margin: 0;
     color: #991b1b;
     font-size: 1.05rem;
     line-height: 1.5;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.55s ease;
-    pointer-events: none;
+    overflow-wrap: anywhere;   /* break long words/links so nothing overflows */
 }
 
 .announcement-text.is-active {
-    opacity: 1;
-    visibility: visible;
-    pointer-events: auto;
+    display: block;
+    animation: announcement-fade-in 0.5s ease;
+}
+
+@keyframes announcement-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 .announcement-text a {
@@ -2040,16 +2040,10 @@ html {
         animation: none;
     }
 
-    .announcement-rotator {
-        display: block;
-    }
-
+    /* No rotation: show every announcement stacked and static */
     .announcement-text {
-        position: static;
-        opacity: 1;
-        visibility: visible;
-        transition: none;
-        pointer-events: auto;
+        display: block;
+        animation: none;
     }
 
     .announcement-text + .announcement-text {
