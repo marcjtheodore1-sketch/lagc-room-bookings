@@ -207,6 +207,14 @@ function renderRooms() {
 }
 
 function renderDates() {
+    if (!state.fridays.length) {
+        elements.dateGrid.innerHTML = `
+            <div class="no-dates-message">
+                <p>📅 There are no Friday sessions open for booking at the moment.</p>
+                <p>Please check back soon — new dates are added regularly.</p>
+            </div>`;
+        return;
+    }
     elements.dateGrid.innerHTML = state.fridays.map(friday => `
         <div class="date-card" onclick="selectDate('${friday.date}')">
             ${escapeHtml(friday.display)}

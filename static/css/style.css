@@ -471,6 +471,20 @@ html {
     gap: 0.75rem;
 }
 
+.no-dates-message {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem 1.5rem;
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+    color: var(--text-light);
+}
+
+.no-dates-message p {
+    margin: 0.25rem 0;
+}
+
 .date-card {
     border: 2px solid var(--border);
     border-radius: var(--radius);
