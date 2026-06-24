@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% block title %}Cancel your yoga place - Fridays @ Farringdon{% endblock %}
+
+{% block content %}
+<div class="landing-page">
+    <div class="landing-header">
+        <h1>🧘 Cancel your yoga place</h1>
+    </div>
+
+    <div class="landing-content">
+        {% if not booking %}
+        <div class="notice-box warning">
+            <p><strong>We couldn't find this booking.</strong></p>
+            <p>It may already have been cancelled. If you think this is a mistake, please contact us at <a href="mailto:miles.lagc@gmail.com">miles.lagc@gmail.com</a>.</p>
+        </div>
+        <div class="cta-section" style="margin-top: 1.5rem;">
+            <a href="/" class="btn btn-secondary">← Back to Home</a>
+        </div>
+        {% else %}
+        <div id="yoga-cancel-details">
+            <div class="info-card venue-card">
+                <h2>Your booking</h2>
+                <p><strong>Gentle Yoga with Marlijn</strong></p>
+                <p>Name: {{ booking.name }}</p>
+                <p>Date: {{ booking.date_display }}</p>
+                <p>Time: {{ booking.time }}</p>
+            </div>
+
+            <div class="notice-box warning">
+                <p>⚠️ Are you sure you want to cancel your place for this session? This will free your spot for someone else.</p>
+            </div>
+
+            <div class="cta-section" style="margin-top: 1.5rem;">
+                <button class="btn btn-danger btn-large" id="yoga-cancel-btn" onclick="confirmYogaCancel()">Yes, cancel my place</button>
+                <a href="/" class="btn btn-secondary">No, keep my place</a>
+            </div>
+            <p class="form-status" id="yoga-cancel-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <div id="yoga-cancel-success" class="notice-box success" style="display:none;">
+            <h2>✅ Your place has been cancelled</h2>
+            <p>Thank you for letting us know — your place has been freed up for someone else. We've sent a confirmation to your email.</p>
+            <div class="cta-section" style="margin-top: 1rem;">
+                <a href="/yoga" class="btn btn-primary">Register for another session</a>
+                <a href="/" class="btn btn-secondary">← Back to Home</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{% if booking %}
+<script>
+const YOGA_CANCEL_TOKEN = '{{ token }}';
+async function confirmYogaCancel() {
+    const btn = document.getElementById('yoga-cancel-btn');
+    const status = document.getElementById('yoga-cancel-status');
+    btn.disabled = true;
+    btn.textContent = 'Cancelling…';
+    status.textContent = '';
+    status.className = 'form-status';
+    try {
+        const res = await fetch('/api/yoga/cancel/' + YOGA_CANCEL_TOKEN, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+            document.getElementById('yoga-cancel-details').style.display = 'none';
+            document.getElementById('yoga-cancel-success').style.display = '';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+            status.textContent = data.error || 'Sorry, we could not cancel your place right now. Please try again.';
+            status.className = 'form-status error';
+            btn.disabled = false;
+            btn.textContent = 'Yes, cancel my place';
+        }
+    } catch (e) {
+        status.textContent = 'Sorry, we could not cancel your place right now. Please try again.';
+        status.className = 'form-status error';
+        btn.disabled = false;
+        btn.textContent = 'Yes, cancel my place';
+    }
+}
+</script>
+{% endif %}
+{% endblock %}

@@ -97,6 +97,7 @@ class YogaBooking(db.Model):
     accessibility_info = db.Column(db.Text, default='')      # how they experience/communicate
     agreed_safety = db.Column(db.Boolean, default=False)     # required understanding checkbox
     consent_contact = db.Column(db.Boolean, default=False)   # optional contact consent
+    cancel_token = db.Column(db.String(64), unique=True)     # self-cancel link
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ============================================================================
@@ -698,6 +699,18 @@ def yoga():
                            sessions=get_yoga_availability(),
                            capacity=YOGA_CAPACITY)
 
+@app.route('/yoga/cancel/<token>')
+def yoga_cancel_page(token):
+    """Participant self-cancellation page for a yoga place."""
+    booking = YogaBooking.query.filter_by(cancel_token=token).first()
+    if not booking:
+        return render_template('yoga_cancel.html', token=token, booking=None)
+    return render_template('yoga_cancel.html', token=token, booking={
+        'name': booking.name,
+        'date_display': _yoga_display(booking.session_date.isoformat()),
+        'time': YOGA_TIME_DISPLAY,
+    })
+
 @app.route('/book')
 def index():
     """Main booking page"""
@@ -1094,6 +1107,7 @@ def yoga_book():
     if booked >= YOGA_CAPACITY:
         return jsonify({'success': False, 'error': 'Sorry, this session is now full. Please choose another date.', 'full': True}), 409
 
+    cancel_token = secrets.token_urlsafe(32)
     booking = YogaBooking(
         session_date=session_date,
         name=name, email=email, phone=phone,
@@ -1101,6 +1115,7 @@ def yoga_book():
         experience=experience,
         health_info=health_info, avoid_info=avoid_info, accessibility_info=accessibility_info,
         agreed_safety=agreed_safety, consent_contact=consent_contact,
+        cancel_token=cancel_token,
     )
     db.session.add(booking)
     db.session.commit()
@@ -1153,12 +1168,57 @@ A few gentle reminders:
 - As we'll be on the outdoor terrace, suncream, a hat or a water bottle may be helpful in sunny weather.
 - This is a gentle, low-pressure session — you can choose what to take part in and rest whenever you need to.
 
-If your plans change and you can no longer attend, please let us know at {YOGA_NOTIFY_EMAIL} so we can offer your place to someone else.
+Need to cancel your place? You can cancel any time using this link, and it will free your spot for someone else:
+{request.host_url.rstrip('/')}/yoga/cancel/{cancel_token}
 
 Warm wishes,
 London Autism Group Charity — Fridays @ Farringdon
 """
     send_confirmation_email(email, 'Your Gentle Yoga registration — Fridays @ Farringdon', confirm_body)
+
+    return jsonify({'success': True, 'date_display': date_display, 'time': YOGA_TIME_DISPLAY})
+
+@app.route('/api/yoga/cancel/<token>', methods=['POST'])
+def yoga_cancel(token):
+    """Participant cancels their own yoga place: remove it and notify the coordinator."""
+    booking = YogaBooking.query.filter_by(cancel_token=token).first()
+    if not booking:
+        return jsonify({'success': False, 'error': 'This booking could not be found. It may already have been cancelled.'}), 404
+
+    name = booking.name
+    email = booking.email
+    date_display = _yoga_display(booking.session_date.isoformat())
+
+    db.session.delete(booking)
+    db.session.commit()
+
+    # Notify the yoga coordinator
+    send_confirmation_email(
+        YOGA_NOTIFY_EMAIL,
+        f'Yoga place cancelled — {date_display} ({name})',
+        f"""{name} has cancelled their place for Gentle Yoga with Marlijn.
+
+Session: {date_display} at {YOGA_TIME_DISPLAY}
+Participant: {name} ({email})
+
+Their place is now free again for someone else.
+"""
+    )
+
+    # Confirm to the participant
+    send_confirmation_email(
+        email,
+        'Your Gentle Yoga place has been cancelled',
+        f"""Dear {name},
+
+This confirms that your place for Gentle Yoga with Marlijn on {date_display} at {YOGA_TIME_DISPLAY} has been cancelled.
+
+If you'd like to come along to a future session, you're very welcome to register again at any time.
+
+Warm wishes,
+London Autism Group Charity — Fridays @ Farringdon
+"""
+    )
 
     return jsonify({'success': True, 'date_display': date_display, 'time': YOGA_TIME_DISPLAY})
 
@@ -1513,12 +1573,33 @@ def admin_get_yoga_bookings():
 @app.route('/api/admin/yoga-bookings/<int:booking_id>', methods=['DELETE'])
 @admin_required
 def admin_delete_yoga_booking(booking_id):
-    """Remove a yoga registration (frees up a space on that date)."""
+    """Remove a yoga registration (frees a space) and let the participant know."""
     booking = db.session.get(YogaBooking, booking_id)
     if not booking:
         return jsonify({'error': 'Booking not found'}), 404
+
+    name = booking.name
+    email = booking.email
+    date_display = _yoga_display(booking.session_date.isoformat())
+
     db.session.delete(booking)
     db.session.commit()
+
+    # Let the participant know their place has been cancelled by the team
+    send_confirmation_email(
+        email,
+        f'Your Gentle Yoga place on {date_display} has been cancelled',
+        f"""Dear {name},
+
+We're sorry to let you know that your place for Gentle Yoga with Marlijn on {date_display} at {YOGA_TIME_DISPLAY} has been cancelled.
+
+We're sorry for any inconvenience this causes. If you have any questions, or would like to book onto another session, please contact us at {YOGA_NOTIFY_EMAIL} — we'd be very happy to help.
+
+Warm wishes,
+London Autism Group Charity — Fridays @ Farringdon
+"""
+    )
+
     return jsonify({'success': True})
 
 @app.route('/api/admin/yoga-bookings/export')
@@ -1742,10 +1823,16 @@ London Autism Group Charity
 Fridays @ Farringdon
 """
 
-    # Default recipients: everyone who has ever made a booking (deduplicated)
+    # Default recipients: everyone who has ever made a booking — room bookings
+    # plus yoga registrations (deduplicated)
     seen = set()
     recipients = []
     for (email,) in db.session.query(Booking.user_email).distinct().all():
+        email_clean = (email or '').strip().lower()
+        if email_clean and email_clean not in seen:
+            seen.add(email_clean)
+            recipients.append(email_clean)
+    for (email,) in db.session.query(YogaBooking.email).distinct().all():
         email_clean = (email or '').strip().lower()
         if email_clean and email_clean not in seen:
             seen.add(email_clean)
@@ -1903,13 +1990,30 @@ London Autism Group Charity - Fridays @ The Smithson Team
 # INITIALIZATION
 # ============================================================================
 
+def _column_exists(table, column):
+    rows = db.session.execute(db.text(f"PRAGMA table_info({table})")).fetchall()
+    return any(r[1] == column for r in rows)
+
+def run_migrations():
+    """Lightweight migrations for columns added to existing tables (create_all
+    only creates missing tables, it can't add new columns to an existing one)."""
+    try:
+        if not _column_exists('yoga_booking', 'cancel_token'):
+            db.session.execute(db.text('ALTER TABLE yoga_booking ADD COLUMN cancel_token VARCHAR(64)'))
+            db.session.commit()
+    except Exception as e:  # pragma: no cover - defensive, never block startup
+        db.session.rollback()
+        print(f"[migration] yoga_booking.cancel_token: {e}")
+
 # Ensure all tables exist on every startup — including under WSGI on
 # PythonAnywhere, where the __main__ block below does NOT run. create_all()
 # only creates missing tables, so it never touches existing data. This is what
 # makes new tables (e.g. VolunteerAvailability) appear after a plain git pull +
-# Reload, with no manual migration.
+# Reload, with no manual migration. run_migrations() then patches in any new
+# columns on tables that already existed.
 with app.app_context():
     db.create_all()
+    run_migrations()
 
 if __name__ == '__main__':
     with app.app_context():

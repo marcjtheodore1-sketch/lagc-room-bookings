@@ -48,6 +48,38 @@ function yogaField(label, value) {
     return `<div class="yoga-field"><span class="yoga-field-label">${label}:</span> ${escapeHtml(value)}</div>`;
 }
 
+function renderYogaSessionBlock(s) {
+    const countClass = s.booked === 0 ? 'vol-count-zero' : (s.booked >= s.capacity ? 'vol-count-ok' : 'vol-count-low');
+    const fullBadge = s.booked >= s.capacity ? '<span class="yoga-full-badge">FULL</span>' : '';
+    const people = s.bookings.length
+        ? s.bookings.map(b => `
+            <div class="yoga-booking-card">
+                <div class="yoga-booking-top">
+                    <strong>${escapeHtml(b.name)}</strong>
+                    <button class="btn btn-danger btn-small" onclick="deleteYogaBooking(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')">Remove</button>
+                </div>
+                ${yogaField('Email', b.email)}
+                ${yogaField('Phone', b.phone)}
+                ${yogaField('Emergency contact', b.emergency_name + ' — ' + b.emergency_phone)}
+                ${yogaField('Done yoga before', b.experience)}
+                ${yogaField('Should know (safety)', b.health_info)}
+                ${yogaField('Avoid', b.avoid_info)}
+                ${yogaField('Experience / access needs', b.accessibility_info)}
+                ${yogaField('Consents to contact', b.consent_contact ? 'Yes' : 'No')}
+                <div class="yoga-booking-meta">Registered ${escapeHtml(b.created_at)}</div>
+            </div>`).join('')
+        : '<p class="vol-none">No bookings yet</p>';
+    return `
+        <div class="yoga-session-block${s.past ? ' yoga-session-past' : ''}">
+            <div class="yoga-session-head">
+                <span class="yoga-session-date">${escapeHtml(s.display)}, ${escapeHtml(s.time)}</span>
+                <span class="vol-count ${countClass}">${s.booked} / ${s.capacity}</span>
+                ${fullBadge}
+            </div>
+            <div class="yoga-bookings">${people}</div>
+        </div>`;
+}
+
 function renderYogaBookings(data) {
     const wrap = document.getElementById('yoga-admin-list');
     const sessions = data.sessions || [];
@@ -55,37 +87,21 @@ function renderYogaBookings(data) {
         wrap.innerHTML = '<p class="hint">No yoga sessions or bookings yet.</p>';
         return;
     }
-    wrap.innerHTML = sessions.map(s => {
-        const countClass = s.booked === 0 ? 'vol-count-zero' : (s.booked >= s.capacity ? 'vol-count-ok' : 'vol-count-low');
-        const fullBadge = s.booked >= s.capacity ? '<span class="yoga-full-badge">FULL</span>' : '';
-        const people = s.bookings.length
-            ? s.bookings.map(b => `
-                <div class="yoga-booking-card">
-                    <div class="yoga-booking-top">
-                        <strong>${escapeHtml(b.name)}</strong>
-                        <button class="btn btn-danger btn-small" onclick="deleteYogaBooking(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')">Remove</button>
-                    </div>
-                    ${yogaField('Email', b.email)}
-                    ${yogaField('Phone', b.phone)}
-                    ${yogaField('Emergency contact', b.emergency_name + ' — ' + b.emergency_phone)}
-                    ${yogaField('Done yoga before', b.experience)}
-                    ${yogaField('Should know (safety)', b.health_info)}
-                    ${yogaField('Avoid', b.avoid_info)}
-                    ${yogaField('Experience / access needs', b.accessibility_info)}
-                    ${yogaField('Consents to contact', b.consent_contact ? 'Yes' : 'No')}
-                    <div class="yoga-booking-meta">Registered ${escapeHtml(b.created_at)}</div>
-                </div>`).join('')
-            : '<p class="vol-none">No bookings yet</p>';
-        return `
-            <div class="yoga-session-block${s.past ? ' yoga-session-past' : ''}">
-                <div class="yoga-session-head">
-                    <span class="yoga-session-date">${escapeHtml(s.display)}, ${escapeHtml(s.time)}${s.past ? ' (past)' : ''}</span>
-                    <span class="vol-count ${countClass}">${s.booked} / ${s.capacity}${fullBadge ? ' ' : ''}</span>
-                    ${fullBadge}
-                </div>
-                <div class="yoga-bookings">${people}</div>
-            </div>`;
-    }).join('');
+    const upcoming = sessions.filter(s => !s.past);
+    const past = sessions.filter(s => s.past);
+
+    let html = '';
+    html += '<h3 class="yoga-group-title">📅 Upcoming sessions</h3>';
+    html += upcoming.length
+        ? upcoming.map(renderYogaSessionBlock).join('')
+        : '<p class="hint">No upcoming sessions.</p>';
+
+    if (past.length) {
+        html += '<h3 class="yoga-group-title">📁 Past sessions (archived)</h3>';
+        html += '<p class="hint">Kept here for the record. Past dates move here automatically.</p>';
+        html += past.map(renderYogaSessionBlock).join('');
+    }
+    wrap.innerHTML = html;
 }
 
 async function deleteYogaBooking(id, name) {
