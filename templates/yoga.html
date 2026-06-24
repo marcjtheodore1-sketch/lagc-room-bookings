@@ -10,15 +10,29 @@
     </div>
 
     <div class="landing-content">
-        <div class="info-section">
-            <p class="intro-text">
-                We are trialling <strong>gentle, neurodivergent-friendly yoga sessions</strong> as part of Fridays @ Farringdon.
-            </p>
+        <div class="info-section yoga-intro-layout">
+            <figure class="yoga-instructor-photo">
+                <img src="{{ url_for('static', filename='images/yoga-marlijn.jpg') }}" alt="Marlijn, the yoga instructor, sitting in a calm, plant-filled space" loading="lazy">
+                <figcaption>Your instructor, Marlijn</figcaption>
+            </figure>
+            <div class="yoga-intro-text">
+                <p class="intro-text">
+                    We are trialling <strong>gentle, neurodivergent-friendly yoga sessions</strong> as part of Fridays @ Farringdon.
+                </p>
+                <div class="initiative-description">
+                    <p>These sessions are designed to be beginner-friendly, accessible and low-pressure. You do not need previous yoga experience. The session will be adapted as much as possible around the needs of those attending.</p>
+                    <p>The sessions will take place on the <strong>outdoor terrace at Pan Macmillan, 6 Briset Street, London, EC1M 5NR</strong>. Places are limited to <strong>8 people per session</strong> because the terrace space is small.</p>
+                    <p>Please bring your own yoga mat and wear loose, comfortable clothing. As the session may take place in sunny weather, please consider wearing suncream and bringing a hat or water bottle if helpful.</p>
+                </div>
+            </div>
+        </div>
 
-            <div class="initiative-description">
-                <p>These sessions are designed to be beginner-friendly, accessible and low-pressure. You do not need previous yoga experience. The session will be adapted as much as possible around the needs of those attending.</p>
-                <p>The sessions will take place on the <strong>outdoor terrace at Pan Macmillan, 6 Briset Street, London, EC1M 5NR</strong>. Places are limited to <strong>8 people per session</strong> because the terrace space is small.</p>
-                <p>Please bring your own yoga mat and wear loose, comfortable clothing. As the session may take place in sunny weather, please consider wearing suncream and bringing a hat or water bottle if helpful.</p>
+        <div class="info-card">
+            <h2>🌿 The terrace</h2>
+            <p>Sessions take place on our calm outdoor terrace, high above Farringdon with open views across London.</p>
+            <div class="yoga-terrace-gallery">
+                <img src="{{ url_for('static', filename='images/yoga-terrace-1.jpg') }}" alt="The outdoor terrace at Pan Macmillan with seating and city views" loading="lazy">
+                <img src="{{ url_for('static', filename='images/yoga-terrace-2.jpg') }}" alt="The outdoor terrace overlooking the London skyline" loading="lazy">
             </div>
         </div>
 
