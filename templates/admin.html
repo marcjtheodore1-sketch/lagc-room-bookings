@@ -15,6 +15,7 @@
         <button class="tab-btn" onclick="showTab('bookings')">All Bookings</button>
         <button class="tab-btn" onclick="showTab('announcements')">📢 Notifications</button>
         <button class="tab-btn" onclick="showTab('volunteers')">🙋 Volunteer Rota</button>
+        <button class="tab-btn" onclick="showTab('yoga')">🧘 Yoga Bookings</button>
         <button class="tab-btn" onclick="showTab('emailblast')">📣 Email Blast</button>
         <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
@@ -163,6 +164,18 @@
         </div>
     </div>
 
+    <!-- Yoga Bookings Tab -->
+    <div class="tab-content" id="tab-yoga">
+        <div class="yoga-admin-header">
+            <h2>🧘 Gentle Yoga with Marlijn — Bookings</h2>
+            <a href="/api/admin/yoga-bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
+        </div>
+        <p class="hint">Each session is capped at 8 places. Notifications for new registrations are emailed to miles.lagc@gmail.com. Removing a registration frees a place on that date.</p>
+        <div class="yoga-admin-list" id="yoga-admin-list">
+            <p class="loading">Loading yoga bookings...</p>
+        </div>
+    </div>
+
     <!-- Email Blast Tab -->
     <div class="tab-content" id="tab-emailblast">
         <h2>📣 Availability Email Blast</h2>
@@ -214,5 +227,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=6"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=7"></script>
 {% endblock %}

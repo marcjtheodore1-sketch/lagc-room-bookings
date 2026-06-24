@@ -22,8 +22,81 @@ function showTab(tabName) {
     if (tabName === 'bookings') loadAllBookings();
     if (tabName === 'announcements') loadAnnouncements();
     if (tabName === 'volunteers') loadVolunteers();
+    if (tabName === 'yoga') loadYogaBookings();
     if (tabName === 'emailblast') loadEmailBlastDates();
     if (tabName === 'archive') loadArchivedBookings();
+}
+
+// ============================================
+// YOGA BOOKINGS
+// ============================================
+
+async function loadYogaBookings() {
+    const wrap = document.getElementById('yoga-admin-list');
+    wrap.innerHTML = '<p class="loading">Loading yoga bookings...</p>';
+    try {
+        const res = await fetch('/api/admin/yoga-bookings');
+        const data = await res.json();
+        renderYogaBookings(data);
+    } catch (e) {
+        wrap.innerHTML = '<p class="error-text">Failed to load yoga bookings</p>';
+    }
+}
+
+function yogaField(label, value) {
+    if (!value) return '';
+    return `<div class="yoga-field"><span class="yoga-field-label">${label}:</span> ${escapeHtml(value)}</div>`;
+}
+
+function renderYogaBookings(data) {
+    const wrap = document.getElementById('yoga-admin-list');
+    const sessions = data.sessions || [];
+    if (!sessions.length) {
+        wrap.innerHTML = '<p class="hint">No yoga sessions or bookings yet.</p>';
+        return;
+    }
+    wrap.innerHTML = sessions.map(s => {
+        const countClass = s.booked === 0 ? 'vol-count-zero' : (s.booked >= s.capacity ? 'vol-count-ok' : 'vol-count-low');
+        const fullBadge = s.booked >= s.capacity ? '<span class="yoga-full-badge">FULL</span>' : '';
+        const people = s.bookings.length
+            ? s.bookings.map(b => `
+                <div class="yoga-booking-card">
+                    <div class="yoga-booking-top">
+                        <strong>${escapeHtml(b.name)}</strong>
+                        <button class="btn btn-danger btn-small" onclick="deleteYogaBooking(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')">Remove</button>
+                    </div>
+                    ${yogaField('Email', b.email)}
+                    ${yogaField('Phone', b.phone)}
+                    ${yogaField('Emergency contact', b.emergency_name + ' — ' + b.emergency_phone)}
+                    ${yogaField('Done yoga before', b.experience)}
+                    ${yogaField('Should know (safety)', b.health_info)}
+                    ${yogaField('Avoid', b.avoid_info)}
+                    ${yogaField('Experience / access needs', b.accessibility_info)}
+                    ${yogaField('Consents to contact', b.consent_contact ? 'Yes' : 'No')}
+                    <div class="yoga-booking-meta">Registered ${escapeHtml(b.created_at)}</div>
+                </div>`).join('')
+            : '<p class="vol-none">No bookings yet</p>';
+        return `
+            <div class="yoga-session-block${s.past ? ' yoga-session-past' : ''}">
+                <div class="yoga-session-head">
+                    <span class="yoga-session-date">${escapeHtml(s.display)}, ${escapeHtml(s.time)}${s.past ? ' (past)' : ''}</span>
+                    <span class="vol-count ${countClass}">${s.booked} / ${s.capacity}${fullBadge ? ' ' : ''}</span>
+                    ${fullBadge}
+                </div>
+                <div class="yoga-bookings">${people}</div>
+            </div>`;
+    }).join('');
+}
+
+async function deleteYogaBooking(id, name) {
+    if (!confirm(`Remove ${name}'s yoga booking? This frees a place on that date.`)) return;
+    try {
+        const res = await fetch('/api/admin/yoga-bookings/' + id, { method: 'DELETE' });
+        if (!res.ok) { alert('Failed to remove booking. Please try again.'); return; }
+        loadYogaBookings();
+    } catch (e) {
+        alert('Failed to remove booking. Please try again.');
+    }
 }
 
 // ============================================

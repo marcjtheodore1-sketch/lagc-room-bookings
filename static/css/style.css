@@ -2220,6 +2220,108 @@ html {
     color: var(--danger);
 }
 
+/* ============================================
+   GENTLE YOGA — feature card + registration form
+   ============================================ */
+.notice-box.success {
+    background: #dcfce7;
+    border-color: #86efac;
+}
+
+.yoga-feature {
+    background: linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%);
+    border: 1px solid #e9d5ff;
+}
+
+.yoga-feature h2 {
+    color: #6b21a8;
+}
+
+.yoga-feature-tagline {
+    font-style: italic;
+    color: #7e22ce;
+    font-weight: 500;
+    margin-bottom: 1rem;
+}
+
+/* Keep the note readable on the light-purple card (not faint grey) */
+.yoga-feature .hint {
+    color: #5b21b6;
+}
+
+.details-list {
+    margin: 0.5rem 0 0;
+    padding-left: 1.4rem;
+    line-height: 1.7;
+}
+
+.yoga-form {
+    margin-top: 1.25rem;
+}
+
+.yoga-form .form-group {
+    margin-bottom: 1.25rem;
+}
+
+.yoga-form small.hint {
+    display: block;
+    margin: 0.2rem 0 0.5rem;
+}
+
+.yoga-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+}
+
+.yoga-radio-group .radio-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.yoga-radio-group .radio-option input {
+    width: auto;
+    margin: 0;
+}
+
+.checkbox-group {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.9rem 1rem;
+}
+
+.checkbox-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    cursor: pointer;
+    line-height: 1.5;
+    font-weight: 400;
+}
+
+.checkbox-option input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+    cursor: pointer;
+}
+
+@media (max-width: 600px) {
+    .yoga-radio-group {
+        flex-direction: column;
+        gap: 0.6rem;
+    }
+    .form-row {
+        flex-direction: column;
+        gap: 0;
+    }
+}
+
 .optional {
     font-weight: 400;
     color: var(--text-light);
@@ -2452,6 +2554,95 @@ html {
 
 .vol-archived-row {
     opacity: 0.75;
+}
+
+/* Admin yoga bookings */
+.yoga-admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.yoga-admin-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 1rem;
+}
+
+.yoga-session-block {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+}
+
+.yoga-session-past {
+    opacity: 0.75;
+}
+
+.yoga-session-head {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    background: var(--bg);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.yoga-session-date {
+    font-weight: 700;
+}
+
+.yoga-full-badge {
+    background: #166534;
+    color: #fff;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.12rem 0.5rem;
+    border-radius: 999px;
+}
+
+.yoga-bookings {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.75rem;
+    padding: 1rem;
+}
+
+.yoga-booking-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.85rem;
+    font-size: 0.9rem;
+}
+
+.yoga-booking-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.yoga-field {
+    margin: 0.2rem 0;
+    line-height: 1.45;
+    word-break: break-word;
+}
+
+.yoga-field-label {
+    color: var(--text-light);
+    font-weight: 600;
+}
+
+.yoga-booking-meta {
+    margin-top: 0.5rem;
+    font-size: 0.78rem;
+    color: var(--text-light);
 }
 
 @media (max-width: 480px) {

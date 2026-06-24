@@ -82,6 +82,23 @@ class VolunteerAvailability(db.Model):
     note = db.Column(db.String(200), default='')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class YogaBooking(db.Model):
+    """A registration for a Gentle Yoga with Marlijn session (capacity-limited)"""
+    id = db.Column(db.Integer, primary_key=True)
+    session_date = db.Column(db.Date, nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), nullable=False)
+    phone = db.Column(db.String(50), nullable=False)
+    emergency_name = db.Column(db.String(120), nullable=False)
+    emergency_phone = db.Column(db.String(50), nullable=False)
+    experience = db.Column(db.String(20), default='')        # Yes / No / A little
+    health_info = db.Column(db.Text, default='')             # things to adapt for safely
+    avoid_info = db.Column(db.Text, default='')              # things to avoid
+    accessibility_info = db.Column(db.Text, default='')      # how they experience/communicate
+    agreed_safety = db.Column(db.Boolean, default=False)     # required understanding checkbox
+    consent_contact = db.Column(db.Boolean, default=False)   # optional contact consent
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
 # ============================================================================
 # CONSTANTS
 # ============================================================================
@@ -547,6 +564,57 @@ def get_volunteer_rota(count=8):
         'archived': build_date_list(archived_map),
     }
 
+# ----------------------------------------------------------------------------
+# Gentle Yoga with Marlijn — trial sessions, capacity-limited (outdoor terrace)
+# ----------------------------------------------------------------------------
+YOGA_CAPACITY = 8
+YOGA_TIME_DISPLAY = '10:00am'
+YOGA_LOCATION = 'Outdoor terrace, Pan Macmillan, 6 Briset Street, London, EC1M 5NR'
+YOGA_NOTIFY_EMAIL = 'miles.lagc@gmail.com'
+
+# Concrete bookable session dates (each capped at YOGA_CAPACITY). The September
+# Fridays are included so "Fridays in September" can actually be booked; adjust
+# this list as the trial firms up.
+YOGA_SESSION_DATES = [
+    '2026-07-03', '2026-07-10', '2026-07-24', '2026-07-31',
+    '2026-08-07', '2026-08-28',
+    '2026-09-04', '2026-09-11', '2026-09-18', '2026-09-25',
+]
+
+def _yoga_display(date_str):
+    try:
+        return datetime.strptime(date_str, '%Y-%m-%d').strftime('%A %-d %B %Y')
+    except ValueError:
+        return date_str
+
+def get_yoga_availability(include_past=False):
+    """Return upcoming yoga sessions with how many spaces are left in each."""
+    today = datetime.now().date()
+    counts = {}
+    for b in YogaBooking.query.all():
+        counts[b.session_date.isoformat()] = counts.get(b.session_date.isoformat(), 0) + 1
+
+    sessions = []
+    for ds in YOGA_SESSION_DATES:
+        try:
+            d = datetime.strptime(ds, '%Y-%m-%d').date()
+        except ValueError:
+            continue
+        if not include_past and d < today:
+            continue
+        booked = counts.get(ds, 0)
+        remaining = max(0, YOGA_CAPACITY - booked)
+        sessions.append({
+            'date': ds,
+            'display': _yoga_display(ds),
+            'time': YOGA_TIME_DISPLAY,
+            'capacity': YOGA_CAPACITY,
+            'booked': booked,
+            'remaining': remaining,
+            'full': remaining <= 0,
+        })
+    return sessions
+
 def check_availability(room_id, booking_date, start_slot, end_slot, exclude_booking_id=None):
     """Check if a time range is available for booking"""
     query = Booking.query.filter(
@@ -622,6 +690,13 @@ def landing():
 def peer_support():
     """Peer support sessions information page"""
     return render_template('peer_support.html')
+
+@app.route('/yoga')
+def yoga():
+    """Gentle Yoga with Marlijn — info + registration page"""
+    return render_template('yoga.html',
+                           sessions=get_yoga_availability(),
+                           capacity=YOGA_CAPACITY)
 
 @app.route('/book')
 def index():
@@ -973,6 +1048,120 @@ Contact email: {email if email else '(not provided)'}
 
     return jsonify({'success': True})
 
+@app.route('/api/yoga/availability')
+def yoga_availability():
+    """Public: upcoming yoga sessions with remaining spaces."""
+    return jsonify(get_yoga_availability())
+
+@app.route('/api/yoga/book', methods=['POST'])
+def yoga_book():
+    """Public: register for a yoga session (enforces the per-date capacity)."""
+    data = request.get_json(silent=True) or {}
+
+    def clean(key, limit=200):
+        return (data.get(key) or '').strip()[:limit]
+
+    date_str = clean('session_date', 20)
+    name = clean('name', 120)
+    email = clean('email', 120)
+    phone = clean('phone', 50)
+    emergency_name = clean('emergency_name', 120)
+    emergency_phone = clean('emergency_phone', 50)
+    experience = clean('experience', 20)
+    health_info = clean('health_info', 4000)
+    avoid_info = clean('avoid_info', 4000)
+    accessibility_info = clean('accessibility_info', 4000)
+    agreed_safety = bool(data.get('agreed_safety'))
+    consent_contact = bool(data.get('consent_contact'))
+
+    # Required fields
+    if not all([name, email, phone, emergency_name, emergency_phone, experience, date_str]):
+        return jsonify({'success': False, 'error': 'Please fill in all the required fields.'}), 400
+    if '@' not in email or '.' not in email.split('@')[-1]:
+        return jsonify({'success': False, 'error': 'Please enter a valid email address.'}), 400
+    if not agreed_safety:
+        return jsonify({'success': False, 'error': 'Please tick the box to confirm you understand the session is gentle and you can rest at any time.'}), 400
+
+    # Valid, in-date session?
+    if date_str not in YOGA_SESSION_DATES:
+        return jsonify({'success': False, 'error': 'Please choose a valid session date.'}), 400
+    session_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    if session_date < datetime.now().date():
+        return jsonify({'success': False, 'error': 'That session date has already passed.'}), 400
+
+    # Capacity check (count current registrations for this date)
+    booked = YogaBooking.query.filter_by(session_date=session_date).count()
+    if booked >= YOGA_CAPACITY:
+        return jsonify({'success': False, 'error': 'Sorry, this session is now full. Please choose another date.', 'full': True}), 409
+
+    booking = YogaBooking(
+        session_date=session_date,
+        name=name, email=email, phone=phone,
+        emergency_name=emergency_name, emergency_phone=emergency_phone,
+        experience=experience,
+        health_info=health_info, avoid_info=avoid_info, accessibility_info=accessibility_info,
+        agreed_safety=agreed_safety, consent_contact=consent_contact,
+    )
+    db.session.add(booking)
+    db.session.commit()
+
+    spaces_left = max(0, YOGA_CAPACITY - (booked + 1))
+    date_display = _yoga_display(date_str)
+
+    # Notify the yoga coordinator with every answer
+    admin_body = f"""A new Gentle Yoga with Marlijn registration has come in.
+
+Session: {date_display} at {YOGA_TIME_DISPLAY}
+Location: {YOGA_LOCATION}
+Spaces left after this booking: {spaces_left} of {YOGA_CAPACITY}
+
+--- Participant ---
+Name: {name}
+Email: {email}
+Phone: {phone}
+Emergency contact: {emergency_name} — {emergency_phone}
+Done yoga before: {experience}
+
+--- Anything the instructor should know (to adapt safely) ---
+{health_info or '(nothing provided)'}
+
+--- Anything to definitely avoid ---
+{avoid_info or '(nothing provided)'}
+
+--- How they experience / process / communicate / move / learn ---
+{accessibility_info or '(nothing provided)'}
+
+Understood the gentle-session statement: {'Yes' if agreed_safety else 'No'}
+Consents to being contacted about this yoga session: {'Yes' if consent_contact else 'No'}
+"""
+    send_confirmation_email(
+        YOGA_NOTIFY_EMAIL,
+        f'New yoga registration — {date_display} ({name})',
+        admin_body
+    )
+
+    # Friendly confirmation to the participant (no health details echoed back)
+    confirm_body = f"""Dear {name},
+
+Thank you for registering for Gentle Yoga with Marlijn at Fridays @ Farringdon.
+
+Your session: {date_display} at {YOGA_TIME_DISPLAY}
+Where: {YOGA_LOCATION}
+
+A few gentle reminders:
+- Please bring your own yoga mat and wear loose, comfortable clothing.
+- As we'll be on the outdoor terrace, suncream, a hat or a water bottle may be helpful in sunny weather.
+- This is a gentle, low-pressure session — you can choose what to take part in and rest whenever you need to.
+
+If your plans change and you can no longer attend, please let us know at {YOGA_NOTIFY_EMAIL} so we can offer your place to someone else.
+
+Warm wishes,
+London Autism Group Charity — Fridays @ Farringdon
+"""
+    send_confirmation_email(email, 'Your Gentle Yoga registration — Fridays @ Farringdon', confirm_body)
+
+    return jsonify({'success': True, 'date_display': date_display, 'time': YOGA_TIME_DISPLAY})
+
 @app.route('/api/booking/<token>')
 def get_booking(token):
     """Get booking details by cancel token"""
@@ -1260,6 +1449,108 @@ def admin_unarchive_volunteer_date():
     archived = [d for d in get_archived_volunteer_dates() if d != date_str]
     set_archived_volunteer_dates(archived)
     return jsonify(get_volunteer_rota())
+
+@app.route('/api/admin/yoga-bookings')
+@admin_required
+def admin_get_yoga_bookings():
+    """All yoga registrations grouped by session date, plus per-date capacity."""
+    bookings = YogaBooking.query.order_by(
+        YogaBooking.session_date, YogaBooking.created_at
+    ).all()
+
+    by_date = {}
+    for b in bookings:
+        ds = b.session_date.isoformat()
+        by_date.setdefault(ds, []).append({
+            'id': b.id,
+            'name': b.name,
+            'email': b.email,
+            'phone': b.phone,
+            'emergency_name': b.emergency_name,
+            'emergency_phone': b.emergency_phone,
+            'experience': b.experience,
+            'health_info': b.health_info,
+            'avoid_info': b.avoid_info,
+            'accessibility_info': b.accessibility_info,
+            'agreed_safety': b.agreed_safety,
+            'consent_contact': b.consent_contact,
+            'created_at': b.created_at.strftime('%d %b %Y, %H:%M') if b.created_at else '',
+        })
+
+    today = datetime.now().date()
+    sessions = []
+    # Show every configured date that has bookings or is still upcoming
+    seen = set()
+    for ds in YOGA_SESSION_DATES:
+        d = datetime.strptime(ds, '%Y-%m-%d').date()
+        if ds in by_date or d >= today:
+            seen.add(ds)
+            people = by_date.get(ds, [])
+            sessions.append({
+                'date': ds,
+                'display': _yoga_display(ds),
+                'time': YOGA_TIME_DISPLAY,
+                'capacity': YOGA_CAPACITY,
+                'booked': len(people),
+                'remaining': max(0, YOGA_CAPACITY - len(people)),
+                'past': d < today,
+                'bookings': people,
+            })
+    # Any bookings on dates not in the configured list (e.g. removed dates)
+    for ds, people in by_date.items():
+        if ds not in seen:
+            d = datetime.strptime(ds, '%Y-%m-%d').date()
+            sessions.append({
+                'date': ds, 'display': _yoga_display(ds), 'time': YOGA_TIME_DISPLAY,
+                'capacity': YOGA_CAPACITY, 'booked': len(people),
+                'remaining': max(0, YOGA_CAPACITY - len(people)),
+                'past': d < today, 'bookings': people,
+            })
+
+    sessions.sort(key=lambda s: s['date'])
+    return jsonify({'sessions': sessions, 'capacity': YOGA_CAPACITY})
+
+@app.route('/api/admin/yoga-bookings/<int:booking_id>', methods=['DELETE'])
+@admin_required
+def admin_delete_yoga_booking(booking_id):
+    """Remove a yoga registration (frees up a space on that date)."""
+    booking = db.session.get(YogaBooking, booking_id)
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    db.session.delete(booking)
+    db.session.commit()
+    return jsonify({'success': True})
+
+@app.route('/api/admin/yoga-bookings/export')
+@admin_required
+def admin_export_yoga_bookings():
+    """Download all yoga registrations as a CSV."""
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Session date', 'Time', 'Name', 'Email', 'Phone',
+        'Emergency contact name', 'Emergency contact phone', 'Done yoga before',
+        'Instructor should know (safety)', 'Definitely avoid',
+        'Experience/communication/access needs',
+        'Understood gentle-session statement', 'Consents to contact', 'Registered at',
+    ])
+    for b in YogaBooking.query.order_by(YogaBooking.session_date, YogaBooking.created_at).all():
+        writer.writerow([
+            b.session_date.isoformat(), YOGA_TIME_DISPLAY, b.name, b.email, b.phone,
+            b.emergency_name, b.emergency_phone, b.experience,
+            b.health_info, b.avoid_info, b.accessibility_info,
+            'Yes' if b.agreed_safety else 'No',
+            'Yes' if b.consent_contact else 'No',
+            b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '',
+        ])
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=yoga_bookings.csv'},
+    )
 
 @app.route('/api/admin/settings')
 @admin_required
