@@ -2880,6 +2880,25 @@ html {
 }
 
 /* ============================================
+   YOGA TIME NOTE (9:30am arrival, 10am start)
+   ============================================ */
+
+.yoga-time-note {
+    background: #f5f3ff;
+    border-left: 4px solid #7c3aed;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    margin: 0 0 0.85rem;
+    color: #4c1d95;
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+.yoga-time-note strong {
+    color: #4c1d95;
+}
+
+/* ============================================
    JULY AVAILABILITY TAGS (room info cards)
    ============================================ */
 

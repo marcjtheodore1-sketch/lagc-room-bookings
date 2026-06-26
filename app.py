@@ -61,7 +61,7 @@ class Booking(db.Model):
     user_name = db.Column(db.String(100), nullable=False)
     user_email = db.Column(db.String(120), nullable=False)
     booking_date = db.Column(db.Date, nullable=False)  # The Friday being booked
-    start_slot = db.Column(db.Integer, nullable=False)  # 0-10 (11:00-16:00 in 30min slots)
+    start_slot = db.Column(db.Integer, nullable=False)  # 0-15 (09:30-17:00 in 30min slots)
     end_slot = db.Column(db.Integer, nullable=False)    # exclusive end slot
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     cancelled_at = db.Column(db.DateTime, nullable=True)
@@ -104,19 +104,24 @@ class YogaBooking(db.Model):
 # CONSTANTS
 # ============================================================================
 
-# Friday time slots: 11:00 - 16:00 (30 min intervals)
-# Slot 0 = 11:00, Slot 1 = 11:30, ..., Slot 10 = 16:00 (end)
-START_HOUR = 11  # 11 AM
-END_HOUR = 16    # 4 PM
+# Friday time slots: 09:30 - 17:00 (30 min intervals)
+# Slot 0 = 09:30, Slot 1 = 10:00, ..., Slot 15 = 17:00 (end marker)
+# Rooms are open 9:30am–5pm. This grid was re-based from 11:00 to 09:30 in
+# June 2026; existing bookings are shifted +3 slots once (see run_migrations)
+# so their real times are preserved.
+START_HOUR = 9
+START_MINUTE = 30
+END_HOUR = 17    # 5 PM
+END_MINUTE = 0
 SLOT_MINUTES = 30
 MAX_SLOTS = 6    # 3 hours = 6 x 30 min slots
 
 def get_time_slots():
     """Generate all available time slots"""
     slots = []
-    current = datetime.strptime(f"{START_HOUR}:00", "%H:%M")
-    end = datetime.strptime(f"{END_HOUR}:00", "%H:%M")
-    
+    current = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", "%H:%M")
+    end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", "%H:%M")
+
     slot_index = 0
     while current <= end:
         slots.append({
@@ -126,10 +131,12 @@ def get_time_slots():
         })
         current += timedelta(minutes=SLOT_MINUTES)
         slot_index += 1
-    
+
     return slots
 
 TIME_SLOTS = get_time_slots()
+# Display time used when an open room is booked through to the end of the day.
+LAST_SLOT_DISPLAY = TIME_SLOTS[-1]['display']  # '5:00 PM'
 
 # ============================================================================
 # ROOM AVAILABILITY SCHEDULE
@@ -575,6 +582,7 @@ def get_volunteer_rota(count=8):
 # ----------------------------------------------------------------------------
 YOGA_CAPACITY = 8
 YOGA_TIME_DISPLAY = '10:00am'
+YOGA_DOORS_DISPLAY = '9:30am'  # the terrace/space is available from this time
 YOGA_LOCATION = 'Outdoor terrace, Pan Macmillan, 6 Briset Street, London, EC1M 5NR'
 YOGA_NOTIFY_EMAIL = 'miles.lagc@gmail.com'
 
@@ -919,7 +927,7 @@ def create_booking():
     
     # Determine slots based on room type
     if room.room_type == 'open':
-        # Open rooms: book the entire day (11am - 4pm)
+        # Open rooms: book the entire day (9:30am - 5pm)
         start_slot = 0
         end_slot = len(TIME_SLOTS)  # Exclusive end (covers all slots 0-10)
         
@@ -975,7 +983,7 @@ def create_booking():
     if is_march_20th and is_room_4_2:
         end_time = '2:30 PM'
     else:
-        end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else '16:00'
+        end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
@@ -1170,10 +1178,12 @@ Consents to being contacted about this yoga session: {'Yes' if consent_contact e
 
 Thank you for registering for Gentle Yoga with Marlijn at Fridays @ Farringdon.
 
-Your session: {date_display} at {YOGA_TIME_DISPLAY}
+Your session: {date_display}
+The space is available from {YOGA_DOORS_DISPLAY}, so you are welcome to arrive any time from {YOGA_DOORS_DISPLAY} to settle in. The yoga session itself begins at {YOGA_TIME_DISPLAY}.
 Where: {YOGA_LOCATION}
 
 A few gentle reminders:
+- You're welcome to come from {YOGA_DOORS_DISPLAY} — that's when the space opens — and we'll begin the session at {YOGA_TIME_DISPLAY}.
 - Please bring your own yoga mat and wear loose, comfortable clothing.
 - As we'll be on the outdoor terrace, suncream, a hat or a water bottle may be helpful in sunny weather.
 - This is a gentle, low-pressure session — you can choose what to take part in and rest whenever you need to.
@@ -1244,7 +1254,7 @@ def get_booking(token):
         return jsonify({'error': 'This booking has already been cancelled'}), 410
     
     start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     
     return jsonify({
         'id': booking.id,
@@ -1275,7 +1285,7 @@ def cancel_booking(token):
     user_email = booking.user_email
     booking_date = booking.booking_date.strftime('%A, %B %d, %Y')
     start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     
     booking.cancelled_at = datetime.utcnow()
     db.session.commit()
@@ -1320,7 +1330,7 @@ def get_my_bookings():
     result = []
     for booking in bookings:
         start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
         
         result.append({
             'id': booking.id,
@@ -1674,7 +1684,7 @@ def admin_get_bookings():
     result = []
     for booking in bookings:
         start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
         
         result.append({
             'id': booking.id,
@@ -1701,7 +1711,7 @@ def admin_get_bookings_archive():
     result = []
     for booking in bookings:
         start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
         
         result.append({
             'id': booking.id,
@@ -1817,7 +1827,7 @@ def admin_availability_email_draft(date):
     rooms_text = '\n\n'.join(room_lines)
     body = f"""Hello,
 
-There are still spaces available at Fridays @ Farringdon this week, on {date_display} (11am – 4pm).
+There are still spaces available at Fridays @ Farringdon this week, on {date_display} (9:30am – 5pm).
 
 Here's what's on offer this Friday:
 
@@ -1959,7 +1969,7 @@ def admin_delete_booking(booking_id):
     user_email = booking.user_email
     booking_date = booking.booking_date
     start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else '16:00'
+    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     # Delete the booking
@@ -2014,6 +2024,20 @@ def run_migrations():
     except Exception as e:  # pragma: no cover - defensive, never block startup
         db.session.rollback()
         print(f"[migration] yoga_booking.cancel_token: {e}")
+
+    # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
+    # (new slot 0), adding 3 earlier half-hour slots. Shift every existing
+    # booking's slot indices by +3 so their real times are unchanged. Guarded
+    # by a Setting flag so it only ever runs once.
+    try:
+        if get_setting('slot_base_0930_migrated') != 'yes':
+            db.session.execute(db.text(
+                'UPDATE booking SET start_slot = start_slot + 3, end_slot = end_slot + 3'))
+            set_setting('slot_base_0930_migrated', 'yes')
+            db.session.commit()
+    except Exception as e:  # pragma: no cover - defensive, never block startup
+        db.session.rollback()
+        print(f"[migration] slot base 09:30 reindex: {e}")
 
 # Ensure all tables exist on every startup — including under WSGI on
 # PythonAnywhere, where the __main__ block below does NOT run. create_all()
