@@ -402,8 +402,8 @@ function updateSelectionInfo() {
     
     const startTime = state.timeSlots[startSlot]?.display;
     const endTimeIndex = Math.min(endSlot + 1, state.timeSlots.length - 1);
-    const endTime = state.timeSlots[endSlot + 1]?.display || '16:00';
-    
+    const endTime = state.timeSlots[endSlot + 1]?.display || state.timeSlots[state.timeSlots.length - 1]?.display || '5:00 PM';
+
     elements.selectionInfo.innerHTML = `
         <strong>✓ Selected:</strong> ${escapeHtml(startTime)} - ${escapeHtml(endTime)} 
         (${hours} hour${hours !== 1 ? 's' : ''})
@@ -535,8 +535,9 @@ function showEmailStep() {
             startTime = state.timeSlots[0]?.display || '11:00 AM';
             endTime = '1:30 PM';
         } else {
-            startTime = state.timeSlots[0]?.display || '11:00 AM';
-            endTime = '4:00 PM';
+            // Open rooms reserve the full day: first slot to the last slot
+            startTime = state.timeSlots[0]?.display || '9:30 AM';
+            endTime = state.timeSlots[state.timeSlots.length - 1]?.display || '5:00 PM';
         }
     } else {
         // Slot rooms: use selected slots
@@ -544,7 +545,7 @@ function showEmailStep() {
         const startSlot = sortedSlots[0];
         const endSlot = sortedSlots[sortedSlots.length - 1];
         startTime = state.timeSlots[startSlot]?.display;
-        endTime = state.timeSlots[endSlot + 1]?.display || '16:00';
+        endTime = state.timeSlots[endSlot + 1]?.display || state.timeSlots[state.timeSlots.length - 1]?.display || '5:00 PM';
     }
     
     const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;
