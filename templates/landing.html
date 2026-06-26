@@ -42,7 +42,15 @@
         </div>
 
         <div class="rooms-section" id="what-to-do">
-            <h2>🎯 What would you like to do?</h2>
+            <button type="button" class="collapse-toggle" aria-expanded="false" data-target="rooms-collapse">
+                <span class="collapse-toggle-text">
+                    <span class="collapse-toggle-title">🎯 What would you like to do?</span>
+                    <span class="collapse-toggle-sub">See the rooms &amp; what's available in July</span>
+                </span>
+                <span class="collapse-chevron" aria-hidden="true">▾</span>
+            </button>
+
+            <div class="collapsible" id="rooms-collapse" hidden>
             <p class="rooms-intro black-text">
                 Choose the option that best describes what you're looking for. We'll show you the right space.
             </p>
@@ -78,7 +86,7 @@
                         </div>
                         <h3>🤝 Socialise or relax in a lounge</h3>
                         <p class="room-type">Room 4.7 "Clerkenwell Lounge" — Social Space</p>
-                        <span class="july-tag july-no">Not available in July</span>
+                        <span class="july-tag july-yes">✓ Available in July</span>
                         <p>A relaxed lounge with sofas, board games and sensory items. Drop in anytime for casual socialising, quiet working, or just unwinding.</p>
                         <span class="photo-link">View Photo →</span>
                     </a>
@@ -103,7 +111,7 @@
                         </div>
                         <h3>📊 Meet, present or collaborate as a group</h3>
                         <p class="room-type">Room 4.6 "Farringdon" — Large Meeting Room</p>
-                        <span class="july-tag july-yes">✓ Available in July</span>
+                        <span class="july-tag july-no">Not available in July</span>
                         <p>A spacious 12-person meeting room with screens for presenting and video calls, whiteboard, and Wi-Fi. Perfect for group work, presentations, or collaborative projects.</p>
                         <span class="photo-link">View Photo →</span>
                     </a>
@@ -119,6 +127,7 @@
                         <p class="peer-support-website-note">Visit the <a href="https://beingautisticatuni.wordpress.com/" target="_blank" class="peer-support-website-link">Peer Support website</a> for resources and information.</p>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
 
@@ -142,14 +151,54 @@
             <p>We may review this position in the future, but at present Fridays @ Farringdon is intended for individual and shared community use only.</p>
         </div>
 
-        <div class="info-card explore-teaser">
-            <h2>📸 Explore the Space</h2>
-            <p>Take a look around the cafeteria, breakout areas, and outdoor terrace — all available to use on Fridays.</p>
-            <div class="explore-teaser-photos">
-                <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables" loading="lazy">
-                <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Outdoor terrace with panoramic London views" loading="lazy">
+        <div class="explore-section">
+            <button type="button" class="collapse-toggle" aria-expanded="false" data-target="explore-collapse">
+                <span class="collapse-toggle-text">
+                    <span class="collapse-toggle-title">📸 Explore the Space</span>
+                    <span class="collapse-toggle-sub">Photos of the cafeteria &amp; terrace</span>
+                </span>
+                <span class="collapse-chevron" aria-hidden="true">▾</span>
+            </button>
+
+            <div class="collapsible" id="explore-collapse" hidden>
+                <div class="photo-gallery">
+                    <div class="gallery-section">
+                        <h3>☕ Cafeteria &amp; Indoor Spaces</h3>
+                        <div class="gallery-grid">
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables and artwork" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/cafeteria-3.jpg') }}" alt="Spacious cafeteria with green bench seating and flowers" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/cafeteria-2.jpg') }}" alt="Private booth seating with green cushions" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/cafeteria-4.jpg') }}" alt="High tables by the window overlooking the terrace" loading="lazy">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="gallery-section">
+                        <h3>🌿 Outdoor Terrace</h3>
+                        <div class="gallery-grid">
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/terrace-1.jpg') }}" alt="Outdoor terrace with long tables and chairs" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/terrace-2.jpg') }}" alt="Terrace seating area with books and plants" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Terrace view with glass railing and city skyline" loading="lazy">
+                            </div>
+                            <div class="gallery-item">
+                                <img src="{{ url_for('static', filename='images/terrace-4.jpg') }}" alt="Sunny terrace walkway with panoramic views" loading="lazy">
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <a href="/spaces" class="btn btn-secondary">See all photos →</a>
         </div>
 
         <div class="testimonials-section">
@@ -314,6 +363,20 @@
             }
         }, { passive: true });
     }
+
+    // Collapsible sections (rooms list, explore the space)
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.collapse-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const target = document.getElementById(btn.dataset.target);
+                if (!target) return;
+                const isOpen = btn.getAttribute('aria-expanded') === 'true';
+                btn.setAttribute('aria-expanded', String(!isOpen));
+                btn.classList.toggle('is-open', !isOpen);
+                target.hidden = isOpen;
+            });
+        });
+    });
 
     // Cycling announcement banner
     document.addEventListener('DOMContentLoaded', function() {

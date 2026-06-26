@@ -2902,3 +2902,92 @@ html {
     background: #f1f5f9;
     color: #64748b;
 }
+
+/* ============================================
+   COLLAPSIBLE SECTIONS (rooms list, explore)
+   ============================================ */
+
+.collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    text-align: left;
+    background: var(--card-bg, #fff);
+    border: 2px solid var(--primary, #6d28d9);
+    border-radius: var(--radius-lg, 16px);
+    padding: 1.1rem 1.4rem;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+    box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,0.06));
+}
+
+.collapse-toggle:hover {
+    background: #faf7ff;
+    box-shadow: var(--shadow-lg, 0 6px 18px rgba(0,0,0,0.1));
+}
+
+.collapse-toggle:active {
+    transform: translateY(1px);
+}
+
+.collapse-toggle-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.collapse-toggle-title {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text, #1f2937);
+}
+
+.collapse-toggle-sub {
+    font-size: 0.95rem;
+    color: var(--text-light, #6b7280);
+    font-weight: 500;
+}
+
+.collapse-chevron {
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--primary, #6d28d9);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.collapse-toggle.is-open .collapse-chevron {
+    transform: rotate(180deg);
+}
+
+.collapsible[hidden] {
+    display: none;
+}
+
+.collapsible {
+    margin-top: 1.25rem;
+    animation: collapse-fade-in 0.3s ease;
+}
+
+@keyframes collapse-fade-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.rooms-section,
+.explore-section {
+    margin: 2.5rem 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .collapsible { animation: none; }
+    .collapse-chevron { transition: none; }
+}
+
+@media (max-width: 480px) {
+    .collapse-toggle-title { font-size: 1.1rem; }
+    .collapse-toggle-sub { font-size: 0.85rem; }
+    .collapse-toggle { padding: 0.9rem 1.1rem; }
+}

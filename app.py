@@ -151,11 +151,11 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-06-12': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'The Loft'],
     # 2026-06-19 removed from booking entirely (LAGC first aid training in the Loft; date withdrawn)
     # 2026-06-26 cancelled — removed from booking
-    '2026-07-03': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
-    '2026-07-10': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
-    '2026-07-17': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
-    '2026-07-24': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
-    '2026-07-31': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
+    '2026-07-03': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-07-10': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-07-17': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-07-24': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-07-31': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
 }
 
 def get_room_schedule_ids():
