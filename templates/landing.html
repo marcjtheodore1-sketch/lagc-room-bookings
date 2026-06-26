@@ -42,92 +42,98 @@
         </div>
 
         <div class="rooms-section" id="what-to-do">
-            <button type="button" class="collapse-toggle" aria-expanded="false" data-target="rooms-collapse">
+            <h2 class="rooms-section-heading">🎯 What would you like to do?</h2>
+            <p class="rooms-intro black-text">
+                Choose the option that best describes what you're looking for. Tap a box below to see those rooms.
+            </p>
+
+            <!-- Box 1: Rooms available in July -->
+            <button type="button" class="collapse-toggle collapse-toggle-available" aria-expanded="false" data-target="rooms-july">
                 <span class="collapse-toggle-text">
-                    <span class="collapse-toggle-title">🎯 What would you like to do?</span>
-                    <span class="collapse-toggle-sub">See the rooms &amp; what's available in July</span>
+                    <span class="collapse-toggle-title">✅ Rooms available in July</span>
+                    <span class="collapse-toggle-sub">Open every Friday this month — tap to view</span>
                 </span>
                 <span class="collapse-chevron" aria-hidden="true">▾</span>
             </button>
+            <div class="collapsible" id="rooms-july" hidden>
+                <div class="pentagon-container">
+                    <div class="pentagon-row top-row">
+                        <a href="https://drive.google.com/file/d/1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9/view?usp=sharing" target="_blank" class="room-info-card">
+                            <div class="room-card-image">
+                                <img src="https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800" alt="Room 4.4 Rose" loading="lazy">
+                            </div>
+                            <h3>🔒 Have your own private space</h3>
+                            <p class="room-type">Room 4.4 "Rose" — Individual Focus Room</p>
+                            <p>A quiet, single-use room just for you. Book in 30-minute slots for up to 3 hours when you need dedicated, interruption-free time.</p>
+                            <span class="photo-link">View Photo →</span>
+                        </a>
 
-            <div class="collapsible" id="rooms-collapse" hidden>
-            <p class="rooms-intro black-text">
-                Choose the option that best describes what you're looking for. We'll show you the right space.
-            </p>
+                        <a href="https://drive.google.com/file/d/1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp/view?usp=sharing" target="_blank" class="room-info-card">
+                            <div class="room-card-image">
+                                <img src="https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800" alt="Room 4.7 Clerkenwell" loading="lazy">
+                            </div>
+                            <h3>🤝 Socialise or relax in a lounge</h3>
+                            <p class="room-type">Room 4.7 "Clerkenwell Lounge" — Social Space</p>
+                            <p>A relaxed lounge with sofas, board games and sensory items. Drop in anytime for casual socialising, quiet working, or just unwinding.</p>
+                            <span class="photo-link">View Photo →</span>
+                        </a>
 
-            <div class="pentagon-container">
-                <!-- Top row: 3 cards -->
-                <div class="pentagon-row top-row">
-                    <a href="https://drive.google.com/file/d/1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk/view?usp=sharing" target="_blank" class="room-info-card">
-                        <div class="room-card-image">
-                            <img src="https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800" alt="Room 4.2 Indigo" loading="lazy">
+                        <div class="room-info-card peer-support-card">
+                            <h3>🎓 Peer Support Sessions for Autistic University Students</h3>
+                            <p class="room-type">Online or in-person (Room 4.4 "Rose")</p>
+                            <p>A peer-informed, 1-to-1 session to talk about your university experience, in a safe space outside your university. Free and open to all autistic university students – no formal diagnosis required to join.</p>
+                            <div class="peer-support-links">
+                                <a href="{{ url_for('static', filename='images/peer-support-poster-detail.jpg') }}" target="_blank" class="photo-link">View Poster →</a>
+                                <a href="/peer-support" class="photo-link register-link">To register →</a>
+                            </div>
+                            <p class="peer-support-website-note">Visit the <a href="https://beingautisticatuni.wordpress.com/" target="_blank" class="peer-support-website-link">Peer Support website</a> for resources and information.</p>
                         </div>
-                        <h3>📚 Work quietly alongside others</h3>
-                        <p class="room-type">Room 4.2 "Indigo" — Shared Workspace</p>
-                        <span class="july-tag july-no">Not available in July</span>
-                        <p>A calm, focused environment where you can work independently while being around others. Perfect for body-doubling and quiet productivity.</p>
-                        <span class="photo-link">View Photo →</span>
-                    </a>
-
-                    <a href="https://drive.google.com/file/d/1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9/view?usp=sharing" target="_blank" class="room-info-card">
-                        <div class="room-card-image">
-                            <img src="https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800" alt="Room 4.4 Rose" loading="lazy">
-                        </div>
-                        <h3>🔒 Have your own private space</h3>
-                        <p class="room-type">Room 4.4 "Rose" — Individual Focus Room</p>
-                        <span class="july-tag july-yes">✓ Available in July</span>
-                        <p>A quiet, single-use room just for you. Book in 30-minute slots for up to 3 hours when you need dedicated, interruption-free time.</p>
-                        <span class="photo-link">View Photo →</span>
-                    </a>
-
-                    <a href="https://drive.google.com/file/d/1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp/view?usp=sharing" target="_blank" class="room-info-card">
-                        <div class="room-card-image">
-                            <img src="https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800" alt="Room 4.7 Clerkenwell" loading="lazy">
-                        </div>
-                        <h3>🤝 Socialise or relax in a lounge</h3>
-                        <p class="room-type">Room 4.7 "Clerkenwell Lounge" — Social Space</p>
-                        <span class="july-tag july-yes">✓ Available in July</span>
-                        <p>A relaxed lounge with sofas, board games and sensory items. Drop in anytime for casual socialising, quiet working, or just unwinding.</p>
-                        <span class="photo-link">View Photo →</span>
-                    </a>
-                </div>
-
-                <!-- Bottom row: 3 cards -->
-                <div class="pentagon-row bottom-row">
-                    <a href="https://drive.google.com/file/d/1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL/view?usp=sharing" target="_blank" class="room-info-card">
-                        <div class="room-card-image">
-                            <img src="https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800" alt="The Loft" loading="lazy">
-                        </div>
-                        <h3>🌟 Gather with a group or spread out</h3>
-                        <p class="room-type">The Loft — Large Event Space</p>
-                        <span class="july-tag july-no">Not available in July</span>
-                        <p>A stunning space with panoramic London views. Great for group activities, collaborative work, or having plenty of room to yourself.</p>
-                        <span class="photo-link">View Photo →</span>
-                    </a>
-
-                    <a href="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" target="_blank" class="room-info-card">
-                        <div class="room-card-image">
-                            <img src="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" alt="Room 4.6 Farringdon" loading="lazy">
-                        </div>
-                        <h3>📊 Meet, present or collaborate as a group</h3>
-                        <p class="room-type">Room 4.6 "Farringdon" — Large Meeting Room</p>
-                        <span class="july-tag july-no">Not available in July</span>
-                        <p>A spacious 12-person meeting room with screens for presenting and video calls, whiteboard, and Wi-Fi. Perfect for group work, presentations, or collaborative projects.</p>
-                        <span class="photo-link">View Photo →</span>
-                    </a>
-
-                    <div class="room-info-card peer-support-card">
-                        <h3>🎓 Peer Support Sessions for Autistic University Students</h3>
-                        <p class="room-type">Online or in-person (Room 4.4 "Rose")</p>
-                        <p>A peer-informed, 1-to-1 session to talk about your university experience, in a safe space outside your university. Free and open to all autistic university students – no formal diagnosis required to join.</p>
-                        <div class="peer-support-links">
-                            <a href="{{ url_for('static', filename='images/peer-support-poster-detail.jpg') }}" target="_blank" class="photo-link">View Poster →</a>
-                            <a href="/peer-support" class="photo-link register-link">To register →</a>
-                        </div>
-                        <p class="peer-support-website-note">Visit the <a href="https://beingautisticatuni.wordpress.com/" target="_blank" class="peer-support-website-link">Peer Support website</a> for resources and information.</p>
                     </div>
                 </div>
             </div>
+
+            <!-- Box 2: Rooms not available in July -->
+            <button type="button" class="collapse-toggle" aria-expanded="false" data-target="rooms-other">
+                <span class="collapse-toggle-text">
+                    <span class="collapse-toggle-title">📅 Other rooms — not available in July</span>
+                    <span class="collapse-toggle-sub">Returning on future Fridays — tap to view</span>
+                </span>
+                <span class="collapse-chevron" aria-hidden="true">▾</span>
+            </button>
+            <div class="collapsible" id="rooms-other" hidden>
+                <div class="pentagon-container">
+                    <div class="pentagon-row top-row">
+                        <a href="https://drive.google.com/file/d/1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk/view?usp=sharing" target="_blank" class="room-info-card">
+                            <div class="room-card-image">
+                                <img src="https://drive.google.com/thumbnail?id=1OAEDuaKUkZZMcmqeJcTKES_yfVrqkEBk&sz=w800" alt="Room 4.2 Indigo" loading="lazy">
+                            </div>
+                            <h3>📚 Work quietly alongside others</h3>
+                            <p class="room-type">Room 4.2 "Indigo" — Shared Workspace</p>
+                            <p>A calm, focused environment where you can work independently while being around others. Perfect for body-doubling and quiet productivity.</p>
+                            <span class="photo-link">View Photo →</span>
+                        </a>
+
+                        <a href="https://drive.google.com/file/d/1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL/view?usp=sharing" target="_blank" class="room-info-card">
+                            <div class="room-card-image">
+                                <img src="https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800" alt="The Loft" loading="lazy">
+                            </div>
+                            <h3>🌟 Gather with a group or spread out</h3>
+                            <p class="room-type">The Loft — Large Event Space</p>
+                            <p>A stunning space with panoramic London views. Great for group activities, collaborative work, or having plenty of room to yourself.</p>
+                            <span class="photo-link">View Photo →</span>
+                        </a>
+
+                        <a href="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" target="_blank" class="room-info-card">
+                            <div class="room-card-image">
+                                <img src="{{ url_for('static', filename='images/room-4-6-farringdon.jpg') }}" alt="Room 4.6 Farringdon" loading="lazy">
+                            </div>
+                            <h3>📊 Meet, present or collaborate as a group</h3>
+                            <p class="room-type">Room 4.6 "Farringdon" — Large Meeting Room</p>
+                            <p>A spacious 12-person meeting room with screens for presenting and video calls, whiteboard, and Wi-Fi. Perfect for group work, presentations, or collaborative projects.</p>
+                            <span class="photo-link">View Photo →</span>
+                        </a>
+                    </div>
+                </div>
             </div>
         </div>
 
