@@ -2852,3 +2852,29 @@ html {
     font-size: 0.9rem;
     margin: 0.35rem 0;
 }
+
+/* ============================================
+   EXPLORE THE SPACE TEASER (landing page)
+   ============================================ */
+
+.explore-teaser-photos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin: 1rem 0 1.25rem;
+}
+
+.explore-teaser-photos img {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius);
+    display: block;
+}
+
+/* Spaces page — section description text */
+.gallery-section-desc {
+    color: var(--text-light);
+    font-size: 1rem;
+    margin-bottom: 1.25rem;
+}

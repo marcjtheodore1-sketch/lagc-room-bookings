@@ -137,45 +137,14 @@
             <p>We may review this position in the future, but at present Fridays @ Farringdon is intended for individual and shared community use only.</p>
         </div>
 
-        <div class="photo-gallery">
+        <div class="info-card explore-teaser">
             <h2>📸 Explore the Space</h2>
-            <p class="gallery-intro">Take a look around the cafeteria, breakout areas, and outdoor terrace available on Fridays.</p>
-
-            <div class="gallery-section">
-                <h3>☕ Cafeteria & Indoor Spaces</h3>
-                <div class="gallery-grid">
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables and artwork" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/cafeteria-3.jpg') }}" alt="Spacious cafeteria with green bench seating and flowers" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/cafeteria-2.jpg') }}" alt="Private booth seating with green cushions" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/cafeteria-4.jpg') }}" alt="High tables by the window overlooking the terrace" loading="lazy">
-                    </div>
-                </div>
+            <p>Take a look around the cafeteria, breakout areas, and outdoor terrace — all available to use on Fridays.</p>
+            <div class="explore-teaser-photos">
+                <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables" loading="lazy">
+                <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Outdoor terrace with panoramic London views" loading="lazy">
             </div>
-
-            <div class="gallery-section">
-                <h3>🌿 Outdoor Terrace</h3>
-                <div class="gallery-grid">
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/terrace-1.jpg') }}" alt="Outdoor terrace with long tables and chairs" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/terrace-2.jpg') }}" alt="Terrace seating area with books and plants" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Terrace view with glass railing and city skyline" loading="lazy">
-                    </div>
-                    <div class="gallery-item">
-                        <img src="{{ url_for('static', filename='images/terrace-4.jpg') }}" alt="Sunny terrace walkway with panoramic views" loading="lazy">
-                    </div>
-                </div>
-            </div>
+            <a href="/spaces" class="btn btn-secondary">See all photos →</a>
         </div>
 
         <div class="testimonials-section">

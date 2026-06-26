@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Explore the Space — Fridays @ Farringdon{% endblock %}
+
+{% block content %}
+<div class="landing-page">
+    <div class="landing-header">
+        <h1>📸 Explore the Space</h1>
+        <p class="subtitle">Take a look around the cafeteria, breakout areas, and outdoor terrace available on Fridays.</p>
+    </div>
+
+    <div class="landing-content">
+        <div class="photo-gallery">
+            <div class="gallery-section">
+                <h3>☕ Cafeteria &amp; Indoor Spaces</h3>
+                <p class="gallery-section-desc">A bright, spacious cafeteria with communal tables, comfortable booths, and a kitchen area with free tea and coffee. Quiet and relaxed on Fridays, with a choice of seating to suit different needs.</p>
+                <div class="gallery-grid">
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Bright cafeteria with communal tables and artwork" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-3.jpg') }}" alt="Spacious cafeteria with green bench seating and flowers" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-2.jpg') }}" alt="Private booth seating with green cushions" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/cafeteria-4.jpg') }}" alt="High tables by the window overlooking the terrace" loading="lazy">
+                    </div>
+                </div>
+            </div>
+
+            <div class="gallery-section">
+                <h3>🌿 Outdoor Terrace</h3>
+                <p class="gallery-section-desc">A stunning rooftop terrace with panoramic views across London and St Paul's Cathedral. Open on Fridays for sitting outside, working in the fresh air, or simply enjoying the view.</p>
+                <div class="gallery-grid">
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-1.jpg') }}" alt="Outdoor terrace with long tables and chairs" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-2.jpg') }}" alt="Terrace seating area with books and plants" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-3.jpg') }}" alt="Terrace view with glass railing and city skyline" loading="lazy">
+                    </div>
+                    <div class="gallery-item">
+                        <img src="{{ url_for('static', filename='images/terrace-4.jpg') }}" alt="Sunny terrace walkway with panoramic views" loading="lazy">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="info-card venue-card">
+            <h2>📍 Where to find us</h2>
+            <p><strong>Pan Macmillan HQ</strong>, near Farringdon Station</p>
+            <p>
+                <a href="https://maps.app.goo.gl/1yWngrBnWJM2dF6E6?g_st=ic" target="_blank" class="map-link">
+                    View on Google Maps →
+                </a>
+            </p>
+            <p>About a 5-minute walk from Farringdon Station (Cowcross Street exit).</p>
+        </div>
+
+        <div class="cta-section" style="margin-top: 2rem;">
+            <a href="/book" class="btn btn-primary btn-large">Register your place →</a>
+            <a href="/" class="btn btn-secondary" style="margin-left: 1rem;">← Back to Home</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

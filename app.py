@@ -151,6 +151,11 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-06-12': ['Room 4.4 "Rose"', 'Room 4.2 "Indigo"', 'The Loft'],
     # 2026-06-19 removed from booking entirely (LAGC first aid training in the Loft; date withdrawn)
     # 2026-06-26 cancelled — removed from booking
+    '2026-07-03': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
+    '2026-07-10': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
+    '2026-07-17': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
+    '2026-07-24': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
+    '2026-07-31': ['Room 4.4 "Rose"', 'Room 4.6 "Farringdon"'],
 }
 
 def get_room_schedule_ids():
@@ -691,6 +696,11 @@ def landing():
 def peer_support():
     """Peer support sessions information page"""
     return render_template('peer_support.html')
+
+@app.route('/spaces')
+def spaces():
+    """Explore the space — photo gallery of the venue"""
+    return render_template('spaces.html')
 
 @app.route('/yoga')
 def yoga():
