@@ -2878,3 +2878,27 @@ html {
     font-size: 1rem;
     margin-bottom: 1.25rem;
 }
+
+/* ============================================
+   JULY AVAILABILITY TAGS (room info cards)
+   ============================================ */
+
+.july-tag {
+    display: inline-block;
+    font-size: 0.77rem;
+    font-weight: 600;
+    padding: 0.22em 0.8em;
+    border-radius: 100px;
+    margin: 0.3rem 0 0.5rem;
+    letter-spacing: 0.01em;
+}
+
+.july-yes {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.july-no {
+    background: #f1f5f9;
+    color: #64748b;
+}
