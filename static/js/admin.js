@@ -133,6 +133,14 @@ async function loadVolunteers() {
         renderVolunteerCoverage();
         renderVolunteerPast();
         renderVolunteerArchived();
+        // Auto-load a returning volunteer's saved availability when they
+        // enter their name, so adding a date never wipes their other dates.
+        const nameInput = document.getElementById('vol-name');
+        if (nameInput && !nameInput.dataset.autoloadBound) {
+            nameInput.addEventListener('change', maybeLoadExistingVolunteer);
+            nameInput.addEventListener('blur', maybeLoadExistingVolunteer);
+            nameInput.dataset.autoloadBound = '1';
+        }
     } catch (e) {
         coverage.innerHTML = '<p class="error-text">Failed to load the rota</p>';
         entries.innerHTML = '<p class="error-text">Failed to load dates</p>';
@@ -298,11 +306,10 @@ function volunteerStatus(msg, isError) {
     el.className = 'form-status' + (msg ? (isError ? ' error' : ' success') : '');
 }
 
-function editVolunteer(encodedName) {
-    const name = decodeURIComponent(encodedName);
-    const v = volunteerRota.volunteers.find(x => x.name === name);
-    if (!v) return;
-    document.getElementById('vol-name').value = v.name;
+// Fill the availability form rows from a volunteer's saved record so that
+// editing always starts from their full existing availability (otherwise
+// saving would wipe any dates not currently shown in the form).
+function applyVolunteerToForm(v) {
     document.querySelectorAll('.vol-entry-status').forEach(sel => {
         const date = sel.dataset.date;
         if (v.dates.includes(date)) sel.value = 'available';
@@ -313,6 +320,29 @@ function editVolunteer(encodedName) {
         const date = inp.dataset.date;
         inp.value = (v.date_notes || {})[date] || '';
     });
+}
+
+function findVolunteerByName(name) {
+    const target = (name || '').trim().toLowerCase();
+    if (!target) return null;
+    return volunteerRota.volunteers.find(x => x.name.toLowerCase() === target) || null;
+}
+
+// When a returning volunteer types their name, pre-load their existing
+// availability so adding a new date keeps everything they saved before.
+function maybeLoadExistingVolunteer() {
+    const v = findVolunteerByName(document.getElementById('vol-name').value);
+    if (!v) return;
+    applyVolunteerToForm(v);
+    volunteerStatus(`Loaded ${v.name}'s current availability — change or add any dates, then save. Your existing dates are kept.`, false);
+}
+
+function editVolunteer(encodedName) {
+    const name = decodeURIComponent(encodedName);
+    const v = volunteerRota.volunteers.find(x => x.name === name);
+    if (!v) return;
+    document.getElementById('vol-name').value = v.name;
+    applyVolunteerToForm(v);
     document.querySelector('.volunteer-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     volunteerStatus(`Editing ${v.name}'s availability — make changes and save.`, false);
 }
