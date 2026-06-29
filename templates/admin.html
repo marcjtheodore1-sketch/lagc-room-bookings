@@ -134,14 +134,11 @@
                 <small class="hint">Use the same name each time to update your existing availability.</small>
             </div>
             <div class="form-group">
-                <label>Which Fridays can you support?</label>
-                <div class="vol-date-checkboxes" id="vol-date-checkboxes">
+                <label>Your availability for upcoming Fridays:</label>
+                <p class="hint">Mark each date as available (with your time window if needed) or can't make it. Leave a date blank if you're not sure yet.</p>
+                <div class="vol-date-entries" id="vol-date-entries">
                     <p class="loading">Loading dates...</p>
                 </div>
-            </div>
-            <div class="form-group">
-                <label for="vol-note">Note (optional):</label>
-                <input type="text" id="vol-note" maxlength="200" placeholder="e.g. mornings only, or can open up">
             </div>
             <button class="btn btn-primary" id="vol-save-btn" onclick="saveVolunteer()">Save my availability</button>
             <p class="form-status" id="volunteer-status" role="status" aria-live="polite"></p>
@@ -227,5 +224,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=8"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=9"></script>
 {% endblock %}

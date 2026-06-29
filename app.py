@@ -75,11 +75,12 @@ class Setting(db.Model):
     value = db.Column(db.Text, nullable=False)
 
 class VolunteerAvailability(db.Model):
-    """A volunteer marking they can support on a given Friday"""
+    """A volunteer marking their status for a given Friday"""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False)
-    booking_date = db.Column(db.Date, nullable=False)  # The Friday they can support
+    booking_date = db.Column(db.Date, nullable=False)
     note = db.Column(db.String(200), default='')
+    unavailable = db.Column(db.Boolean, default=False)  # True = can't make it
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class YogaBooking(db.Model):
@@ -547,17 +548,26 @@ def get_volunteer_rota(count=8):
     rows = VolunteerAvailability.query.all()
 
     volunteers = {}
-    past_map = {}      # date_str -> [{name, note}]
-    archived_map = {}  # date_str -> [{name, note}]
+    past_map = {}      # date_str -> [{name, note, unavailable}]
+    archived_map = {}  # date_str -> [{name, note, unavailable}]
     for r in rows:
         ds = r.booking_date.isoformat()
+        is_unavail = bool(getattr(r, 'unavailable', False))
         if ds in upcoming_strs:
-            v = volunteers.setdefault(r.name, {'name': r.name, 'dates': [], 'note': ''})
-            v['dates'].append(ds)
+            v = volunteers.setdefault(r.name, {
+                'name': r.name,
+                'dates': [],
+                'unavailable_dates': [],
+                'date_notes': {},
+            })
+            if is_unavail:
+                v['unavailable_dates'].append(ds)
+            else:
+                v['dates'].append(ds)
             if r.note:
-                v['note'] = r.note
+                v['date_notes'][ds] = r.note
         elif r.booking_date < today:
-            entry = {'name': r.name, 'note': r.note or ''}
+            entry = {'name': r.name, 'note': r.note or '', 'unavailable': is_unavail}
             if ds in archived_strs:
                 archived_map.setdefault(ds, []).append(entry)
             else:
@@ -570,9 +580,10 @@ def get_volunteer_rota(count=8):
             out.append({'date': ds, 'display': _friday_display(ds), 'volunteers': people})
         return out
 
+    vol_list = sorted(volunteers.values(), key=lambda v: v['name'].lower())
     return {
         'fridays': fridays,
-        'volunteers': sorted(volunteers.values(), key=lambda v: v['name'].lower()),
+        'volunteers': vol_list,
         'past': build_date_list(past_map),
         'archived': build_date_list(archived_map),
     }
@@ -1449,23 +1460,25 @@ def admin_get_volunteers():
 @app.route('/api/admin/volunteers', methods=['POST'])
 @admin_required
 def admin_set_volunteer():
-    """Set one volunteer's availability across the upcoming Fridays.
+    """Set one volunteer's status across the upcoming Fridays.
 
-    Body: {name, dates: [YYYY-MM-DD, ...], note}. Replaces that volunteer's
-    rows within the upcoming-Friday window with the selected dates."""
+    Body: {name, entries: [{date, status, note}]} where status is
+    'available' or 'unavailable'. Replaces that volunteer's rows within
+    the upcoming-Friday window."""
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
-    note = (data.get('note') or '').strip()[:200]
-    dates = data.get('dates') or []
-
     if not name:
         return jsonify({'error': 'Please enter your name.'}), 400
 
     upcoming = {f['date'] for f in get_rota_fridays()}
-    selected = []
-    for ds in dates:
-        if ds in upcoming and ds not in selected:
-            selected.append(ds)
+
+    # Accept new {entries} format or old {dates, note} for backward compat
+    entries = data.get('entries')
+    if entries is None:
+        # Legacy format: list of available dates with a single note
+        legacy_note = (data.get('note') or '').strip()[:200]
+        entries = [{'date': ds, 'status': 'available', 'note': legacy_note}
+                   for ds in (data.get('dates') or [])]
 
     # Replace this volunteer's entries within the upcoming window
     today = datetime.now().date()
@@ -1477,11 +1490,19 @@ def admin_set_volunteer():
         if row.booking_date.isoformat() in upcoming:
             db.session.delete(row)
 
-    for ds in selected:
+    seen = set()
+    for entry in entries:
+        ds = (entry.get('date') or '').strip()
+        status = (entry.get('status') or '').strip()
+        note = (entry.get('note') or '').strip()[:200]
+        if ds not in upcoming or ds in seen or status not in ('available', 'unavailable'):
+            continue
+        seen.add(ds)
         db.session.add(VolunteerAvailability(
             name=name,
             booking_date=datetime.strptime(ds, '%Y-%m-%d').date(),
             note=note,
+            unavailable=(status == 'unavailable'),
         ))
     db.session.commit()
 
@@ -2024,6 +2045,14 @@ def run_migrations():
     except Exception as e:  # pragma: no cover - defensive, never block startup
         db.session.rollback()
         print(f"[migration] yoga_booking.cancel_token: {e}")
+
+    try:
+        if not _column_exists('volunteer_availability', 'unavailable'):
+            db.session.execute(db.text('ALTER TABLE volunteer_availability ADD COLUMN unavailable BOOLEAN DEFAULT 0'))
+            db.session.commit()
+    except Exception as e:  # pragma: no cover - defensive, never block startup
+        db.session.rollback()
+        print(f"[migration] volunteer_availability.unavailable: {e}")
 
     # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
     # (new slot 0), adding 3 earlier half-hour slots. Shift every existing

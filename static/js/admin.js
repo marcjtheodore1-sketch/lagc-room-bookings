@@ -123,19 +123,19 @@ let volunteerRota = { fridays: [], volunteers: [] };
 
 async function loadVolunteers() {
     const coverage = document.getElementById('volunteer-coverage');
-    const checkboxes = document.getElementById('vol-date-checkboxes');
+    const entries = document.getElementById('vol-date-entries');
     coverage.innerHTML = '<p class="loading">Loading rota...</p>';
-    checkboxes.innerHTML = '<p class="loading">Loading dates...</p>';
+    entries.innerHTML = '<p class="loading">Loading dates...</p>';
     try {
         const res = await fetch('/api/admin/volunteers');
         volunteerRota = await res.json();
-        renderVolunteerCheckboxes();
+        renderVolunteerEntries();
         renderVolunteerCoverage();
         renderVolunteerPast();
         renderVolunteerArchived();
     } catch (e) {
         coverage.innerHTML = '<p class="error-text">Failed to load the rota</p>';
-        checkboxes.innerHTML = '<p class="error-text">Failed to load dates</p>';
+        entries.innerHTML = '<p class="error-text">Failed to load dates</p>';
     }
 }
 
@@ -217,17 +217,23 @@ async function unarchiveVolunteerDate(date) {
     }
 }
 
-function renderVolunteerCheckboxes() {
-    const wrap = document.getElementById('vol-date-checkboxes');
+function renderVolunteerEntries() {
+    const wrap = document.getElementById('vol-date-entries');
     if (!volunteerRota.fridays.length) {
         wrap.innerHTML = '<p class="hint">No upcoming Fridays found.</p>';
         return;
     }
     wrap.innerHTML = volunteerRota.fridays.map(f => `
-        <label class="vol-date-option">
-            <input type="checkbox" class="vol-date-cb" value="${f.date}">
-            <span>${escapeHtml(f.display)}</span>
-        </label>
+        <div class="vol-entry-row">
+            <span class="vol-entry-date">${escapeHtml(f.display)}</span>
+            <select class="vol-entry-status" data-date="${f.date}">
+                <option value="">— not set —</option>
+                <option value="available">✓ Available</option>
+                <option value="unavailable">✗ Can't make it</option>
+            </select>
+            <input type="text" class="vol-entry-note" data-date="${f.date}" maxlength="200"
+                placeholder="e.g. 2:30pm–5:30pm" aria-label="Note for ${escapeHtml(f.display)}">
+        </div>
     `).join('');
 }
 
@@ -241,10 +247,23 @@ function renderVolunteerCoverage() {
 
     let html = fridays.map(f => {
         const available = volunteers.filter(v => v.dates.includes(f.date));
-        const chips = available.length
-            ? available.map(v => `<span class="vol-chip">${escapeHtml(v.name)}${v.note ? ` <em>(${escapeHtml(v.note)})</em>` : ''}</span>`).join('')
-            : '<span class="vol-none">No one yet</span>';
+        const unavailable = volunteers.filter(v => (v.unavailable_dates || []).includes(f.date));
         const countClass = available.length === 0 ? 'vol-count-zero' : (available.length === 1 ? 'vol-count-low' : 'vol-count-ok');
+
+        let chips = available.length
+            ? available.map(v => {
+                const note = (v.date_notes || {})[f.date];
+                return `<span class="vol-chip">${escapeHtml(v.name)}${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
+            }).join('')
+            : '<span class="vol-none">No one yet</span>';
+
+        if (unavailable.length) {
+            chips += unavailable.map(v => {
+                const note = (v.date_notes || {})[f.date];
+                return `<span class="vol-chip vol-chip-unavail">✗ ${escapeHtml(v.name)}${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
+            }).join('');
+        }
+
         return `
             <div class="vol-date-row">
                 <div class="vol-date-head">
@@ -263,7 +282,7 @@ function renderVolunteerCoverage() {
                     <button class="btn btn-secondary btn-small" onclick="editVolunteer('${encodeURIComponent(v.name)}')">Edit</button>
                     <button class="btn btn-danger btn-small" onclick="removeVolunteer('${encodeURIComponent(v.name)}')">Remove</button>
                     <span class="vol-person-name">${escapeHtml(v.name)}</span>
-                    <span class="vol-person-count">${v.dates.length} date${v.dates.length === 1 ? '' : 's'}</span>
+                    <span class="vol-person-count">${v.dates.length} available${(v.unavailable_dates||[]).length ? `, ${v.unavailable_dates.length} unavailable` : ''}</span>
                 </div>
             `).join('')}
         </div>`;
@@ -284,9 +303,15 @@ function editVolunteer(encodedName) {
     const v = volunteerRota.volunteers.find(x => x.name === name);
     if (!v) return;
     document.getElementById('vol-name').value = v.name;
-    document.getElementById('vol-note').value = v.note || '';
-    document.querySelectorAll('.vol-date-cb').forEach(cb => {
-        cb.checked = v.dates.includes(cb.value);
+    document.querySelectorAll('.vol-entry-status').forEach(sel => {
+        const date = sel.dataset.date;
+        if (v.dates.includes(date)) sel.value = 'available';
+        else if ((v.unavailable_dates || []).includes(date)) sel.value = 'unavailable';
+        else sel.value = '';
+    });
+    document.querySelectorAll('.vol-entry-note').forEach(inp => {
+        const date = inp.dataset.date;
+        inp.value = (v.date_notes || {})[date] || '';
     });
     document.querySelector('.volunteer-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
     volunteerStatus(`Editing ${v.name}'s availability — make changes and save.`, false);
@@ -294,19 +319,25 @@ function editVolunteer(encodedName) {
 
 async function saveVolunteer() {
     const name = document.getElementById('vol-name').value.trim();
-    const note = document.getElementById('vol-note').value.trim();
-    const dates = [...document.querySelectorAll('.vol-date-cb:checked')].map(cb => cb.value);
-
     if (!name) {
         volunteerStatus('Please enter your name.', true);
         return;
     }
 
+    const entries = [];
+    document.querySelectorAll('.vol-entry-status').forEach(sel => {
+        const date = sel.dataset.date;
+        const status = sel.value;
+        if (!status) return;
+        const note = (document.querySelector(`.vol-entry-note[data-date="${date}"]`) || {}).value || '';
+        entries.push({ date, status, note: note.trim() });
+    });
+
     try {
         const res = await fetch('/api/admin/volunteers', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, note, dates }),
+            body: JSON.stringify({ name, entries }),
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -317,9 +348,10 @@ async function saveVolunteer() {
         renderVolunteerCoverage();
         // Clear the form for the next person
         document.getElementById('vol-name').value = '';
-        document.getElementById('vol-note').value = '';
-        document.querySelectorAll('.vol-date-cb').forEach(cb => { cb.checked = false; });
-        volunteerStatus(dates.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
+        document.querySelectorAll('.vol-entry-status').forEach(sel => { sel.value = ''; });
+        document.querySelectorAll('.vol-entry-note').forEach(inp => { inp.value = ''; });
+        const availCount = entries.filter(e => e.status === 'available').length;
+        volunteerStatus(entries.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
     } catch (e) {
         volunteerStatus('Failed to save. Please try again.', true);
     }
