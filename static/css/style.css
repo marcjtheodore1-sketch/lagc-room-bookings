@@ -2686,6 +2686,13 @@ html {
     flex-wrap: wrap;
 }
 
+.yoga-admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
 .yoga-admin-list {
     display: flex;
     flex-direction: column;

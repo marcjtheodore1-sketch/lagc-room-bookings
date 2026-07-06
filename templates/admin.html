@@ -165,9 +165,12 @@
     <div class="tab-content" id="tab-yoga">
         <div class="yoga-admin-header">
             <h2>🧘 Gentle Yoga with Marlijn — Bookings</h2>
-            <a href="/api/admin/yoga-bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
+            <div class="yoga-admin-header-actions">
+                <button class="btn btn-primary btn-small" onclick="openYogaEmail('all')">📧 Email All Attendees</button>
+                <a href="/api/admin/yoga-bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
+            </div>
         </div>
-        <p class="hint">Each session is capped at 8 places. Notifications for new registrations are emailed to miles.lagc@gmail.com. Removing a registration frees a place on that date.</p>
+        <p class="hint">Each session is capped at 8 places. Notifications for new registrations are emailed to miles.lagc@gmail.com. Removing a registration frees a place on that date. Use "Email All Attendees" or the "Email attendees" button on a session to message registrants directly — no more copying addresses one by one.</p>
         <div class="yoga-admin-list" id="yoga-admin-list">
             <p class="loading">Loading yoga bookings...</p>
         </div>
@@ -224,5 +227,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=10"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=11"></script>
 {% endblock %}

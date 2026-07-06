@@ -1946,6 +1946,41 @@ def admin_send_availability_email():
 
     return jsonify({'success': True, 'sent_to': len(clean)})
 
+@app.route('/api/admin/yoga-email/send', methods=['POST'])
+@admin_required
+def admin_send_yoga_email():
+    """Email yoga attendees directly (reminders, updates, etc). Unlike the
+    availability blast this has no once-per-date lock, since admins may
+    need to contact attendees more than once for the same session."""
+    data = request.get_json(silent=True) or {}
+    subject = (data.get('subject') or '').strip()
+    body = (data.get('body') or '').strip()
+    recipients = data.get('recipients') or []
+
+    if not subject or not body:
+        return jsonify({'error': 'Subject and message are both required'}), 400
+
+    seen = set()
+    clean = []
+    for r in recipients:
+        r = (r or '').strip().lower()
+        if not r:
+            continue
+        if '@' not in r or '.' not in r.split('@')[1]:
+            return jsonify({'error': f'Invalid email address: {r}'}), 400
+        if r not in seen:
+            seen.add(r)
+            clean.append(r)
+
+    if not clean:
+        return jsonify({'error': 'At least one recipient is required'}), 400
+
+    success, error = send_bulk_email(clean, subject, body)
+    if not success:
+        return jsonify({'error': f'Failed to send email: {error}'}), 502
+
+    return jsonify({'success': True, 'sent_to': len(clean)})
+
 @app.route('/api/open-booking-counts')
 def get_open_booking_counts():
     """Get booking counts for open booking rooms only (public endpoint)"""

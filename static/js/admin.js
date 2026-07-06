@@ -31,12 +31,15 @@ function showTab(tabName) {
 // YOGA BOOKINGS
 // ============================================
 
+let yogaSessionsData = [];
+
 async function loadYogaBookings() {
     const wrap = document.getElementById('yoga-admin-list');
     wrap.innerHTML = '<p class="loading">Loading yoga bookings...</p>';
     try {
         const res = await fetch('/api/admin/yoga-bookings');
         const data = await res.json();
+        yogaSessionsData = data.sessions || [];
         renderYogaBookings(data);
     } catch (e) {
         wrap.innerHTML = '<p class="error-text">Failed to load yoga bookings</p>';
@@ -51,6 +54,9 @@ function yogaField(label, value) {
 function renderYogaSessionBlock(s) {
     const countClass = s.booked === 0 ? 'vol-count-zero' : (s.booked >= s.capacity ? 'vol-count-ok' : 'vol-count-low');
     const fullBadge = s.booked >= s.capacity ? '<span class="yoga-full-badge">FULL</span>' : '';
+    const emailBtn = s.bookings.length
+        ? `<button class="btn btn-secondary btn-small" onclick="openYogaEmail('${s.date}')">📧 Email attendees</button>`
+        : '';
     const people = s.bookings.length
         ? s.bookings.map(b => `
             <div class="yoga-booking-card">
@@ -75,6 +81,7 @@ function renderYogaSessionBlock(s) {
                 <span class="yoga-session-date">${escapeHtml(s.display)}, ${escapeHtml(s.time)}</span>
                 <span class="vol-count ${countClass}">${s.booked} / ${s.capacity}</span>
                 ${fullBadge}
+                ${emailBtn}
             </div>
             <div class="yoga-bookings">${people}</div>
         </div>`;
@@ -963,6 +970,7 @@ function toggleDateGroup(header) {
 
 let emailBlastRecipients = [];
 let emailBlastDate = null;
+let emailBlastMode = 'availability'; // 'availability' (room-booking blast) or 'yoga' (email attendees)
 
 async function loadEmailBlastDates() {
     const container = document.getElementById('email-blast-dates');
@@ -1024,8 +1032,10 @@ async function openEmailBlast(date) {
             return;
         }
 
+        emailBlastMode = 'availability';
         emailBlastDate = date;
 
+        document.getElementById('email-blast-title').textContent = '📣 Review Availability Email';
         document.getElementById('email-blast-date-label').textContent =
             `Availability email for ${draft.date_display}. Review and edit before sending.`;
         document.getElementById('email-blast-subject').value = draft.subject;
@@ -1048,6 +1058,62 @@ async function openEmailBlast(date) {
 function closeEmailBlast() {
     document.getElementById('email-blast-modal').hidden = true;
     document.body.style.overflow = '';
+}
+
+// Email yoga attendees directly, either one session ('YYYY-MM-DD') or
+// everyone registered across all upcoming sessions ('all'). Reuses the
+// same review modal as the availability blast.
+function openYogaEmail(dateOrAll) {
+    let recipients = [];
+    let label = '';
+    let subject = '';
+    let sessionLine = '';
+
+    const collect = (sessions) => {
+        const seen = new Set();
+        sessions.forEach(s => s.bookings.forEach(b => {
+            const email = (b.email || '').trim().toLowerCase();
+            if (email && !seen.has(email)) { seen.add(email); recipients.push(email); }
+        }));
+    };
+
+    if (dateOrAll === 'all') {
+        const upcoming = yogaSessionsData.filter(s => !s.past);
+        collect(upcoming);
+        label = `All upcoming yoga attendees across ${upcoming.length} session${upcoming.length !== 1 ? 's' : ''}. Review and edit before sending.`;
+        subject = 'Gentle Yoga with Marlijn — update';
+        sessionLine = 'your upcoming yoga session';
+    } else {
+        const s = yogaSessionsData.find(x => x.date === dateOrAll);
+        if (!s) return;
+        collect([s]);
+        label = `Yoga attendees for ${s.display} (${recipients.length}). Review and edit before sending.`;
+        subject = `Gentle Yoga with Marlijn — ${s.display}`;
+        sessionLine = `your session on ${s.display}`;
+    }
+
+    if (!recipients.length) {
+        alert('No registered attendees with an email address for this selection yet.');
+        return;
+    }
+
+    emailBlastMode = 'yoga';
+    emailBlastDate = null;
+
+    document.getElementById('email-blast-title').textContent = '🧘 Email Yoga Attendees';
+    document.getElementById('email-blast-date-label').textContent = label;
+    document.getElementById('email-blast-subject').value = subject;
+    document.getElementById('email-blast-body').value = `Hi,\n\n[Write your message about ${sessionLine} here.]\n\nBest wishes,\nLondon Autism Group Charity\nFridays @ Farringdon\n`;
+
+    emailBlastRecipients = recipients;
+    renderRecipients();
+
+    const statusEl = document.getElementById('email-blast-status');
+    statusEl.className = 'form-status';
+    statusEl.textContent = '';
+
+    document.getElementById('email-blast-modal').hidden = false;
+    document.body.style.overflow = 'hidden';
 }
 
 function renderRecipients() {
@@ -1116,16 +1182,17 @@ async function sendEmailBlast() {
     statusEl.className = 'form-status';
     statusEl.textContent = '';
 
+    const isYoga = emailBlastMode === 'yoga';
+    const endpoint = isYoga ? '/api/admin/yoga-email/send' : '/api/admin/availability-email/send';
+    const payload = isYoga
+        ? { subject, body, recipients: emailBlastRecipients }
+        : { subject, body, recipients: emailBlastRecipients, date: emailBlastDate };
+
     try {
-        const response = await fetch('/api/admin/availability-email/send', {
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                subject: subject,
-                body: body,
-                recipients: emailBlastRecipients,
-                date: emailBlastDate
-            })
+            body: JSON.stringify(payload)
         });
 
         const result = await response.json();
@@ -1133,7 +1200,7 @@ async function sendEmailBlast() {
         if (response.ok) {
             statusEl.className = 'form-status success';
             statusEl.textContent = `✅ Email sent to ${result.sent_to} recipient${result.sent_to !== 1 ? 's' : ''}.`;
-            setTimeout(() => { closeEmailBlast(); loadEmailBlastDates(); }, 2500);
+            setTimeout(() => { closeEmailBlast(); isYoga ? loadYogaBookings() : loadEmailBlastDates(); }, 2500);
         } else {
             statusEl.className = 'form-status error';
             statusEl.textContent = result.error || 'Failed to send email';
