@@ -37,7 +37,7 @@ app.config['SMTP_FROM'] = 'miles.lagc@gmail.com'
 app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'true').lower() not in ('false', '0', 'no')
 
 # Admin password (set via environment variable or use default 'Moonlight')
-app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'Moonlight')
+app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'Yesterday')
 
 db = SQLAlchemy(app)
 
