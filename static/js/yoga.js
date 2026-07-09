@@ -52,7 +52,6 @@
             avoid_info: form.avoid_info.value.trim(),
             accessibility_info: form.accessibility_info.value.trim(),
             agreed_safety: document.getElementById('yoga-agree').checked,
-            consent_contact: document.getElementById('yoga-consent').checked,
         };
 
         if (!payload.session_date) { setStatus('Please choose a session date.', 'error'); dateSelect.focus(); return; }

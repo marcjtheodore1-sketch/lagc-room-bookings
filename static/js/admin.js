@@ -71,7 +71,6 @@ function renderYogaSessionBlock(s) {
                 ${yogaField('Should know (safety)', b.health_info)}
                 ${yogaField('Avoid', b.avoid_info)}
                 ${yogaField('Experience / access needs', b.accessibility_info)}
-                ${yogaField('Consents to contact', b.consent_contact ? 'Yes' : 'No')}
                 <div class="yoga-booking-meta">Registered ${escapeHtml(b.created_at)}</div>
             </div>`).join('')
         : '<p class="vol-none">No bookings yet</p>';

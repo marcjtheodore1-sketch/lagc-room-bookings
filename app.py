@@ -97,7 +97,6 @@ class YogaBooking(db.Model):
     avoid_info = db.Column(db.Text, default='')              # things to avoid
     accessibility_info = db.Column(db.Text, default='')      # how they experience/communicate
     agreed_safety = db.Column(db.Boolean, default=False)     # required understanding checkbox
-    consent_contact = db.Column(db.Boolean, default=False)   # optional contact consent
     cancel_token = db.Column(db.String(64), unique=True)     # self-cancel link
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -1114,7 +1113,6 @@ def yoga_book():
     avoid_info = clean('avoid_info', 4000)
     accessibility_info = clean('accessibility_info', 4000)
     agreed_safety = bool(data.get('agreed_safety'))
-    consent_contact = bool(data.get('consent_contact'))
 
     # Required fields
     if not all([name, email, phone, emergency_name, emergency_phone, experience, date_str]):
@@ -1143,7 +1141,7 @@ def yoga_book():
         emergency_name=emergency_name, emergency_phone=emergency_phone,
         experience=experience,
         health_info=health_info, avoid_info=avoid_info, accessibility_info=accessibility_info,
-        agreed_safety=agreed_safety, consent_contact=consent_contact,
+        agreed_safety=agreed_safety,
         cancel_token=cancel_token,
     )
     db.session.add(booking)
@@ -1176,7 +1174,6 @@ Done yoga before: {experience}
 {accessibility_info or '(nothing provided)'}
 
 Understood the gentle-session statement: {'Yes' if agreed_safety else 'No'}
-Consents to being contacted about this yoga session: {'Yes' if consent_contact else 'No'}
 """
     send_confirmation_email(
         YOGA_NOTIFY_EMAIL,
@@ -1574,7 +1571,6 @@ def admin_get_yoga_bookings():
             'avoid_info': b.avoid_info,
             'accessibility_info': b.accessibility_info,
             'agreed_safety': b.agreed_safety,
-            'consent_contact': b.consent_contact,
             'created_at': b.created_at.strftime('%d %b %Y, %H:%M') if b.created_at else '',
         })
 
@@ -1656,7 +1652,7 @@ def admin_export_yoga_bookings():
         'Emergency contact name', 'Emergency contact phone', 'Done yoga before',
         'Instructor should know (safety)', 'Definitely avoid',
         'Experience/communication/access needs',
-        'Understood gentle-session statement', 'Consents to contact', 'Registered at',
+        'Understood gentle-session statement', 'Registered at',
     ])
     for b in YogaBooking.query.order_by(YogaBooking.session_date, YogaBooking.created_at).all():
         writer.writerow([
@@ -1664,7 +1660,6 @@ def admin_export_yoga_bookings():
             b.emergency_name, b.emergency_phone, b.experience,
             b.health_info, b.avoid_info, b.accessibility_info,
             'Yes' if b.agreed_safety else 'No',
-            'Yes' if b.consent_contact else 'No',
             b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '',
         ])
     from flask import Response
