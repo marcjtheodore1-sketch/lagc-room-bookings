@@ -202,8 +202,69 @@ def get_room_schedule_ids():
                     break
             if room_id:
                 schedule[date_str].append(room_id)
-    
+
     return schedule
+
+# ============================================================================
+# PER-DATE ROOM TIME OVERRIDES
+# Admins can change a room's hours for a specific Friday (e.g. Clerkenwell
+# 10:45am–5pm this week because there's no volunteer cover from 9:30am).
+# Stored in the Setting table as JSON:
+#   {"YYYY-MM-DD": {"<room_id>": {"start": "HH:MM", "end": "HH:MM"}}}
+# For OPEN rooms the override is display-only (whole-day booking, custom label).
+# For SLOT rooms the window snaps to the 30-min grid and limits which slots
+# can be booked.
+# ============================================================================
+ROOM_TIME_OVERRIDES_KEY = 'room_time_overrides'
+
+def get_room_time_overrides():
+    raw = get_setting(ROOM_TIME_OVERRIDES_KEY)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+
+def get_room_time_override(date_str, room_id):
+    """Return {'start': 'HH:MM', 'end': 'HH:MM'} for a room on a date, or None."""
+    return get_room_time_overrides().get(date_str, {}).get(str(room_id))
+
+def fmt_hhmm(hhmm):
+    """'10:45' -> '10:45 AM'. Returns the input unchanged if unparseable."""
+    try:
+        return datetime.strptime(hhmm, '%H:%M').strftime('%I:%M %p').lstrip('0')
+    except (ValueError, TypeError):
+        return hhmm
+
+def _minutes_from_grid_start(hhmm):
+    dt = datetime.strptime(hhmm, '%H:%M')
+    return (dt.hour * 60 + dt.minute) - (START_HOUR * 60 + START_MINUTE)
+
+def override_start_slot(hhmm):
+    """First bookable 30-min slot at/after the override start (rounds up)."""
+    mins = _minutes_from_grid_start(hhmm)
+    slot = -(-mins // SLOT_MINUTES) if mins > 0 else 0  # ceil, floored at 0
+    return max(0, min(slot, len(TIME_SLOTS) - 1))
+
+def override_end_slot(hhmm):
+    """Grid boundary slot at/before the override end (rounds down)."""
+    mins = _minutes_from_grid_start(hhmm)
+    slot = mins // SLOT_MINUTES  # floor
+    return max(0, min(slot, len(TIME_SLOTS) - 1))
+
+def booking_time_display(booking):
+    """(start_display, end_display) for a booking, honouring open-room overrides.
+
+    Slot-room bookings always reflect the actual slots the person chose; only
+    open (whole-day) rooms take on the admin's custom hours for the date."""
+    if booking.room and booking.room.room_type == 'open':
+        ov = get_room_time_override(booking.booking_date.isoformat(), booking.room_id)
+        if ov and ov.get('start') and ov.get('end'):
+            return fmt_hhmm(ov['start']), fmt_hhmm(ov['end'])
+    start = TIME_SLOTS[booking.start_slot]['display']
+    end = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+    return start, end
 
 # ============================================================================
 # HELPER FUNCTIONS
@@ -814,6 +875,12 @@ def get_rooms():
                 Booking.booking_date == booking_date,
                 Booking.cancelled_at.is_(None)
             ).count()
+        # Custom hours set by admin for this date (drives the booking summary)
+        if booking_date:
+            ov = get_room_time_override(booking_date.isoformat(), r.id)
+            if ov and ov.get('start') and ov.get('end'):
+                item['override_start'] = fmt_hhmm(ov['start'])
+                item['override_end'] = fmt_hhmm(ov['end'])
         result.append(item)
     return jsonify(result)
 
@@ -884,7 +951,16 @@ def get_availability(date, room_id):
     if date_str == '2026-05-08' and room_id in (room_4_2_id, room_4_7_id):
         for slot_idx in [0, 1, 2]:  # 11:00am, 11:30am, 12:00pm
             booked_slots.add(slot_idx)
-    
+
+    # Admin per-date time override: block any slots outside the custom window
+    override = get_room_time_override(date_str, room_id)
+    if override and override.get('start') and override.get('end'):
+        win_start = override_start_slot(override['start'])
+        win_end = override_end_slot(override['end'])
+        for slot in TIME_SLOTS:
+            if slot['index'] < win_start or slot['index'] >= win_end:
+                booked_slots.add(slot['index'])
+
     # Build availability array
     availability = []
     for slot in TIME_SLOTS:
@@ -894,7 +970,7 @@ def get_availability(date, room_id):
             'display': slot['display'],
             'available': slot['index'] not in booked_slots
         })
-    
+
     return jsonify(availability)
 
 @app.route('/api/book', methods=['POST'])
@@ -934,13 +1010,24 @@ def create_booking():
     room = Room.query.get(room_id)
     if not room:
         return jsonify({'error': 'Room not found'}), 404
-    
+
+    # One booking per email, per room, per date — blocks accidental duplicates
+    # (e.g. someone clicking "book" twice on a whole-day shared room).
+    duplicate = Booking.query.filter(
+        Booking.room_id == room_id,
+        Booking.booking_date == booking_date,
+        db.func.lower(Booking.user_email) == email,
+        Booking.cancelled_at.is_(None)
+    ).first()
+    if duplicate:
+        return jsonify({'error': 'You already have a booking for this room on this date. Check "My Bookings" below to view or cancel it.'}), 409
+
     # Determine slots based on room type
     if room.room_type == 'open':
         # Open rooms: book the entire day (9:30am - 5pm)
         start_slot = 0
         end_slot = len(TIME_SLOTS)  # Exclusive end (covers all slots 0-10)
-        
+
         # Special case: May 8th, 2026 - Rooms 4.2 and 4.7 start at 12:30pm
         date_str = booking_date.isoformat()
         is_room_4_2 = '4.2' in room.name or 'indigo' in room.name.lower()
@@ -963,7 +1050,15 @@ def create_booking():
         num_slots = end_slot - start_slot
         if num_slots > MAX_SLOTS:
             return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
-    
+
+        # Enforce any admin time override for this room/date
+        ov = get_room_time_override(booking_date.isoformat(), room_id)
+        if ov and ov.get('start') and ov.get('end'):
+            win_start = override_start_slot(ov['start'])
+            win_end = override_end_slot(ov['end'])
+            if start_slot < win_start or end_slot > win_end:
+                return jsonify({'error': f'This room is only available {fmt_hhmm(ov["start"])}–{fmt_hhmm(ov["end"])} on this date. Please pick a time within those hours.'}), 400
+
     # Check availability (only for slot rooms - open rooms allow multiple bookings)
     if room.room_type == 'slot' and not check_availability(room_id, booking_date, start_slot, end_slot):
         return jsonify({'error': 'Selected time slots are no longer available'}), 409
@@ -985,16 +1080,8 @@ def create_booking():
     
     # Generate confirmation message
     template = get_setting('confirmation_message', get_default_confirmation_message())
-    start_time = TIME_SLOTS[start_slot]['display']
-    
-    # Special cases for Room 4.2 "Indigo" on specific dates
-    is_march_20th = booking_date.isoformat() == '2026-03-20'
-    is_room_4_2 = '4.2' in room.name or 'indigo' in room.name.lower()
-    if is_march_20th and is_room_4_2:
-        end_time = '2:30 PM'
-    else:
-        end_time = TIME_SLOTS[end_slot]['display'] if end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
-    
+    start_time, end_time = booking_time_display(booking)
+
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     confirmation_message = format_confirmation_message(
@@ -1261,8 +1348,7 @@ def get_booking(token):
     if booking.cancelled_at:
         return jsonify({'error': 'This booking has already been cancelled'}), 410
     
-    start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+    start_time, end_time = booking_time_display(booking)
     
     return jsonify({
         'id': booking.id,
@@ -1292,8 +1378,7 @@ def cancel_booking(token):
     user_name = booking.user_name
     user_email = booking.user_email
     booking_date = booking.booking_date.strftime('%A, %B %d, %Y')
-    start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+    start_time, end_time = booking_time_display(booking)
     
     booking.cancelled_at = datetime.utcnow()
     db.session.commit()
@@ -1337,8 +1422,7 @@ def get_my_bookings():
     
     result = []
     for booking in bookings:
-        start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+        start_time, end_time = booking_time_display(booking)
         
         result.append({
             'id': booking.id,
@@ -1699,8 +1783,7 @@ def admin_get_bookings():
     
     result = []
     for booking in bookings:
-        start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+        start_time, end_time = booking_time_display(booking)
         
         result.append({
             'id': booking.id,
@@ -1726,8 +1809,7 @@ def admin_get_bookings_archive():
     
     result = []
     for booking in bookings:
-        start_time = TIME_SLOTS[booking.start_slot]['display']
-        end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+        start_time, end_time = booking_time_display(booking)
         
         result.append({
             'id': booking.id,
@@ -1942,11 +2024,13 @@ def admin_send_availability_email():
     return jsonify({'success': True, 'sent_to': len(clean)})
 
 @app.route('/api/admin/yoga-email/send', methods=['POST'])
+@app.route('/api/admin/notify-email/send', methods=['POST'])
 @admin_required
 def admin_send_yoga_email():
-    """Email yoga attendees directly (reminders, updates, etc). Unlike the
-    availability blast this has no once-per-date lock, since admins may
-    need to contact attendees more than once for the same session."""
+    """Email a list of people directly (yoga attendees, or everyone booked on
+    a given Friday) — reminders, timing changes, etc. Unlike the availability
+    blast this has no once-per-date lock, since admins may need to contact
+    people more than once."""
     data = request.get_json(silent=True) or {}
     subject = (data.get('subject') or '').strip()
     body = (data.get('body') or '').strip()
@@ -1975,6 +2059,123 @@ def admin_send_yoga_email():
         return jsonify({'error': f'Failed to send email: {error}'}), 502
 
     return jsonify({'success': True, 'sent_to': len(clean)})
+
+@app.route('/api/admin/room-times')
+@admin_required
+def admin_get_room_times():
+    """List upcoming Fridays with each scheduled room's current hours, so the
+    admin can adjust them. Times are 24h 'HH:MM' for <input type=time>."""
+    overrides = get_room_time_overrides()
+    schedule = get_room_schedule_ids()
+    rooms_by_id = {r.id: r for r in Room.query.all()}
+    default_start = f"{START_HOUR:02d}:{START_MINUTE:02d}"
+    default_end = f"{END_HOUR:02d}:{END_MINUTE:02d}"
+
+    dates = []
+    for f in get_upcoming_fridays(count=8):
+        ds = f['date']
+        room_ids = schedule.get(ds, [])
+        rooms = []
+        for rid in room_ids:
+            room = rooms_by_id.get(rid)
+            if not room or not room.is_active:
+                continue
+            ov = overrides.get(ds, {}).get(str(rid))
+            rooms.append({
+                'room_id': rid,
+                'name': room.name,
+                'room_type': room.room_type,
+                'start': ov['start'] if ov else default_start,
+                'end': ov['end'] if ov else default_end,
+                'is_override': bool(ov),
+            })
+        if rooms:
+            dates.append({'date': ds, 'display': f['display'], 'rooms': rooms})
+
+    return jsonify({
+        'dates': dates,
+        'default_start': default_start,
+        'default_end': default_end,
+        'grid_note': 'Slot rooms (e.g. Rose) snap to the nearest 30 minutes.',
+    })
+
+@app.route('/api/admin/room-times', methods=['POST'])
+@admin_required
+def admin_set_room_time():
+    """Set or clear a room's custom hours for a single Friday.
+    Body: {date, room_id, start, end} to set; {date, room_id, clear:true} to reset."""
+    data = request.get_json(silent=True) or {}
+    date_str = (data.get('date') or '').strip()
+    room_id = data.get('room_id')
+
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'error': 'Invalid date'}), 400
+
+    schedule = get_room_schedule_ids()
+    if date_str not in schedule or room_id not in schedule[date_str]:
+        return jsonify({'error': 'That room is not scheduled on that date'}), 400
+
+    overrides = get_room_time_overrides()
+
+    if data.get('clear'):
+        if date_str in overrides and str(room_id) in overrides[date_str]:
+            del overrides[date_str][str(room_id)]
+            if not overrides[date_str]:
+                del overrides[date_str]
+        set_setting(ROOM_TIME_OVERRIDES_KEY, json.dumps(overrides))
+        return jsonify({'success': True, 'cleared': True})
+
+    start = (data.get('start') or '').strip()
+    end = (data.get('end') or '').strip()
+    try:
+        t_start = datetime.strptime(start, '%H:%M')
+        t_end = datetime.strptime(end, '%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Please enter valid start and end times'}), 400
+    if t_start >= t_end:
+        return jsonify({'error': 'The start time must be before the end time'}), 400
+
+    # Keep custom hours within the venue's overall day
+    day_start = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", '%H:%M')
+    day_end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", '%H:%M')
+    if t_start < day_start or t_end > day_end:
+        return jsonify({'error': f'Times must be between {fmt_hhmm(day_start.strftime("%H:%M"))} and {fmt_hhmm(day_end.strftime("%H:%M"))}.'}), 400
+
+    overrides.setdefault(date_str, {})[str(room_id)] = {'start': start, 'end': end}
+    set_setting(ROOM_TIME_OVERRIDES_KEY, json.dumps(overrides))
+    return jsonify({
+        'success': True,
+        'start_display': fmt_hhmm(start),
+        'end_display': fmt_hhmm(end),
+    })
+
+@app.route('/api/admin/bookings-email/recipients/<date>')
+@admin_required
+def admin_bookings_email_recipients(date):
+    """Unique emails of everyone with a live booking on a given Friday."""
+    try:
+        booking_date = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date'}), 400
+    seen = set()
+    recipients = []
+    rows = Booking.query.filter(
+        Booking.booking_date == booking_date,
+        Booking.cancelled_at.is_(None)
+    ).all()
+    for b in rows:
+        email = (b.user_email or '').strip().lower()
+        if email and email not in seen:
+            seen.add(email)
+            recipients.append(email)
+    recipients.sort()
+    return jsonify({
+        'date': booking_date.isoformat(),
+        'date_display': booking_date.strftime('%A, %B %d, %Y'),
+        'recipients': recipients,
+    })
 
 @app.route('/api/open-booking-counts')
 def get_open_booking_counts():
@@ -2019,8 +2220,7 @@ def admin_delete_booking(booking_id):
     user_name = booking.user_name
     user_email = booking.user_email
     booking_date = booking.booking_date
-    start_time = TIME_SLOTS[booking.start_slot]['display']
-    end_time = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+    start_time, end_time = booking_time_display(booking)
     date_display = booking_date.strftime('%A, %B %d, %Y')
     
     # Delete the booking

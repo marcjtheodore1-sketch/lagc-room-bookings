@@ -18,6 +18,7 @@ function showTab(tabName) {
     
     // Load data for the tab
     if (tabName === 'rooms') loadRooms();
+    if (tabName === 'roomtimes') loadRoomTimes();
     if (tabName === 'messages') loadMessageTemplate();
     if (tabName === 'bookings') loadAllBookings();
     if (tabName === 'announcements') loadAnnouncements();
@@ -712,6 +713,106 @@ async function deleteRoom(id) {
 }
 
 // ============================================
+// ROOM TIMES (per-date hours)
+// ============================================
+
+async function loadRoomTimes() {
+    const container = document.getElementById('room-times-list');
+    container.innerHTML = '<p class="loading">Loading room times...</p>';
+    try {
+        const res = await fetch('/api/admin/room-times');
+        const data = await res.json();
+        renderRoomTimes(data);
+    } catch (e) {
+        container.innerHTML = '<p class="error-text">Failed to load room times</p>';
+    }
+}
+
+function renderRoomTimes(data) {
+    const container = document.getElementById('room-times-list');
+    const dates = data.dates || [];
+    if (!dates.length) {
+        container.innerHTML = '<p class="hint">No upcoming Fridays with rooms scheduled.</p>';
+        return;
+    }
+
+    container.innerHTML = dates.map(d => `
+        <div class="room-times-date">
+            <h3 class="room-times-date-title">${escapeHtml(d.display)}</h3>
+            ${d.rooms.map(r => `
+                <div class="room-times-row" data-date="${d.date}" data-room="${r.room_id}">
+                    <div class="room-times-name">
+                        ${escapeHtml(r.name)}
+                        ${r.is_override ? '<span class="room-times-badge">custom</span>' : ''}
+                        <span class="room-times-type">${r.room_type === 'slot' ? '⏰ slot room — snaps to 30 min' : '📋 open room'}</span>
+                    </div>
+                    <div class="room-times-inputs">
+                        <label>From <input type="time" class="rt-start" value="${r.start}"></label>
+                        <label>to <input type="time" class="rt-end" value="${r.end}"></label>
+                        <button class="btn btn-primary btn-small" onclick="saveRoomTime(this)">Save</button>
+                        <button class="btn btn-secondary btn-small" onclick="resetRoomTime(this)" ${r.is_override ? '' : 'disabled'}>Reset to 9:30–5</button>
+                    </div>
+                    <p class="rt-status form-status" role="status" aria-live="polite"></p>
+                </div>
+            `).join('')}
+        </div>
+    `).join('');
+}
+
+function _rtRow(btn) {
+    const row = btn.closest('.room-times-row');
+    return {
+        row,
+        date: row.dataset.date,
+        roomId: parseInt(row.dataset.room, 10),
+        start: row.querySelector('.rt-start').value,
+        end: row.querySelector('.rt-end').value,
+        status: row.querySelector('.rt-status'),
+    };
+}
+
+function rtStatus(el, msg, isError) {
+    el.textContent = msg || '';
+    el.className = 'rt-status form-status' + (msg ? (isError ? ' error' : ' success') : '');
+}
+
+async function saveRoomTime(btn) {
+    const { date, roomId, start, end, status } = _rtRow(btn);
+    if (!start || !end) { rtStatus(status, 'Please set both a start and end time.', true); return; }
+    if (start >= end) { rtStatus(status, 'Start time must be before end time.', true); return; }
+    try {
+        const res = await fetch('/api/admin/room-times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, room_id: roomId, start, end })
+        });
+        const result = await res.json();
+        if (!res.ok) { rtStatus(status, result.error || 'Failed to save.', true); return; }
+        rtStatus(status, `✅ Saved — ${result.start_display} to ${result.end_display}.`, false);
+        loadRoomTimes();
+    } catch (e) {
+        rtStatus(status, 'Network error. Please try again.', true);
+    }
+}
+
+async function resetRoomTime(btn) {
+    const { date, roomId, status } = _rtRow(btn);
+    try {
+        const res = await fetch('/api/admin/room-times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, room_id: roomId, clear: true })
+        });
+        const result = await res.json();
+        if (!res.ok) { rtStatus(status, result.error || 'Failed to reset.', true); return; }
+        rtStatus(status, '✅ Reset to the default 9:30am–5pm.', false);
+        loadRoomTimes();
+    } catch (e) {
+        rtStatus(status, 'Network error. Please try again.', true);
+    }
+}
+
+// ============================================
 // MESSAGE TEMPLATE
 // ============================================
 
@@ -929,6 +1030,7 @@ function renderBookingsByDate(bookings) {
                     <span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>
                     <h4>${escapeHtml(dateData.display)}</h4>
                     <span class="booking-count">(${dateData.bookings.length} booking${dateData.bookings.length !== 1 ? 's' : ''})</span>
+                    <button class="btn btn-secondary btn-small date-email-btn" onclick="event.stopPropagation(); openBookingsEmail('${date}')">📧 Email these people</button>
                 </div>
                 <div class="date-bookings">
                     ${dateData.bookings.map(booking => `
@@ -1115,6 +1217,41 @@ function openYogaEmail(dateOrAll) {
     document.body.style.overflow = 'hidden';
 }
 
+// Email everyone who has a room booking on a given Friday (e.g. to tell them
+// about a change of hours). Reuses the same review/send modal.
+async function openBookingsEmail(date) {
+    try {
+        const res = await fetch(`/api/admin/bookings-email/recipients/${date}`);
+        const data = await res.json();
+        if (!res.ok) { alert(data.error || 'Could not load recipients'); return; }
+        if (!data.recipients.length) {
+            alert('No booked people with an email address for this date.');
+            return;
+        }
+
+        emailBlastMode = 'bookings';
+        emailBlastDate = date;
+
+        document.getElementById('email-blast-title').textContent = '📧 Email People Booked';
+        document.getElementById('email-blast-date-label').textContent =
+            `Everyone booked for ${data.date_display} (${data.recipients.length}). Review and edit before sending.`;
+        document.getElementById('email-blast-subject').value = `Fridays @ Farringdon — ${data.date_display}`;
+        document.getElementById('email-blast-body').value = `Hi,\n\n[Write your message about your booking on ${data.date_display} here — for example a change to the room's hours.]\n\nBest wishes,\nLondon Autism Group Charity\nFridays @ Farringdon\n`;
+
+        emailBlastRecipients = data.recipients;
+        renderRecipients();
+
+        const statusEl = document.getElementById('email-blast-status');
+        statusEl.className = 'form-status';
+        statusEl.textContent = '';
+
+        document.getElementById('email-blast-modal').hidden = false;
+        document.body.style.overflow = 'hidden';
+    } catch (e) {
+        alert('Network error. Please try again.');
+    }
+}
+
 function renderRecipients() {
     const chips = document.getElementById('recipient-chips');
     const count = document.getElementById('recipient-count');
@@ -1181,11 +1318,18 @@ async function sendEmailBlast() {
     statusEl.className = 'form-status';
     statusEl.textContent = '';
 
-    const isYoga = emailBlastMode === 'yoga';
-    const endpoint = isYoga ? '/api/admin/yoga-email/send' : '/api/admin/availability-email/send';
-    const payload = isYoga
-        ? { subject, body, recipients: emailBlastRecipients }
-        : { subject, body, recipients: emailBlastRecipients, date: emailBlastDate };
+    // 'availability' hits the once-per-date blast endpoint; 'yoga' and
+    // 'bookings' both use the generic notify endpoint (no date lock).
+    const isAvailability = emailBlastMode === 'availability';
+    const endpoint = isAvailability ? '/api/admin/availability-email/send' : '/api/admin/notify-email/send';
+    const payload = isAvailability
+        ? { subject, body, recipients: emailBlastRecipients, date: emailBlastDate }
+        : { subject, body, recipients: emailBlastRecipients };
+    const refresh = () => {
+        if (emailBlastMode === 'yoga') loadYogaBookings();
+        else if (emailBlastMode === 'bookings') loadAllBookings();
+        else loadEmailBlastDates();
+    };
 
     try {
         const response = await fetch(endpoint, {
@@ -1199,7 +1343,7 @@ async function sendEmailBlast() {
         if (response.ok) {
             statusEl.className = 'form-status success';
             statusEl.textContent = `✅ Email sent to ${result.sent_to} recipient${result.sent_to !== 1 ? 's' : ''}.`;
-            setTimeout(() => { closeEmailBlast(); isYoga ? loadYogaBookings() : loadEmailBlastDates(); }, 2500);
+            setTimeout(() => { closeEmailBlast(); refresh(); }, 2500);
         } else {
             statusEl.className = 'form-status error';
             statusEl.textContent = result.error || 'Failed to send email';
@@ -1255,7 +1399,7 @@ async function deleteBooking(bookingId) {
     }
 }
 
-// Load rooms on page load
+// Show All Bookings first on page load
 document.addEventListener('DOMContentLoaded', () => {
-    loadRooms();
+    loadAllBookings();
 });

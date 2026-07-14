@@ -175,8 +175,11 @@ function renderRooms() {
         const typeBadge = room.room_type === 'open'
             ? '<span class="room-type-badge open">Open Booking</span>'
             : '<span class="room-type-badge slot">Time Slots</span>';
+        const openHours = (room.override_start && room.override_end)
+            ? `${room.override_start} - ${room.override_end}`
+            : '9:30am - 5pm';
         const typeHint = room.room_type === 'open'
-            ? '<small class="room-hint">11am - 4pm</small>'
+            ? `<small class="room-hint">${escapeHtml(openHours)}</small>`
             : '<small class="room-hint">30 min slots</small>';
         const photoUrl = getRoomPhotoUrl(room);
         const photoHtml = photoUrl
@@ -523,8 +526,11 @@ function showEmailStep() {
     const isRoom4_7 = state.selectedRoom.name.includes('4.7') || state.selectedRoom.name.toLowerCase().includes('clerkenwell');
     
     if (state.selectedRoom.room_type === 'open') {
-        // Open rooms: full day (or special hours for specific dates/rooms)
-        if (isMay8th && (isRoom4_2 || isRoom4_7)) {
+        // Admin-set custom hours for this date take precedence
+        if (state.selectedRoom.override_start && state.selectedRoom.override_end) {
+            startTime = state.selectedRoom.override_start;
+            endTime = state.selectedRoom.override_end;
+        } else if (isMay8th && (isRoom4_2 || isRoom4_7)) {
             // May 8th: Rooms 4.2 and 4.7 start at 12:30pm
             startTime = state.timeSlots[3]?.display || '12:30 PM';
             endTime = '4:00 PM';
