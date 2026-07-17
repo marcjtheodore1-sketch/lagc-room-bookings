@@ -63,6 +63,7 @@ function renderYogaSessionBlock(s) {
             <div class="yoga-booking-card">
                 <div class="yoga-booking-top">
                     <strong>${escapeHtml(b.name)}</strong>
+                    ${attendanceButtons('yoga', b.id, b.attended)}
                     <button class="btn btn-danger btn-small" onclick="deleteYogaBooking(${b.id}, '${escapeHtml(b.name).replace(/'/g, "\\'")}')">Remove</button>
                 </div>
                 ${yogaField('Email', b.email)}
@@ -109,6 +110,79 @@ function renderYogaBookings(data) {
         html += past.map(renderYogaSessionBlock).join('');
     }
     wrap.innerHTML = html;
+}
+
+// ============================================
+// ATTENDANCE (Rose + yoga — the capacity-limited spaces)
+// ============================================
+
+// Two toggle buttons: clicking the active one again clears the record.
+function attendanceButtons(kind, id, attended) {
+    const cameOn = attended === true;
+    const noOn = attended === false;
+    return `<span class="attend-controls">
+        <button type="button" class="attend-btn attend-came${cameOn ? ' on' : ''}"
+            onclick="setAttendance('${kind}', ${id}, ${cameOn ? 'null' : 'true'})">✓ Came</button>
+        <button type="button" class="attend-btn attend-noshow${noOn ? ' on' : ''}"
+            onclick="setAttendance('${kind}', ${id}, ${noOn ? 'null' : 'false'})">✗ No-show</button>
+    </span>`;
+}
+
+async function setAttendance(kind, id, value) {
+    const url = kind === 'yoga'
+        ? `/api/admin/yoga-bookings/${id}/attendance`
+        : `/api/admin/bookings/${id}/attendance`;
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ attended: value })
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            alert(err.error || 'Failed to save attendance');
+            return;
+        }
+        // Refresh whichever view the buttons live in
+        if (kind === 'yoga') {
+            loadYogaBookings();
+        } else if (document.getElementById('tab-archive').classList.contains('active')) {
+            loadArchivedBookings();
+        } else {
+            loadAllBookings();
+        }
+    } catch (e) {
+        alert('Network error. Please try again.');
+    }
+}
+
+async function loadAttendanceSummary() {
+    const wrap = document.getElementById('attendance-summary');
+    if (!wrap) return;
+    try {
+        const rows = await (await fetch('/api/admin/attendance-summary')).json();
+        if (!rows.length) {
+            wrap.innerHTML = '<p class="hint">Nothing recorded yet. After a session, use the ✓ Came / ✗ No-show buttons on Rose bookings (below) and yoga registrations (Yoga tab).</p>';
+            return;
+        }
+        wrap.innerHTML = `<table class="attend-table">
+            <thead><tr><th>Name</th><th>Email</th><th>✓ Attended</th><th>✗ No-shows</th></tr></thead>
+            <tbody>${rows.map(p => {
+                const split = [
+                    p.yoga_no_shows ? `${p.yoga_no_shows} yoga` : '',
+                    p.rose_no_shows ? `${p.rose_no_shows} Rose` : ''
+                ].filter(Boolean).join(', ');
+                return `<tr class="${p.no_shows >= 2 ? 'attend-flag' : ''}">
+                    <td>${escapeHtml(p.name)}</td>
+                    <td>${escapeHtml(p.email)}</td>
+                    <td>${p.attended}</td>
+                    <td>${p.no_shows}${split ? ` <small>(${split})</small>` : ''}</td>
+                </tr>`;
+            }).join('')}</tbody>
+        </table>`;
+    } catch (e) {
+        wrap.innerHTML = '<p class="error-text">Failed to load the attendance record</p>';
+    }
 }
 
 async function deleteYogaBooking(id, name) {
@@ -889,6 +963,7 @@ async function loadAllBookings() {
         
         renderBookingsByDate(bookings);
         renderBookingCounts(counts);
+        loadAttendanceSummary();
     } catch (error) {
         container.innerHTML = '<p class="error-text">Failed to load bookings</p>';
     }
@@ -953,6 +1028,7 @@ function renderArchivedBookings(bookings) {
                                 <span class="user-name">${escapeHtml(booking.user_name)}</span>
                                 <span class="user-email">${escapeHtml(booking.user_email)}</span>
                             </div>
+                            ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
                         </div>
                     `).join('')}
                 </div>
@@ -1043,6 +1119,7 @@ function renderBookingsByDate(bookings) {
                                 <span class="user-name">${escapeHtml(booking.user_name)}</span>
                                 <span class="user-email">${escapeHtml(booking.user_email)}</span>
                             </div>
+                            ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
                             <button class="btn btn-small btn-danger" onclick="deleteBooking(${booking.id})">Delete</button>
                         </div>
                     `).join('')}

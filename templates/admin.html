@@ -91,6 +91,12 @@
         <div class="bookings-by-date-container" id="bookings-by-date">
             <p class="loading">Loading bookings...</p>
         </div>
+
+        <h2>📊 Attendance Record</h2>
+        <p class="hint">For the capacity-limited spaces only (Rose room and yoga). After each session, mark who came with the ✓ Came / ✗ No-show buttons — on Rose bookings above, and on yoga registrations in the 🧘 Yoga Bookings tab. People with 2+ no-shows are highlighted so you can spot repeat no-shows when places are tight.</p>
+        <div class="attendance-summary" id="attendance-summary">
+            <p class="loading">Loading attendance record...</p>
+        </div>
     </div>
 
     <!-- Notifications / Announcements Tab -->
@@ -180,7 +186,7 @@
                 <a href="/api/admin/yoga-bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
             </div>
         </div>
-        <p class="hint">Each session is capped at 8 places. Notifications for new registrations are emailed to miles.lagc@gmail.com. Removing a registration frees a place on that date. Use "Email All Attendees" or the "Email attendees" button on a session to message registrants directly — no more copying addresses one by one.</p>
+        <p class="hint">Each session is capped at 8 places. Notifications for new registrations are emailed to miles.lagc@gmail.com. Removing a registration frees a place on that date. Use "Email All Attendees" or the "Email attendees" button on a session to message registrants directly. After each session, mark who came with the ✓ Came / ✗ No-show buttons — the running record is under All Bookings → 📊 Attendance Record.</p>
         <div class="yoga-admin-list" id="yoga-admin-list">
             <p class="loading">Loading yoga bookings...</p>
         </div>
@@ -237,5 +243,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=12"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=13"></script>
 {% endblock %}

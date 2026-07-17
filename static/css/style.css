@@ -3191,3 +3191,91 @@ html {
     .room-times-inputs { gap: 0.5rem; }
     .date-email-btn { font-size: 0.78rem; padding: 0.3rem 0.55rem; }
 }
+
+/* ============================================
+   ATTENDANCE (Rose + yoga) — buttons + summary table
+   ============================================ */
+.attend-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+}
+
+.attend-btn {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text-light);
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+
+.attend-btn:hover {
+    border-color: var(--text-light);
+    color: var(--text);
+}
+
+.attend-btn.attend-came.on {
+    background: var(--success);
+    border-color: var(--success);
+    color: #fff;
+    font-weight: 600;
+}
+
+.attend-btn.attend-noshow.on {
+    background: var(--danger);
+    border-color: var(--danger);
+    color: #fff;
+    font-weight: 600;
+}
+
+.attendance-summary {
+    overflow-x: auto;
+}
+
+.attend-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    font-size: 0.92rem;
+}
+
+.attend-table th,
+.attend-table td {
+    text-align: left;
+    padding: 0.6rem 0.9rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+.attend-table th {
+    background: var(--bg);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--text-light);
+}
+
+.attend-table tr:last-child td {
+    border-bottom: none;
+}
+
+.attend-table tr.attend-flag td {
+    background: #fef2f2;
+}
+
+.attend-table td small {
+    color: var(--text-light);
+}
+
+@media (max-width: 560px) {
+    .attend-btn { font-size: 0.72rem; padding: 0.2rem 0.45rem; }
+    .attend-table th, .attend-table td { padding: 0.5rem 0.6rem; }
+}

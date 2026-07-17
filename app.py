@@ -67,7 +67,8 @@ class Booking(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     cancelled_at = db.Column(db.DateTime, nullable=True)
     cancel_token = db.Column(db.String(64), unique=True)  # For cancellation link
-    
+    attended = db.Column(db.Boolean, nullable=True)  # None = not recorded, True = came, False = no-show
+
     room = db.relationship('Room', backref='bookings')
 
 class Setting(db.Model):
@@ -99,6 +100,7 @@ class YogaBooking(db.Model):
     accessibility_info = db.Column(db.Text, default='')      # how they experience/communicate
     agreed_safety = db.Column(db.Boolean, default=False)     # required understanding checkbox
     cancel_token = db.Column(db.String(64), unique=True)     # self-cancel link
+    attended = db.Column(db.Boolean, nullable=True)          # None = not recorded, True = came, False = no-show
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # ============================================================================
@@ -1686,6 +1688,7 @@ def admin_get_yoga_bookings():
             'avoid_info': b.avoid_info,
             'accessibility_info': b.accessibility_info,
             'agreed_safety': b.agreed_safety,
+            'attended': b.attended,
             'created_at': b.created_at.strftime('%d %b %Y, %H:%M') if b.created_at else '',
         })
 
@@ -1824,9 +1827,11 @@ def admin_get_bookings():
             'date': booking.booking_date.isoformat(),
             'date_display': booking.booking_date.strftime('%A, %B %d, %Y'),
             'start_time': start_time,
-            'end_time': end_time
+            'end_time': end_time,
+            'room_type': booking.room.room_type,
+            'attended': booking.attended
         })
-    
+
     return jsonify(result)
 
 @app.route('/api/admin/bookings/archive')
@@ -1850,9 +1855,85 @@ def admin_get_bookings_archive():
             'date': booking.booking_date.isoformat(),
             'date_display': booking.booking_date.strftime('%A, %B %d, %Y'),
             'start_time': start_time,
-            'end_time': end_time
+            'end_time': end_time,
+            'room_type': booking.room.room_type,
+            'attended': booking.attended
         })
-    
+
+    return jsonify(result)
+
+def _parse_attended(data):
+    """Read {attended: true|false|null} from a request body."""
+    if 'attended' not in data:
+        return None, jsonify({'error': 'Missing attended value'}), 400
+    val = data['attended']
+    if val not in (True, False, None):
+        return None, jsonify({'error': 'attended must be true, false or null'}), 400
+    return val, None, None
+
+@app.route('/api/admin/bookings/<int:booking_id>/attendance', methods=['POST'])
+@admin_required
+def admin_set_booking_attendance(booking_id):
+    """Record attendance for a Rose (slot room) booking: true = came,
+    false = no-show, null = clear. Agreed to track only the
+    capacity-limited spaces (Rose + yoga), not the open rooms."""
+    booking = db.session.get(Booking, booking_id)
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    if booking.room.room_type != 'slot':
+        return jsonify({'error': 'Attendance is only tracked for Rose (slot) bookings'}), 400
+    val, err, code = _parse_attended(request.get_json(silent=True) or {})
+    if err:
+        return err, code
+    booking.attended = val
+    db.session.commit()
+    return jsonify({'success': True, 'attended': booking.attended})
+
+@app.route('/api/admin/yoga-bookings/<int:booking_id>/attendance', methods=['POST'])
+@admin_required
+def admin_set_yoga_attendance(booking_id):
+    """Record attendance for a yoga registration (true/false/null)."""
+    booking = db.session.get(YogaBooking, booking_id)
+    if not booking:
+        return jsonify({'error': 'Booking not found'}), 404
+    val, err, code = _parse_attended(request.get_json(silent=True) or {})
+    if err:
+        return err, code
+    booking.attended = val
+    db.session.commit()
+    return jsonify({'success': True, 'attended': booking.attended})
+
+@app.route('/api/admin/attendance-summary')
+@admin_required
+def admin_attendance_summary():
+    """Roll up recorded attendance per person across yoga + Rose, so repeat
+    no-shows are easy to spot when capacity is tight."""
+    people = {}
+
+    def bump(name, email, kind, attended):
+        key = email.lower()
+        p = people.setdefault(key, {
+            'name': name, 'email': key,
+            'attended': 0, 'no_shows': 0,
+            'yoga_no_shows': 0, 'rose_no_shows': 0,
+        })
+        p['name'] = name  # keep the most recent spelling
+        if attended:
+            p['attended'] += 1
+        else:
+            p['no_shows'] += 1
+            p[f'{kind}_no_shows'] += 1
+
+    for b in YogaBooking.query.filter(YogaBooking.attended.isnot(None)).order_by(YogaBooking.created_at).all():
+        bump(b.name, b.email, 'yoga', b.attended)
+    rose_rows = Booking.query.join(Room).filter(
+        Booking.attended.isnot(None),
+        Room.room_type == 'slot'
+    ).order_by(Booking.created_at).all()
+    for b in rose_rows:
+        bump(b.user_name, b.user_email, 'rose', b.attended)
+
+    result = sorted(people.values(), key=lambda p: (-p['no_shows'], p['name'].lower()))
     return jsonify(result)
 
 @app.route('/api/admin/booking-counts')
@@ -2314,6 +2395,16 @@ def run_migrations():
     except Exception as e:  # pragma: no cover - defensive, never block startup
         db.session.rollback()
         print(f"[migration] volunteer_availability.unavailable: {e}")
+
+    # Attendance tracking for capacity-limited spaces (Rose + yoga)
+    for table in ('booking', 'yoga_booking'):
+        try:
+            if not _column_exists(table, 'attended'):
+                db.session.execute(db.text(f'ALTER TABLE {table} ADD COLUMN attended BOOLEAN'))
+                db.session.commit()
+        except Exception as e:  # pragma: no cover - defensive, never block startup
+            db.session.rollback()
+            print(f"[migration] {table}.attended: {e}")
 
     # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
     # (new slot 0), adding 3 earlier half-hour slots. Shift every existing
