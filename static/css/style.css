@@ -3279,3 +3279,35 @@ html {
     .attend-btn { font-size: 0.72rem; padding: 0.2rem 0.45rem; }
     .attend-table th, .attend-table td { padding: 0.5rem 0.6rem; }
 }
+
+/* ============================================
+   YOGA AS A BOOKING OPTION (booking page)
+   ============================================ */
+.date-yoga-tag {
+    display: block;
+    margin-top: 0.35rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #7c3aed;
+}
+
+.yoga-room-card {
+    border: 2px solid #7c3aed;
+}
+
+.yoga-room-card:hover {
+    border-color: #6d28d9;
+    box-shadow: 0 8px 18px -6px rgba(124, 58, 237, 0.35);
+}
+
+.room-type-badge.yoga {
+    background: #f5f3ff;
+    color: #6d28d9;
+    border: 1px solid #ddd6fe;
+}
+
+.room-type-badge.yoga-full {
+    background: #fee2e2;
+    color: #b91c1c;
+    border: 1px solid #fecaca;
+}

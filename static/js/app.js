@@ -7,6 +7,7 @@ let state = {
     rooms: [],
     fridays: [],
     timeSlots: [],
+    yogaSessions: {},   // date -> yoga session info, so yoga shows as an option
     selectedRoom: null,
     selectedDate: null,
     selectedSlots: [],
@@ -45,12 +46,24 @@ const steps = {
 
 document.addEventListener('DOMContentLoaded', async () => {
     loadTimeSlots();
-    await loadFridays();
+    await Promise.all([loadFridays(), loadYogaSessions()]);
     renderDates();
 
     // Check for email in URL (coming from cancel page)
     checkUrlForEmail();
 });
+
+// Yoga sessions by date, so yoga can be offered alongside the rooms
+async function loadYogaSessions() {
+    try {
+        const response = await fetch('/api/yoga/availability');
+        const sessions = await response.json();
+        state.yogaSessions = {};
+        sessions.forEach(s => { state.yogaSessions[s.date] = s; });
+    } catch (error) {
+        console.error('Failed to load yoga sessions:', error);
+    }
+}
 
 function checkUrlForEmail() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -206,7 +219,25 @@ function renderRooms() {
         </div>
     `}).join('');
 
-    elements.roomGrid.innerHTML = roomCards + peerSupportCard;
+    // If yoga is running on this Friday, offer it alongside the rooms.
+    // Clicking goes to the yoga page's registration form.
+    let yogaCard = '';
+    const yoga = state.yogaSessions[state.selectedDate];
+    if (yoga) {
+        const placesLabel = yoga.full
+            ? '<span class="room-type-badge yoga-full">FULL</span>'
+            : `<span class="room-type-badge yoga">${yoga.remaining} place${yoga.remaining === 1 ? '' : 's'} left</span>`;
+        yogaCard = `
+        <div class="room-card yoga-room-card" onclick="window.location.href='/yoga#yoga-register'">
+            <div class="room-card-image"><img src="/static/images/yoga-terrace-1.jpg" alt="Gentle yoga on the outdoor terrace" loading="lazy"></div>
+            <h3>🧘 Gentle Yoga with Marlijn ${placesLabel}</h3>
+            <p>Outdoor terrace — session starts at ${escapeHtml(yoga.time)}</p>
+            <small class="room-hint">Click to register your place on the yoga page</small>
+        </div>
+        `;
+    }
+
+    elements.roomGrid.innerHTML = roomCards + yogaCard + peerSupportCard;
 }
 
 function renderDates() {
@@ -218,11 +249,15 @@ function renderDates() {
             </div>`;
         return;
     }
-    elements.dateGrid.innerHTML = state.fridays.map(friday => `
+    elements.dateGrid.innerHTML = state.fridays.map(friday => {
+        const yoga = state.yogaSessions[friday.date];
+        const yogaTag = yoga ? '<span class="date-yoga-tag">🧘 Yoga at 10am</span>' : '';
+        return `
         <div class="date-card" onclick="selectDate('${friday.date}')">
             ${escapeHtml(friday.display)}
+            ${yogaTag}
         </div>
-    `).join('');
+    `}).join('');
 }
 
 function renderTimeSlots() {
