@@ -12,6 +12,7 @@ import os
 import secrets
 import smtplib
 import threading
+import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -28,6 +29,11 @@ else:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bookings.db'
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Give schema upgrades time to acquire SQLite's write lock when a reload
+# overlaps with a booking request or more than one WSGI worker starts at once.
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'connect_args': {'timeout': 30},
+}
 
 # Email configuration (hardcoded for PythonAnywhere deployment)
 app.config['SMTP_HOST'] = 'smtp.gmail.com'
@@ -2377,34 +2383,56 @@ def _column_exists(table, column):
     rows = db.session.execute(db.text(f"PRAGMA table_info({table})")).fetchall()
     return any(r[1] == column for r in rows)
 
+def _ensure_column(table, column, definition, attempts=3):
+    """Add a required SQLite column safely during a WSGI reload.
+
+    A migration must not be silently skipped: once SQLAlchemy maps a new
+    column, every normal model query selects it. Serving requests with the old
+    schema therefore turns an otherwise recoverable lock/race into repeated
+    HTTP 500 responses. Retry transient locks, tolerate another worker winning
+    the ALTER TABLE race, and fail startup if the column is still unavailable.
+    """
+    if _column_exists(table, column):
+        return
+
+    for attempt in range(attempts):
+        try:
+            db.session.execute(db.text(
+                f'ALTER TABLE {table} ADD COLUMN {column} {definition}'
+            ))
+            db.session.commit()
+        except Exception as exc:
+            db.session.rollback()
+
+            # Another WSGI worker may have added the column after our initial
+            # check but before our ALTER TABLE reached SQLite.
+            if _column_exists(table, column):
+                return
+
+            is_locked = 'locked' in str(exc).lower() or 'busy' in str(exc).lower()
+            if is_locked and attempt < attempts - 1:
+                time.sleep(0.25 * (attempt + 1))
+                continue
+            raise RuntimeError(
+                f'Could not add required column {table}.{column}'
+            ) from exc
+
+        if _column_exists(table, column):
+            return
+
+    raise RuntimeError(f'Required column {table}.{column} is unavailable')
+
 def run_migrations():
     """Lightweight migrations for columns added to existing tables (create_all
     only creates missing tables, it can't add new columns to an existing one)."""
-    try:
-        if not _column_exists('yoga_booking', 'cancel_token'):
-            db.session.execute(db.text('ALTER TABLE yoga_booking ADD COLUMN cancel_token VARCHAR(64)'))
-            db.session.commit()
-    except Exception as e:  # pragma: no cover - defensive, never block startup
-        db.session.rollback()
-        print(f"[migration] yoga_booking.cancel_token: {e}")
-
-    try:
-        if not _column_exists('volunteer_availability', 'unavailable'):
-            db.session.execute(db.text('ALTER TABLE volunteer_availability ADD COLUMN unavailable BOOLEAN DEFAULT 0'))
-            db.session.commit()
-    except Exception as e:  # pragma: no cover - defensive, never block startup
-        db.session.rollback()
-        print(f"[migration] volunteer_availability.unavailable: {e}")
+    _ensure_column('yoga_booking', 'cancel_token', 'VARCHAR(64)')
+    _ensure_column(
+        'volunteer_availability', 'unavailable', 'BOOLEAN DEFAULT 0'
+    )
 
     # Attendance tracking for capacity-limited spaces (Rose + yoga)
     for table in ('booking', 'yoga_booking'):
-        try:
-            if not _column_exists(table, 'attended'):
-                db.session.execute(db.text(f'ALTER TABLE {table} ADD COLUMN attended BOOLEAN'))
-                db.session.commit()
-        except Exception as e:  # pragma: no cover - defensive, never block startup
-            db.session.rollback()
-            print(f"[migration] {table}.attended: {e}")
+        _ensure_column(table, 'attended', 'BOOLEAN')
 
     # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
     # (new slot 0), adding 3 earlier half-hour slots. Shift every existing
