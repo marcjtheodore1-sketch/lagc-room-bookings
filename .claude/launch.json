@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "lagc",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["app.py"],
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["ENABLE_EMAIL=false", "python3", "app.py"],
       "port": 5001
     }
   ]

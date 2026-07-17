@@ -11,6 +11,7 @@ import json
 import os
 import secrets
 import smtplib
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
@@ -462,7 +463,7 @@ def send_confirmation_email(to_email, subject, message):
         # Try SMTP_SSL on port 465 first (often works better on PythonAnywhere)
         try:
             print(f"[DEBUG] Trying SMTP_SSL on port 465...")
-            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465) as server:
+            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465, timeout=20) as server:
                 server.set_debuglevel(1)
                 print(f"[DEBUG] Logging in with SSL...")
                 server.login(app.config['SMTP_USER'], smtp_password)
@@ -473,7 +474,7 @@ def send_confirmation_email(to_email, subject, message):
         except Exception as ssl_error:
             print(f"[DEBUG] SSL failed ({ssl_error}), trying STARTTLS on port 587...")
             # Fall back to STARTTLS on port 587
-            with smtplib.SMTP(app.config['SMTP_HOST'], 587) as server:
+            with smtplib.SMTP(app.config['SMTP_HOST'], 587, timeout=20) as server:
                 server.set_debuglevel(1)
                 server.starttls()
                 print(f"[DEBUG] Logging in with STARTTLS...")
@@ -514,13 +515,13 @@ def send_bulk_email(recipients, subject, message):
 
         smtp_password = app.config['SMTP_PASSWORD']
         try:
-            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465) as server:
+            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465, timeout=20) as server:
                 server.login(app.config['SMTP_USER'], smtp_password)
                 server.send_message(msg, to_addrs=recipients)
                 return True, None
         except Exception as ssl_error:
             print(f"[DEBUG] Bulk SSL failed ({ssl_error}), trying STARTTLS on port 587...")
-            with smtplib.SMTP(app.config['SMTP_HOST'], 587) as server:
+            with smtplib.SMTP(app.config['SMTP_HOST'], 587, timeout=20) as server:
                 server.starttls()
                 server.login(app.config['SMTP_USER'], smtp_password)
                 server.send_message(msg, to_addrs=recipients)
@@ -530,6 +531,19 @@ def send_bulk_email(recipients, subject, message):
         import traceback
         traceback.print_exc()
         return False, str(e)
+
+def send_emails_async(emails):
+    """Send a batch of (to, subject, body) emails in a background thread so
+    booking requests return instantly. Email sending was previously inline in
+    the request: when Gmail was slow the whole request hung, the person saw no
+    confirmation screen, retried, and then hit the duplicate-booking guard."""
+    def _worker(batch):
+        for to, subject, body in batch:
+            try:
+                send_confirmation_email(to, subject, body)
+            except Exception as e:
+                print(f"[ERROR] Async email to {to} failed: {e}")
+    threading.Thread(target=_worker, args=(list(emails),), daemon=True).start()
 
 def get_upcoming_fridays(count=8, room_id=None):
     """Get upcoming Friday dates, optionally filtered by room availability"""
@@ -1096,15 +1110,8 @@ def create_booking():
         cancel_url=f"{request.host_url.rstrip('/')}/cancel/{cancel_token}"
     )
     
-    # Send confirmation email
-    email_sent = send_confirmation_email(
-        email,
-        f"Booking Confirmed: {room.name} on {date_display}",
-        confirmation_message
-    )
-    
-    # Send admin notification email
-    admin_emails = ['londonautismgroupcharity@gmail.com', 'zara.lagc@gmail.com']
+    # Queue all emails in the background so the person sees their on-screen
+    # confirmation immediately, even if Gmail is slow or briefly down.
     admin_subject = f"New Booking: {name} booked {room.name}"
     admin_message = f"""A new booking has been made:
 
@@ -1116,16 +1123,18 @@ Time: {start_time} - {end_time}
 
 View all bookings at: {request.host_url.rstrip('/')}/admin
 """
-    
-    for admin_email in admin_emails:
-        send_confirmation_email(admin_email, admin_subject, admin_message)
-    
+    send_emails_async([
+        (email, f"Booking Confirmed: {room.name} on {date_display}", confirmation_message),
+        ('londonautismgroupcharity@gmail.com', admin_subject, admin_message),
+        ('zara.lagc@gmail.com', admin_subject, admin_message),
+    ])
+
     return jsonify({
         'success': True,
         'booking_id': booking.id,
         'confirmation_message': confirmation_message,
         'cancel_token': cancel_token,
-        'email_sent': email_sent
+        'email_sent': bool(app.config['ENABLE_EMAIL'] and app.config['SMTP_USER'])
     })
 
 @app.route('/api/testimonial', methods=['POST'])
@@ -1221,6 +1230,30 @@ def yoga_book():
     if booked >= YOGA_CAPACITY:
         return jsonify({'success': False, 'error': 'Sorry, this session is now full. Please choose another date.', 'full': True}), 409
 
+    # One registration per email per session date
+    already = YogaBooking.query.filter(
+        YogaBooking.session_date == session_date,
+        db.func.lower(YogaBooking.email) == email.lower()
+    ).first()
+    if already:
+        return jsonify({'success': False, 'error': 'You are already registered for this session — your place is safe. If you did not receive a confirmation email, please check your spam folder or contact us at ' + YOGA_NOTIFY_EMAIL + '.'}), 409
+
+    # "Same as last time": returning participants can reuse the answers from
+    # their most recent registration. Copied server-side so previous health
+    # details are never sent to the browser.
+    if data.get('reuse_previous'):
+        previous = YogaBooking.query.filter(
+            db.func.lower(YogaBooking.email) == email.lower()
+        ).order_by(YogaBooking.created_at.desc()).first()
+        if not previous:
+            return jsonify({'success': False, 'error': "We couldn't find a previous registration under this email address, so we can't reuse earlier answers. Please untick the box and fill in the questions below."}), 400
+        if not health_info:
+            health_info = previous.health_info or ''
+        if not avoid_info:
+            avoid_info = previous.avoid_info or ''
+        if not accessibility_info:
+            accessibility_info = previous.accessibility_info or ''
+
     cancel_token = secrets.token_urlsafe(32)
     booking = YogaBooking(
         session_date=session_date,
@@ -1262,12 +1295,6 @@ Done yoga before: {experience}
 
 Understood the gentle-session statement: {'Yes' if agreed_safety else 'No'}
 """
-    send_confirmation_email(
-        YOGA_NOTIFY_EMAIL,
-        f'New yoga registration — {date_display} ({name})',
-        admin_body
-    )
-
     # Friendly confirmation to the participant (no health details echoed back)
     confirm_body = f"""Dear {name},
 
@@ -1289,7 +1316,11 @@ Need to cancel your place? You can cancel any time using this link, and it will 
 Warm wishes,
 London Autism Group Charity — Fridays @ Farringdon
 """
-    send_confirmation_email(email, 'Your Gentle Yoga registration — Fridays @ Farringdon', confirm_body)
+    # Send both emails in the background so registration confirms instantly
+    send_emails_async([
+        (YOGA_NOTIFY_EMAIL, f'New yoga registration — {date_display} ({name})', admin_body),
+        (email, 'Your Gentle Yoga registration — Fridays @ Farringdon', confirm_body),
+    ])
 
     return jsonify({'success': True, 'date_display': date_display, 'time': YOGA_TIME_DISPLAY})
 

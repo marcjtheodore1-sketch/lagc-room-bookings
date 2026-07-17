@@ -59,7 +59,7 @@
             </div>
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
-                <button class="btn btn-primary" onclick="submitBooking()">Confirm Booking</button>
+                <button class="btn btn-primary" id="btn-confirm-booking" onclick="submitBooking()">Confirm Booking</button>
             </div>
         </div>
 
@@ -87,5 +87,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=9"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=10"></script>
 {% endblock %}

@@ -670,30 +670,41 @@ async function submitBooking() {
         bookingData.end_slot = sortedSlots[sortedSlots.length - 1] + 1; // Exclusive end
     }
     
+    const confirmBtn = document.getElementById('btn-confirm-booking');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.textContent = 'Booking…';
+    }
+
     try {
         const response = await fetch('/api/book', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(bookingData)
         });
-        
+
         const result = await response.json();
-        
+
         if (response.ok) {
             let emailStatus = '';
             if (result.email_sent) {
-                emailStatus = '\n\n✉️ A confirmation email has been sent to your inbox.';
+                emailStatus = '\n\n✉️ A confirmation email is on its way to your inbox — if it hasn\'t arrived in a few minutes, please check your spam/junk folder. Your booking is confirmed either way.';
             } else {
                 emailStatus = '\n\n⚠️ Note: Email delivery is not configured. Please save your confirmation details.';
             }
-            
+
             elements.confirmationMessage.textContent = result.confirmation_message + emailStatus;
             showStep('confirmation');
         } else {
             alert(result.error || 'Failed to create booking');
         }
     } catch (error) {
-        alert('Network error. Please try again.');
+        alert('Something went wrong while confirming. Your booking may still have been saved — please check "My Bookings" at the bottom of the page (using your email) before trying again.');
+    } finally {
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.textContent = 'Confirm Booking';
+        }
     }
 }
 

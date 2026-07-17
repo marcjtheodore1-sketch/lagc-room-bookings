@@ -108,6 +108,13 @@
                     </div>
                 </div>
 
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="yoga-reuse" name="reuse_previous">
+                        <span>📋 <strong>I've registered before</strong> — reuse the answers I gave last time for the three questions below. (Anything you type below will be used instead for that question.)</span>
+                    </label>
+                </div>
+
                 <div class="form-group">
                     <label for="yoga-health">Please tell us anything the instructor should know so the session can be adapted safely for you.</label>
                     <small class="hint">This might include pain, injury, mobility issues, dizziness or fainting, epilepsy, pregnancy, recent surgery, heart or blood pressure issues, respiratory issues, joint problems, sensory needs, anxiety, trauma triggers, or anything else that may affect your participation. You only need to share what is relevant to taking part safely.</small>
@@ -148,5 +155,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/yoga.js') }}?v=1"></script>
+<script src="{{ url_for('static', filename='js/yoga.js') }}?v=2"></script>
 {% endblock %}

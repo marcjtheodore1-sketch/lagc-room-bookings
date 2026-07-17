@@ -52,6 +52,7 @@
             avoid_info: form.avoid_info.value.trim(),
             accessibility_info: form.accessibility_info.value.trim(),
             agreed_safety: document.getElementById('yoga-agree').checked,
+            reuse_previous: !!(document.getElementById('yoga-reuse') && document.getElementById('yoga-reuse').checked),
         };
 
         if (!payload.session_date) { setStatus('Please choose a session date.', 'error'); dateSelect.focus(); return; }
@@ -76,7 +77,7 @@
                 const done = document.createElement('div');
                 done.className = 'notice-box success';
                 done.innerHTML = `<p><strong>Thank you — your place is registered.</strong></p>
-                    <p>We've reserved your spot for <strong>${data.date_display}</strong> at ${data.time}. A confirmation has been sent to your email.</p>
+                    <p>We've reserved your spot for <strong>${data.date_display}</strong> at ${data.time}. A confirmation email is on its way — if it hasn't arrived in a few minutes, please check your spam/junk folder. Your place is safe either way.</p>
                     <p>Please bring your own mat and wear comfortable clothing. You can choose what to take part in and rest whenever you need to.</p>`;
                 form.parentNode.appendChild(done);
                 done.scrollIntoView({ behavior: 'smooth', block: 'center' });
