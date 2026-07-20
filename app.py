@@ -2055,7 +2055,8 @@ def admin_availability_email_draft(date):
                 continue  # fully booked — leave it out of the email
             room_lines.append(f"• {room.name} — {desc}.\n   Times still available: {', '.join(free_ranges)}")
         else:
-            room_lines.append(f"• {room.name} — {desc}.")
+            start, end, _source = get_effective_room_hours(date_str, room)
+            room_lines.append(f"• {room.name} — {desc}.\n   Open {fmt_hhmm(start)} – {fmt_hhmm(end)}")
 
     if not room_lines:
         return jsonify({'error': 'No rooms with availability on this date'}), 400
@@ -2067,7 +2068,7 @@ def admin_availability_email_draft(date):
     rooms_text = '\n\n'.join(room_lines)
     body = f"""Hello,
 
-There are still spaces available at Fridays @ Farringdon this week, on {date_display} (9:30am – 5pm).
+There are still spaces available at Fridays @ Farringdon this week, on {date_display}.
 
 Here's what's on offer this Friday:
 
