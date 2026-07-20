@@ -805,32 +805,64 @@ async function loadRoomTimes() {
 function renderRoomTimes(data) {
     const container = document.getElementById('room-times-list');
     const dates = data.dates || [];
-    if (!dates.length) {
-        container.innerHTML = '<p class="hint">No upcoming Fridays with rooms scheduled.</p>';
-        return;
-    }
+    const defaults = data.room_defaults || [];
 
-    container.innerHTML = dates.map(d => `
+    // Section 1: each room's USUAL hours — set once, applies every Friday
+    const defaultsHtml = `
+        <div class="room-times-date room-times-defaults">
+            <h3 class="room-times-date-title">⭐ Usual hours for each room</h3>
+            <p class="hint">Set a room's usual opening hours here once — they apply to <strong>every Friday</strong> from now on (no need to change each date). You can still change a single Friday in the date list below, and that one-day change wins over the usual hours for that date only.</p>
+            ${defaults.map(r => `
+                <div class="room-times-row" data-room="${r.room_id}">
+                    <div class="room-times-name">
+                        ${escapeHtml(r.name)}
+                        ${r.is_custom ? '<span class="room-times-badge default">usual hours set</span>' : ''}
+                        <span class="room-times-type">${r.room_type === 'slot' ? '⏰ slot room — snaps to 30 min' : '📋 open room'}</span>
+                    </div>
+                    <div class="room-times-inputs">
+                        <label>From <input type="time" class="rt-start" value="${r.start}"></label>
+                        <label>to <input type="time" class="rt-end" value="${r.end}"></label>
+                        <button class="btn btn-primary btn-small" onclick="saveRoomDefault(this)">Save usual hours</button>
+                        <button class="btn btn-secondary btn-small" onclick="resetRoomDefault(this)" ${r.is_custom ? '' : 'disabled'}>Back to 9:30–5</button>
+                    </div>
+                    <p class="rt-status form-status" role="status" aria-live="polite"></p>
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Section 2: one-off changes for a single Friday
+    const badgeFor = (r) => {
+        if (r.is_override) return '<span class="room-times-badge">this date only</span>';
+        if (r.source === 'room') return '<span class="room-times-badge default">usual hours</span>';
+        return '';
+    };
+    const datesHtml = dates.length ? `
+        <h3 class="room-times-section-title">📅 Change a single Friday</h3>
+        <p class="hint">Only need different hours for one week (e.g. no volunteer cover)? Change it here — just that date is affected.</p>
+        ${dates.map(d => `
         <div class="room-times-date">
             <h3 class="room-times-date-title">${escapeHtml(d.display)}</h3>
             ${d.rooms.map(r => `
                 <div class="room-times-row" data-date="${d.date}" data-room="${r.room_id}">
                     <div class="room-times-name">
                         ${escapeHtml(r.name)}
-                        ${r.is_override ? '<span class="room-times-badge">custom</span>' : ''}
+                        ${badgeFor(r)}
                         <span class="room-times-type">${r.room_type === 'slot' ? '⏰ slot room — snaps to 30 min' : '📋 open room'}</span>
                     </div>
                     <div class="room-times-inputs">
                         <label>From <input type="time" class="rt-start" value="${r.start}"></label>
                         <label>to <input type="time" class="rt-end" value="${r.end}"></label>
                         <button class="btn btn-primary btn-small" onclick="saveRoomTime(this)">Save</button>
-                        <button class="btn btn-secondary btn-small" onclick="resetRoomTime(this)" ${r.is_override ? '' : 'disabled'}>Reset to 9:30–5</button>
+                        <button class="btn btn-secondary btn-small" onclick="resetRoomTime(this)" ${r.is_override ? '' : 'disabled'}>Reset to usual hours</button>
                     </div>
                     <p class="rt-status form-status" role="status" aria-live="polite"></p>
                 </div>
             `).join('')}
         </div>
-    `).join('');
+    `).join('')}` : '<p class="hint">No upcoming Fridays with rooms scheduled.</p>';
+
+    container.innerHTML = defaultsHtml + datesHtml;
 }
 
 function _rtRow(btn) {
@@ -879,7 +911,44 @@ async function resetRoomTime(btn) {
         });
         const result = await res.json();
         if (!res.ok) { rtStatus(status, result.error || 'Failed to reset.', true); return; }
-        rtStatus(status, '✅ Reset to the default 9:30am–5pm.', false);
+        rtStatus(status, '✅ Reset — this date now follows the room\'s usual hours.', false);
+        loadRoomTimes();
+    } catch (e) {
+        rtStatus(status, 'Network error. Please try again.', true);
+    }
+}
+
+// Usual (default) hours for a room — apply to every Friday going forward
+async function saveRoomDefault(btn) {
+    const { roomId, start, end, status } = _rtRow(btn);
+    if (!start || !end) { rtStatus(status, 'Please set both a start and end time.', true); return; }
+    if (start >= end) { rtStatus(status, 'Start time must be before end time.', true); return; }
+    try {
+        const res = await fetch('/api/admin/room-default-times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: roomId, start, end })
+        });
+        const result = await res.json();
+        if (!res.ok) { rtStatus(status, result.error || 'Failed to save.', true); return; }
+        rtStatus(status, `✅ Saved — this room now opens ${result.start_display} to ${result.end_display} every Friday.`, false);
+        loadRoomTimes();
+    } catch (e) {
+        rtStatus(status, 'Network error. Please try again.', true);
+    }
+}
+
+async function resetRoomDefault(btn) {
+    const { roomId, status } = _rtRow(btn);
+    try {
+        const res = await fetch('/api/admin/room-default-times', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ room_id: roomId, clear: true })
+        });
+        const result = await res.json();
+        if (!res.ok) { rtStatus(status, result.error || 'Failed to reset.', true); return; }
+        rtStatus(status, '✅ Back to the standard 9:30am–5pm day.', false);
         loadRoomTimes();
     } catch (e) {
         rtStatus(status, 'Network error. Please try again.', true);

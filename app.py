@@ -59,6 +59,10 @@ class Room(db.Model):
     building_location = db.Column(db.String(200), nullable=False, default='Main Building')
     room_type = db.Column(db.String(20), nullable=False, default='slot')  # 'slot' or 'open'
     is_active = db.Column(db.Boolean, default=True)
+    # The room's usual hours ('HH:MM'), applying to every date unless a
+    # per-date override exists. None = the global 9:30-5 day.
+    default_start = db.Column(db.String(5), nullable=True)
+    default_end = db.Column(db.String(5), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 class Booking(db.Model):
@@ -262,15 +266,30 @@ def override_end_slot(hhmm):
     slot = mins // SLOT_MINUTES  # floor
     return max(0, min(slot, len(TIME_SLOTS) - 1))
 
+def get_effective_room_hours(date_str, room):
+    """Resolve a room's hours for a date: a one-day change (override) wins,
+    then the room's own default hours, then the global 9:30-5 day.
+
+    Returns (start_hhmm, end_hhmm, source) with source in
+    ('override', 'room', 'global')."""
+    ov = get_room_time_override(date_str, room.id)
+    if ov and ov.get('start') and ov.get('end'):
+        return ov['start'], ov['end'], 'override'
+    if room.default_start and room.default_end:
+        return room.default_start, room.default_end, 'room'
+    return f"{START_HOUR:02d}:{START_MINUTE:02d}", f"{END_HOUR:02d}:{END_MINUTE:02d}", 'global'
+
 def booking_time_display(booking):
-    """(start_display, end_display) for a booking, honouring open-room overrides.
+    """(start_display, end_display) for a booking, honouring custom hours.
 
     Slot-room bookings always reflect the actual slots the person chose; only
-    open (whole-day) rooms take on the admin's custom hours for the date."""
+    open (whole-day) rooms take on the admin's custom hours (per-date change
+    or the room's default hours)."""
     if booking.room and booking.room.room_type == 'open':
-        ov = get_room_time_override(booking.booking_date.isoformat(), booking.room_id)
-        if ov and ov.get('start') and ov.get('end'):
-            return fmt_hhmm(ov['start']), fmt_hhmm(ov['end'])
+        start, end, source = get_effective_room_hours(
+            booking.booking_date.isoformat(), booking.room)
+        if source != 'global':
+            return fmt_hhmm(start), fmt_hhmm(end)
     start = TIME_SLOTS[booking.start_slot]['display']
     end = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     return start, end
@@ -897,12 +916,13 @@ def get_rooms():
                 Booking.booking_date == booking_date,
                 Booking.cancelled_at.is_(None)
             ).count()
-        # Custom hours set by admin for this date (drives the booking summary)
+        # Custom hours set by admin — per-date change or the room's default
+        # hours (drives the room card and booking summary)
         if booking_date:
-            ov = get_room_time_override(booking_date.isoformat(), r.id)
-            if ov and ov.get('start') and ov.get('end'):
-                item['override_start'] = fmt_hhmm(ov['start'])
-                item['override_end'] = fmt_hhmm(ov['end'])
+            start, end, source = get_effective_room_hours(booking_date.isoformat(), r)
+            if source != 'global':
+                item['override_start'] = fmt_hhmm(start)
+                item['override_end'] = fmt_hhmm(end)
         result.append(item)
     return jsonify(result)
 
@@ -974,14 +994,17 @@ def get_availability(date, room_id):
         for slot_idx in [0, 1, 2]:  # 11:00am, 11:30am, 12:00pm
             booked_slots.add(slot_idx)
 
-    # Admin per-date time override: block any slots outside the custom window
-    override = get_room_time_override(date_str, room_id)
-    if override and override.get('start') and override.get('end'):
-        win_start = override_start_slot(override['start'])
-        win_end = override_end_slot(override['end'])
-        for slot in TIME_SLOTS:
-            if slot['index'] < win_start or slot['index'] >= win_end:
-                booked_slots.add(slot['index'])
+    # Admin custom hours (per-date change or room default): block any slots
+    # outside the window
+    room_obj = db.session.get(Room, room_id)
+    if room_obj:
+        win_start_hhmm, win_end_hhmm, source = get_effective_room_hours(date_str, room_obj)
+        if source != 'global':
+            win_start = override_start_slot(win_start_hhmm)
+            win_end = override_end_slot(win_end_hhmm)
+            for slot in TIME_SLOTS:
+                if slot['index'] < win_start or slot['index'] >= win_end:
+                    booked_slots.add(slot['index'])
 
     # Build availability array
     availability = []
@@ -1073,13 +1096,14 @@ def create_booking():
         if num_slots > MAX_SLOTS:
             return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
 
-        # Enforce any admin time override for this room/date
-        ov = get_room_time_override(booking_date.isoformat(), room_id)
-        if ov and ov.get('start') and ov.get('end'):
-            win_start = override_start_slot(ov['start'])
-            win_end = override_end_slot(ov['end'])
+        # Enforce the room's custom hours (per-date change or room default)
+        win_start_hhmm, win_end_hhmm, source = get_effective_room_hours(
+            booking_date.isoformat(), room)
+        if source != 'global':
+            win_start = override_start_slot(win_start_hhmm)
+            win_end = override_end_slot(win_end_hhmm)
             if start_slot < win_start or end_slot > win_end:
-                return jsonify({'error': f'This room is only available {fmt_hhmm(ov["start"])}–{fmt_hhmm(ov["end"])} on this date. Please pick a time within those hours.'}), 400
+                return jsonify({'error': f'This room is only available {fmt_hhmm(win_start_hhmm)}–{fmt_hhmm(win_end_hhmm)} on this date. Please pick a time within those hours.'}), 400
 
     # Check availability (only for slot rooms - open rooms allow multiple bookings)
     if room.room_type == 'slot' and not check_availability(room_id, booking_date, start_slot, end_slot):
@@ -2199,22 +2223,82 @@ def admin_get_room_times():
             if not room or not room.is_active:
                 continue
             ov = overrides.get(ds, {}).get(str(rid))
+            start, end, source = get_effective_room_hours(ds, room)
             rooms.append({
                 'room_id': rid,
                 'name': room.name,
                 'room_type': room.room_type,
-                'start': ov['start'] if ov else default_start,
-                'end': ov['end'] if ov else default_end,
+                'start': start,
+                'end': end,
                 'is_override': bool(ov),
+                'source': source,  # 'override' | 'room' | 'global'
             })
         if rooms:
             dates.append({'date': ds, 'display': f['display'], 'rooms': rooms})
 
+    # Every active room's default hours, for the "usual hours" editor
+    room_defaults = [{
+        'room_id': r.id,
+        'name': r.name,
+        'room_type': r.room_type,
+        'start': r.default_start or default_start,
+        'end': r.default_end or default_end,
+        'is_custom': bool(r.default_start and r.default_end),
+    } for r in Room.query.filter_by(is_active=True).order_by(Room.id).all()]
+
     return jsonify({
         'dates': dates,
+        'room_defaults': room_defaults,
         'default_start': default_start,
         'default_end': default_end,
         'grid_note': 'Slot rooms (e.g. Rose) snap to the nearest 30 minutes.',
+    })
+
+def _validate_hhmm_window(start, end):
+    """Shared validation for custom hours. Returns (error_json, code) or None."""
+    try:
+        t_start = datetime.strptime(start, '%H:%M')
+        t_end = datetime.strptime(end, '%H:%M')
+    except ValueError:
+        return jsonify({'error': 'Please enter valid start and end times'}), 400
+    if t_start >= t_end:
+        return jsonify({'error': 'The start time must be before the end time'}), 400
+    day_start = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", '%H:%M')
+    day_end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", '%H:%M')
+    if t_start < day_start or t_end > day_end:
+        return jsonify({'error': f'Times must be between {fmt_hhmm(day_start.strftime("%H:%M"))} and {fmt_hhmm(day_end.strftime("%H:%M"))}.'}), 400
+    return None
+
+@app.route('/api/admin/room-default-times', methods=['POST'])
+@admin_required
+def admin_set_room_default_times():
+    """Set or clear a room's usual (default) hours, applying to every date
+    that has no per-date change.
+    Body: {room_id, start, end} to set; {room_id, clear:true} to reset."""
+    data = request.get_json(silent=True) or {}
+    room = db.session.get(Room, data.get('room_id') or 0)
+    if not room or not room.is_active:
+        return jsonify({'error': 'Room not found'}), 404
+
+    if data.get('clear'):
+        room.default_start = None
+        room.default_end = None
+        db.session.commit()
+        return jsonify({'success': True, 'cleared': True})
+
+    start = (data.get('start') or '').strip()
+    end = (data.get('end') or '').strip()
+    err = _validate_hhmm_window(start, end)
+    if err:
+        return err
+
+    room.default_start = start
+    room.default_end = end
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'start_display': fmt_hhmm(start),
+        'end_display': fmt_hhmm(end),
     })
 
 @app.route('/api/admin/room-times', methods=['POST'])
@@ -2247,19 +2331,9 @@ def admin_set_room_time():
 
     start = (data.get('start') or '').strip()
     end = (data.get('end') or '').strip()
-    try:
-        t_start = datetime.strptime(start, '%H:%M')
-        t_end = datetime.strptime(end, '%H:%M')
-    except ValueError:
-        return jsonify({'error': 'Please enter valid start and end times'}), 400
-    if t_start >= t_end:
-        return jsonify({'error': 'The start time must be before the end time'}), 400
-
-    # Keep custom hours within the venue's overall day
-    day_start = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", '%H:%M')
-    day_end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", '%H:%M')
-    if t_start < day_start or t_end > day_end:
-        return jsonify({'error': f'Times must be between {fmt_hhmm(day_start.strftime("%H:%M"))} and {fmt_hhmm(day_end.strftime("%H:%M"))}.'}), 400
+    err = _validate_hhmm_window(start, end)
+    if err:
+        return err
 
     overrides.setdefault(date_str, {})[str(room_id)] = {'start': start, 'end': end}
     set_setting(ROOM_TIME_OVERRIDES_KEY, json.dumps(overrides))
@@ -2433,6 +2507,10 @@ def run_migrations():
     # Attendance tracking for capacity-limited spaces (Rose + yoga)
     for table in ('booking', 'yoga_booking'):
         _ensure_column(table, 'attended', 'BOOLEAN')
+
+    # Per-room default hours (Room Times tab: "set once, applies every week")
+    _ensure_column('room', 'default_start', 'VARCHAR(5)')
+    _ensure_column('room', 'default_end', 'VARCHAR(5)')
 
     # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
     # (new slot 0), adding 3 earlier half-hour slots. Shift every existing
