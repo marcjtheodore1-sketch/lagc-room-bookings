@@ -408,7 +408,14 @@ def get_announcements():
     raw = get_setting(ANNOUNCEMENTS_KEY)
     if raw is None:
         seeded = [_normalise_announcement(a, i + 1) for i, a in enumerate(DEFAULT_ANNOUNCEMENTS)]
-        set_setting(ANNOUNCEMENTS_KEY, json.dumps(seeded))
+        # Persisting the seed is a convenience, not a requirement. If the write
+        # fails (database briefly locked or read-only) still return the list —
+        # the homepage must not go down over a first-run seed.
+        try:
+            set_setting(ANNOUNCEMENTS_KEY, json.dumps(seeded))
+        except Exception as e:
+            db.session.rollback()
+            print(f"[announcements] could not persist default announcements: {e}")
         return seeded
     try:
         items = json.loads(raw)
@@ -2612,9 +2619,46 @@ def run_migrations():
 # makes new tables (e.g. VolunteerAvailability) appear after a plain git pull +
 # Reload, with no manual migration. run_migrations() then patches in any new
 # columns on tables that already existed.
-with app.app_context():
-    db.create_all()
-    run_migrations()
+
+# Set when startup schema setup did not complete (e.g. SQLite was locked by an
+# in-flight request during a reload). We retry on the next request instead of
+# letting the failure escape: raising here happens at import time, so it takes
+# the WHOLE site down — every page, including ones that never touch the new
+# column — until someone reloads the web app by hand. A transient lock must not
+# be able to do that.
+_schema_ready = False
+
+def ensure_schema(context='startup'):
+    """Create tables and apply column migrations. Returns True when the schema
+    is up to date. Never raises — callers keep serving either way."""
+    global _schema_ready
+    if _schema_ready:
+        return True
+    try:
+        with app.app_context():
+            if context != 'startup':
+                # Drop pooled connections before retrying: a connection opened
+                # while the file was unwritable stays unwritable, so reusing it
+                # would keep failing even after the problem is resolved.
+                db.engine.dispose()
+            db.create_all()
+            run_migrations()
+        _schema_ready = True
+        return True
+    except Exception as e:
+        print(f"[schema] {context}: database setup incomplete: {e}")
+        print("[schema] will retry on the next request; "
+              "pages using the affected tables may error until then")
+        return False
+
+ensure_schema('startup')
+
+@app.before_request
+def _retry_schema_setup():
+    """Self-heal after a transient failure (e.g. the DB was briefly locked
+    while the app reloaded) without needing a manual reload."""
+    if not _schema_ready:
+        ensure_schema('retry')
 
 if __name__ == '__main__':
     with app.app_context():
