@@ -1214,6 +1214,7 @@ def submit_testimonial():
     attribution = (data.get('attribution') or 'anonymous').strip()
     name = (data.get('name') or '').strip()
     email = (data.get('email') or '').strip()
+    page = (data.get('page') or 'main').strip()
 
     if not testimonial:
         return jsonify({'success': False, 'error': 'Please enter your experience before submitting.'}), 400
@@ -1233,7 +1234,13 @@ def submit_testimonial():
     else:
         credited_as = '(not provided)'
 
-    body = f"""A new testimonial has been submitted via the Fridays @ Farringdon website.
+    page_labels = {
+        'main': 'Fridays @ Farringdon',
+        'peer_support': 'Peer Support Sessions',
+    }
+    page_label = page_labels.get(page, page)
+
+    body = f"""A new testimonial has been submitted via the {page_label} website page.
 
 How they would like to be credited: {attribution_label}
 Credit name / label: {credited_as}
@@ -1245,7 +1252,7 @@ Contact email: {email if email else '(not provided)'}
 
     sent = send_confirmation_email(
         'contact@londonautismgroupcharity.org',
-        'New testimonial submission — Fridays @ Farringdon',
+        f'New testimonial submission — {page_label}',
         body
     )
 

@@ -54,9 +54,175 @@
             </div>
         </div>
 
+        <div class="testimonials-section">
+            <h2>💬 What People Say</h2>
+            <div class="testimonials-carousel">
+                <div class="carousel-container">
+                    <div class="testimonial-card active" data-index="0">
+                        <p>"I am pleased to recommend Sungji for her outstanding work as an autism mentor. I first met Sungji at a university decolonising event, where I was struck by her courage in speaking openly in the face of difficult circumstances. I later had the opportunity to work with her through a referral from my university's autism mentoring programme. What made Sungji particularly valuable as a mentor was her ability to listen thoughtfully and help me make sense of situations that I often found difficult to navigate alone. She never dismissed concerns or offered simplistic answers; instead, she provided a supportive, non-judgemental space for reflection that helped me develop greater confidence in my own judgement and perspective. Sungji's guidance was especially effective because she understood the unique culture of our university. Having studied and conducted research within the institution, she had a nuanced understanding of its environment, challenges, and ongoing cultural changes. Her advice was always grounded in an appreciation of the specific discipline and context in which I was studying. I also benefited greatly from Sungji's broader perspective as someone who has navigated different cultural environments herself. She understood what it is like to feel different, foreign, or out of place, and brought a level of empathy and insight that made me feel genuinely understood. There are no words that can express my deep gratitude for her thoughtful and gentle support. Most importantly, Sungji helped me feel less isolated. Through her openness, resilience, and willingness to share her own experiences, she showed me that many of the challenges and setbacks encountered in academic life are not faced alone. Her courage and support made a meaningful difference to my wellbeing and university experience. I would recommend Sungji without hesitation. She is thoughtful, compassionate, perceptive, and deeply committed to supporting others, and I am grateful for the positive impact she has had on my life."</p>
+                    </div>
+                </div>
+            </div>
+            <div class="testimonial-cta">
+                <p class="testimonial-cta-text">Have you had a peer support session with us? We'd love to hear about it.</p>
+                <button type="button" class="btn btn-secondary" id="open-testimonial-btn">✍️ Share Your Experience</button>
+            </div>
+        </div>
+
+        <!-- Testimonial submission modal -->
+        <div class="testimonial-modal" id="testimonial-modal" hidden>
+            <div class="testimonial-modal-backdrop" data-close-modal></div>
+            <div class="testimonial-modal-content" role="dialog" aria-modal="true" aria-labelledby="testimonial-modal-title">
+                <button type="button" class="modal-close" id="close-testimonial-btn" aria-label="Close">&times;</button>
+                <h2 id="testimonial-modal-title">✍️ Share Your Experience</h2>
+                <p class="modal-intro">Tell us about your peer support session. With your permission, your words may be shared on this page to help others feel welcome.</p>
+                <form id="testimonial-form">
+                    <label for="testimonial-text">Your experience <span class="required">*</span></label>
+                    <textarea id="testimonial-text" name="testimonial" rows="6" required placeholder="What was your experience like?"></textarea>
+
+                    <fieldset class="attribution-fieldset">
+                        <legend>How would you like to be credited?</legend>
+                        <label class="radio-row"><input type="radio" name="attribution" value="anonymous" checked> Anonymously</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="first_name"> First name only</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="full_name"> Full name</label>
+                        <label class="radio-row"><input type="radio" name="attribution" value="other"> Something else</label>
+                    </fieldset>
+
+                    <div class="name-field" id="name-field" hidden>
+                        <label for="testimonial-name" id="name-label">Name</label>
+                        <input type="text" id="testimonial-name" name="name" placeholder="">
+                    </div>
+
+                    <label for="testimonial-email">Your email <span class="optional">(optional — so we can verify your message)</span></label>
+                    <input type="email" id="testimonial-email" name="email" placeholder="you@example.com">
+
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" data-close-modal>Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="submit-testimonial-btn">Submit</button>
+                    </div>
+                    <p class="form-status" id="testimonial-status" role="status" aria-live="polite"></p>
+                </form>
+            </div>
+        </div>
+
         <div class="cta-section" style="margin-top: 2rem;">
             <a href="/" class="btn btn-secondary">← Back to Home</a>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Testimonial submission modal (Peer Support page)
+    document.addEventListener('DOMContentLoaded', function() {
+        const modal = document.getElementById('testimonial-modal');
+        const openBtn = document.getElementById('open-testimonial-btn');
+        const form = document.getElementById('testimonial-form');
+        if (!modal || !openBtn || !form) return;
+
+        const nameField = document.getElementById('name-field');
+        const nameLabel = document.getElementById('name-label');
+        const nameInput = document.getElementById('testimonial-name');
+        const statusEl = document.getElementById('testimonial-status');
+        const submitBtn = document.getElementById('submit-testimonial-btn');
+        let lastFocused = null;
+
+        const nameConfig = {
+            first_name: { label: 'Your first name', placeholder: 'e.g. Alex', required: true },
+            full_name:  { label: 'Your full name', placeholder: 'e.g. Alex Smith', required: true },
+            other:      { label: 'How should we credit you?', placeholder: 'e.g. "A peer support participant" or your initials', required: true }
+        };
+
+        function updateNameField() {
+            const choice = form.querySelector('input[name="attribution"]:checked').value;
+            const cfg = nameConfig[choice];
+            if (cfg) {
+                nameLabel.textContent = cfg.label;
+                nameInput.placeholder = cfg.placeholder;
+                nameInput.required = cfg.required;
+                nameField.hidden = false;
+            } else {
+                nameInput.required = false;
+                nameInput.value = '';
+                nameField.hidden = true;
+            }
+        }
+
+        function openModal() {
+            lastFocused = document.activeElement;
+            modal.hidden = false;
+            document.body.style.overflow = 'hidden';
+            updateNameField();
+            setTimeout(() => document.getElementById('testimonial-text').focus(), 50);
+        }
+
+        function closeModal() {
+            modal.hidden = true;
+            document.body.style.overflow = '';
+            if (lastFocused) lastFocused.focus();
+        }
+
+        openBtn.addEventListener('click', openModal);
+        modal.querySelectorAll('[data-close-modal]').forEach(el => el.addEventListener('click', closeModal));
+        document.getElementById('close-testimonial-btn').addEventListener('click', closeModal);
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape' && !modal.hidden) closeModal();
+        });
+        form.querySelectorAll('input[name="attribution"]').forEach(r => r.addEventListener('change', updateNameField));
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            statusEl.className = 'form-status';
+            statusEl.textContent = '';
+
+            const payload = {
+                testimonial: document.getElementById('testimonial-text').value.trim(),
+                attribution: form.querySelector('input[name="attribution"]:checked').value,
+                name: nameInput.value.trim(),
+                email: document.getElementById('testimonial-email').value.trim(),
+                page: 'peer_support'
+            };
+
+            if (!payload.testimonial) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Please enter your experience before submitting.';
+                return;
+            }
+            if (nameInput.required && !payload.name) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Please enter how you would like to be credited.';
+                nameInput.focus();
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Sending…';
+            try {
+                const res = await fetch('/api/testimonial', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    statusEl.className = 'form-status success';
+                    statusEl.textContent = 'Thank you! Your message has been sent. 💜';
+                    form.reset();
+                    updateNameField();
+                    setTimeout(closeModal, 2500);
+                } else {
+                    statusEl.className = 'form-status error';
+                    statusEl.textContent = (data && data.error) || 'Something went wrong. Please try again.';
+                }
+            } catch (err) {
+                statusEl.className = 'form-status error';
+                statusEl.textContent = 'Could not send your message. Please try again later.';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit';
+            }
+        });
+    });
+</script>
 {% endblock %}
