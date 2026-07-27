@@ -3084,6 +3084,67 @@ html {
     background: #e7fbef;
 }
 
+/* Direct link rectangles (Yoga, Student Support) under the room boxes —
+   same shape as .collapse-toggle but plain links, not expand/collapse */
+.quick-link-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    width: 100%;
+    text-align: left;
+    text-decoration: none;
+    background: var(--card-bg, #fff);
+    border: 2px solid var(--primary, #6d28d9);
+    border-radius: var(--radius-lg, 16px);
+    padding: 1.1rem 1.4rem;
+    margin-top: 1rem;
+    cursor: pointer;
+    transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+    box-shadow: var(--shadow, 0 2px 8px rgba(0,0,0,0.06));
+}
+
+.quick-link-card:hover {
+    box-shadow: var(--shadow-lg, 0 6px 18px rgba(0,0,0,0.1));
+}
+
+.quick-link-card:active {
+    transform: translateY(1px);
+}
+
+.quick-link-arrow {
+    font-size: 1.6rem;
+    line-height: 1;
+    color: var(--primary, #6d28d9);
+    flex-shrink: 0;
+}
+
+.quick-link-yoga {
+    border-color: #7c3aed;
+    background: #f5f3ff;
+}
+
+.quick-link-yoga:hover {
+    background: #ede9fe;
+}
+
+.quick-link-yoga .quick-link-arrow {
+    color: #7c3aed;
+}
+
+.quick-link-student {
+    border-color: #2563eb;
+    background: #eff6ff;
+}
+
+.quick-link-student:hover {
+    background: #dbeafe;
+}
+
+.quick-link-student .quick-link-arrow {
+    color: #2563eb;
+}
+
 .collapse-toggle-available .collapse-chevron {
     color: #16a34a;
 }
@@ -3096,7 +3157,7 @@ html {
 @media (max-width: 480px) {
     .collapse-toggle-title { font-size: 1.1rem; }
     .collapse-toggle-sub { font-size: 0.85rem; }
-    .collapse-toggle { padding: 0.9rem 1.1rem; }
+    .collapse-toggle, .quick-link-card { padding: 0.9rem 1.1rem; }
 }
 
 /* ============================================
