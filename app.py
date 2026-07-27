@@ -464,30 +464,48 @@ To cancel your booking, visit:
 {{cancel_url}}
 """
 
+DEFAULT_ROOMS = [
+    {'keywords': ('4.2', 'indigo'), 'name': 'Room 4.2 "Indigo"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+    {'keywords': ('4.4', 'rose'), 'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
+    {'keywords': ('4.7', 'clerkenwell'), 'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+    {'keywords': ('loft',), 'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
+    {'keywords': ('4.6', 'farringdon'), 'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+    {'keywords': ('5.1',), 'name': 'Room 5.1', 'building_location': 'Floor 5 - Pan Macmillan HQ', 'room_type': 'open'},
+]
+
+
+def ensure_default_rooms():
+    """Create missing rooms without changing IDs or existing room records."""
+    rooms = Room.query.order_by(Room.id).all()
+    created = []
+
+    for room_data in DEFAULT_ROOMS:
+        matching_room = next(
+            (
+                room for room in rooms
+                if any(keyword in room.name.lower() for keyword in room_data['keywords'])
+            ),
+            None,
+        )
+        if matching_room:
+            continue
+
+        room = Room(
+            name=room_data['name'],
+            building_location=room_data['building_location'],
+            room_type=room_data['room_type'],
+            is_active=True,
+        )
+        db.session.add(room)
+        rooms.append(room)
+        created.append(room)
+
+    return created
+
+
 def init_default_data():
-    """Initialize default rooms and settings"""
-    # Define expected rooms with their IDs matching ROOM_SCHEDULE
-    expected_rooms = {
-        1: {'name': 'Room 4.2 "Indigo"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        2: {'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
-        3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
-        5: {'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        6: {'name': 'Room 5.1', 'building_location': 'Floor 5 - Pan Macmillan HQ', 'room_type': 'open'},
-    }
-    
-    # Create rooms if they don't exist, or update existing ones to match
-    for room_id, room_data in expected_rooms.items():
-        room = Room.query.get(room_id)
-        if not room:
-            room = Room(
-                id=room_id,
-                name=room_data['name'],
-                building_location=room_data['building_location'],
-                room_type=room_data['room_type'],
-                is_active=True
-            )
-            db.session.add(room)
+    """Initialize default rooms and settings."""
+    ensure_default_rooms()
     
     # Set default confirmation message
     if not get_setting('confirmation_message'):

@@ -1,4 +1,4 @@
-from app import app, db, Room
+from app import app, Room, DEFAULT_ROOMS
 
 with app.app_context():
     print("Current rooms in database:")
@@ -6,10 +6,11 @@ with app.app_context():
     for room in Room.query.all():
         print(f"ID: {room.id}, Name: {room.name}, Active: {room.is_active}")
     print("-" * 50)
-    print("\nExpected schedule mapping:")
-    print("Room 4.2 'Indigo' should have ID: 1")
-    print("Room 4.4 'Rose' should have ID: 2")
-    print("Room 4.7 'Clerkenwell' should have ID: 3")
-    print("The Loft should have ID: 4")
-    print("Room 4.6 'Farringdon' should have ID: 5")
-    print("Room 5.1 should have ID: 6")
+    print("\nSchedule room matches:")
+    rooms = Room.query.order_by(Room.id).all()
+    for room_data in DEFAULT_ROOMS:
+        matching_ids = [
+            room.id for room in rooms
+            if any(keyword in room.name.lower() for keyword in room_data['keywords'])
+        ]
+        print(f"{room_data['name']}: {matching_ids or 'MISSING'}")

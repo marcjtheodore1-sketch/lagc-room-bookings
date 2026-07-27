@@ -1,34 +1,11 @@
-from app import app, db, Room
+from app import app, db, ensure_default_rooms
 
 with app.app_context():
-    # Expected rooms with IDs matching ROOM_SCHEDULE
-    expected_rooms = {
-        1: {'name': 'Room 4.2 "Indigo"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        2: {'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
-        3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
-        5: {'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
-        6: {'name': 'Room 5.1', 'building_location': 'Floor 5 - Pan Macmillan HQ', 'room_type': 'open'},
-    }
-    
-    for room_id, room_data in expected_rooms.items():
-        room = Room.query.get(room_id)
-        if room:
-            room.name = room_data['name']
-            room.building_location = room_data['building_location']
-            room.room_type = room_data['room_type']
-            room.is_active = True
-            print(f"Updated room {room_id}: {room_data['name']}")
-        else:
-            room = Room(
-                id=room_id,
-                name=room_data['name'],
-                building_location=room_data['building_location'],
-                room_type=room_data['room_type'],
-                is_active=True
-            )
-            db.session.add(room)
-            print(f"Created room {room_id}: {room_data['name']}")
-    
+    created_rooms = ensure_default_rooms()
     db.session.commit()
-    print("Done!")
+
+    if created_rooms:
+        for room in created_rooms:
+            print(f"Created room {room.id}: {room.name}")
+    else:
+        print("All expected rooms already exist; no changes made.")
