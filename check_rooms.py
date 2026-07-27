@@ -11,3 +11,5 @@ with app.app_context():
     print("Room 4.4 'Rose' should have ID: 2")
     print("Room 4.7 'Clerkenwell' should have ID: 3")
     print("The Loft should have ID: 4")
+    print("Room 4.6 'Farringdon' should have ID: 5")
+    print("Room 5.1 should have ID: 6")

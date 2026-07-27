@@ -176,6 +176,10 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-07-17': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-07-24': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-07-31': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-08-07': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-08-14': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-08-21': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-08-28': ['The Loft', 'Room 5.1'],
 }
 
 def get_room_schedule_ids():
@@ -183,7 +187,8 @@ def get_room_schedule_ids():
     schedule = {}
     
     # Build keyword to ID mapping for flexible matching
-    # Keywords: "4.2" or "Indigo", "4.4" or "Rose", "4.7" or "Clerkenwell", "Loft"
+    # Keywords: "4.2" or "Indigo", "4.4" or "Rose", "4.7" or
+    # "Clerkenwell", "Loft", "4.6" or "Farringdon", and "5.1".
     keyword_to_id = {}
     for room in Room.query.all():
         name_lower = room.name.lower()
@@ -201,6 +206,8 @@ def get_room_schedule_ids():
         if '4.6' in name_lower or 'farringdon' in name_lower:
             keyword_to_id['4.6'] = room.id
             keyword_to_id['farringdon'] = room.id
+        if '5.1' in name_lower:
+            keyword_to_id['5.1'] = room.id
     
     # Convert schedule using keywords
     for date_str, room_names in ROOM_SCHEDULE_BY_NAME.items():
@@ -466,6 +473,7 @@ def init_default_data():
         3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
         4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
         5: {'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+        6: {'name': 'Room 5.1', 'building_location': 'Floor 5 - Pan Macmillan HQ', 'room_type': 'open'},
     }
     
     # Create rooms if they don't exist, or update existing ones to match

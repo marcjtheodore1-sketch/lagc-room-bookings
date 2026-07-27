@@ -7,6 +7,8 @@ with app.app_context():
         2: {'name': 'Room 4.4 "Rose"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'slot'},
         3: {'name': 'Room 4.7 "Clerkenwell"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
         4: {'name': 'The Loft', 'building_location': 'Floor 6 - Pan Macmillan HQ', 'room_type': 'open'},
+        5: {'name': 'Room 4.6 "Farringdon"', 'building_location': 'Floor 4 - Pan Macmillan HQ', 'room_type': 'open'},
+        6: {'name': 'Room 5.1', 'building_location': 'Floor 5 - Pan Macmillan HQ', 'room_type': 'open'},
     }
     
     for room_id, room_data in expected_rooms.items():

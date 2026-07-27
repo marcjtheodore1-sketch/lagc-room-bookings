@@ -3344,14 +3344,6 @@ html {
 /* ============================================
    YOGA AS A BOOKING OPTION (booking page)
    ============================================ */
-.date-yoga-tag {
-    display: block;
-    margin-top: 0.35rem;
-    font-size: 0.78rem;
-    font-weight: 600;
-    color: #7c3aed;
-}
-
 .yoga-room-card {
     border: 2px solid #7c3aed;
 }

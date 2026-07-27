@@ -257,12 +257,9 @@ function renderDates() {
         return;
     }
     elements.dateGrid.innerHTML = state.fridays.map(friday => {
-        const yoga = state.yogaSessions[friday.date];
-        const yogaTag = yoga ? '<span class="date-yoga-tag">🧘 Yoga at 10am</span>' : '';
         return `
         <div class="date-card" onclick="selectDate('${friday.date}')">
             ${escapeHtml(friday.display)}
-            ${yogaTag}
         </div>
     `}).join('');
 }
