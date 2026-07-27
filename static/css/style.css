@@ -3325,3 +3325,77 @@ html {
     margin: 1.5rem 0 0.25rem;
     color: var(--text);
 }
+
+/* ============================================
+   ROOM NOTES — admin flags something people must know before booking
+   ============================================ */
+/* Public: on the room card */
+.room-note {
+    background: #fffbeb;
+    border-left: 4px solid var(--warning);
+    border-radius: 6px;
+    padding: 0.55rem 0.7rem;
+    margin: 0.5rem 0;
+    color: #92400e;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    font-weight: 500;
+}
+
+.room-card.has-note {
+    border-color: var(--warning);
+}
+
+/* Public: in the booking summary, before confirming */
+.summary-note {
+    background: #fffbeb;
+    border: 2px solid var(--warning);
+    border-radius: var(--radius);
+    padding: 0.8rem 1rem;
+    margin-top: 0.9rem;
+    color: #92400e;
+}
+
+.summary-note strong {
+    display: block;
+    margin-bottom: 0.3rem;
+    color: #78350f;
+}
+
+.summary-note p {
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Admin: note editor inside a Room Times row */
+.room-note-editor {
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+}
+
+.room-note-editor label {
+    display: block;
+    font-size: 0.85rem;
+    color: var(--text-light);
+    margin-bottom: 0.3rem;
+}
+
+.room-note-editor textarea {
+    width: 100%;
+    padding: 0.5rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    line-height: 1.45;
+    color: var(--text);
+    resize: vertical;
+}
+
+.room-note-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.45rem;
+}

@@ -209,11 +209,18 @@ function renderRooms() {
             occupancyHtml = `<p class="room-occupancy">${label}</p>`;
         }
 
+        // Anything the team has flagged for this room on this date — shown
+        // before the person picks the room, not just after booking
+        const noteHtml = room.note
+            ? `<p class="room-note">⚠️ ${escapeHtml(room.note)}</p>`
+            : '';
+
         return `
-        <div class="room-card" onclick="selectRoom(${room.id})">
+        <div class="room-card${room.note ? ' has-note' : ''}" onclick="selectRoom(${room.id})">
             ${photoHtml}
             <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
+            ${noteHtml}
             ${occupancyHtml}
             ${typeHint}
         </div>
@@ -623,8 +630,13 @@ function showEmailStep() {
             <span>Time:</span>
             <span>${escapeHtml(startTime)} - ${escapeHtml(endTime)}</span>
         </div>
+        ${state.selectedRoom.note ? `
+        <div class="summary-note">
+            <strong>⚠️ Please note about this date</strong>
+            <p>${escapeHtml(state.selectedRoom.note)}</p>
+        </div>` : ''}
     `;
-    
+
     showStep('email');
 }
 

@@ -266,6 +266,30 @@ def override_end_slot(hhmm):
     slot = mins // SLOT_MINUTES  # floor
     return max(0, min(slot, len(TIME_SLOTS) - 1))
 
+# ============================================================================
+# PER-DATE ROOM NOTES
+# Admins can flag something people need to know when booking a specific room
+# on a specific Friday (e.g. "no step-free access to the Loft on 28 Aug").
+# Shown on the room card, in the booking summary BEFORE confirming, and in
+# the confirmation email. Stored in the Setting table as JSON:
+#   {"YYYY-MM-DD": {"<room_id>": "note text"}}
+# ============================================================================
+ROOM_NOTES_KEY = 'room_notes'
+ROOM_NOTE_MAX = 500
+
+def get_room_notes():
+    raw = get_setting(ROOM_NOTES_KEY)
+    if not raw:
+        return {}
+    try:
+        return json.loads(raw)
+    except (ValueError, TypeError):
+        return {}
+
+def get_room_note(date_str, room_id):
+    """Return the admin's note for a room on a date, or '' if there isn't one."""
+    return get_room_notes().get(date_str, {}).get(str(room_id), '')
+
 def get_effective_room_hours(date_str, room):
     """Resolve a room's hours for a date: a one-day change (override) wins,
     then the room's own default hours, then the global 9:30-5 day.
@@ -923,6 +947,10 @@ def get_rooms():
             if source != 'global':
                 item['override_start'] = fmt_hhmm(start)
                 item['override_end'] = fmt_hhmm(end)
+            # Anything people need to know before booking this room on this date
+            note = get_room_note(booking_date.isoformat(), r.id)
+            if note:
+                item['note'] = note
         result.append(item)
     return jsonify(result)
 
@@ -1141,7 +1169,16 @@ def create_booking():
         end_time=end_time,
         cancel_url=f"{request.host_url.rstrip('/')}/cancel/{cancel_token}"
     )
-    
+
+    # Repeat any admin note for this room/date — they saw it before booking,
+    # this is their written record of it. Appended rather than templated so
+    # existing saved confirmation templates keep working.
+    room_note = get_room_note(booking_date.isoformat(), room_id)
+    if room_note:
+        confirmation_message += (
+            f"\n\n---\nPlease note about {room.name} on this date:\n{room_note}\n"
+        )
+
     # Queue all emails in the background so the person sees their on-screen
     # confirmation immediately, even if Gmail is slow or briefly down.
     admin_subject = f"New Booking: {name} booked {room.name}"
@@ -2233,6 +2270,7 @@ def admin_get_room_times():
                 'end': end,
                 'is_override': bool(ov),
                 'source': source,  # 'override' | 'room' | 'global'
+                'note': get_room_note(ds, rid),
             })
         if rooms:
             dates.append({'date': ds, 'display': f['display'], 'rooms': rooms})
@@ -2269,6 +2307,40 @@ def _validate_hhmm_window(start, end):
     if t_start < day_start or t_end > day_end:
         return jsonify({'error': f'Times must be between {fmt_hhmm(day_start.strftime("%H:%M"))} and {fmt_hhmm(day_end.strftime("%H:%M"))}.'}), 400
     return None
+
+@app.route('/api/admin/room-notes', methods=['POST'])
+@admin_required
+def admin_set_room_note():
+    """Save or clear a note for one room on one Friday. People see it on the
+    room card and in the booking summary before they confirm, and it's
+    repeated in their confirmation email.
+    Body: {date, room_id, note}. An empty note clears it."""
+    data = request.get_json(silent=True) or {}
+    date_str = (data.get('date') or '').strip()
+    room_id = data.get('room_id')
+
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'error': 'Invalid date'}), 400
+
+    schedule = get_room_schedule_ids()
+    if date_str not in schedule or room_id not in schedule[date_str]:
+        return jsonify({'error': 'That room is not scheduled on that date'}), 400
+
+    note = (data.get('note') or '').strip()[:ROOM_NOTE_MAX]
+    notes = get_room_notes()
+
+    if note:
+        notes.setdefault(date_str, {})[str(room_id)] = note
+    else:
+        if date_str in notes and str(room_id) in notes[date_str]:
+            del notes[date_str][str(room_id)]
+            if not notes[date_str]:
+                del notes[date_str]
+
+    set_setting(ROOM_NOTES_KEY, json.dumps(notes))
+    return jsonify({'success': True, 'note': note, 'cleared': not note})
 
 @app.route('/api/admin/room-default-times', methods=['POST'])
 @admin_required

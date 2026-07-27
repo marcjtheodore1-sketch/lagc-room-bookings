@@ -12,7 +12,7 @@
     <div class="admin-tabs">
         <button class="tab-btn active" onclick="showTab('bookings')">All Bookings</button>
         <button class="tab-btn" onclick="showTab('rooms')">Rooms</button>
-        <button class="tab-btn" onclick="showTab('roomtimes')">🕐 Room Times</button>
+        <button class="tab-btn" onclick="showTab('roomtimes')">🕐 Room Times &amp; Notes</button>
         <button class="tab-btn" onclick="showTab('messages')">Confirmation Message</button>
         <button class="tab-btn" onclick="showTab('announcements')">📢 Notifications</button>
         <button class="tab-btn" onclick="showTab('volunteers')">🙋 Volunteer Rota</button>
@@ -52,8 +52,9 @@
 
     <!-- Room Times Tab -->
     <div class="tab-content" id="tab-roomtimes">
-        <h2>🕐 Room Times</h2>
-        <p class="hint">Two ways to set hours: <strong>⭐ Usual hours</strong> apply to every Friday going forward (set once, done) — <strong>📅 Change a single Friday</strong> affects just that one date, e.g. when there's no volunteer cover one week. Open rooms can use any time; slot rooms (Rose) snap to the nearest 30 minutes. Changes update the booking page, confirmation emails and everyone's booking details straight away.</p>
+        <h2>🕐 Room Times &amp; Notes</h2>
+        <p class="hint">Two ways to set hours: <strong>⭐ Usual hours</strong> apply to every Friday going forward (set once, done) — <strong>📅 Change a single Friday</strong> affects just that one date, e.g. when there's no volunteer cover one week. Open rooms can use any time; slot rooms (Rose) snap to the nearest 30 minutes.</p>
+        <p class="hint">Each room on each date also has a <strong>⚠️ Note</strong> field for anything people should know before they book — for example no step-free access. The note appears on the room card <em>and</em> in the booking summary before they confirm, so they commit with full context, and it's repeated in their confirmation email.</p>
         <div class="room-times-container" id="room-times-list">
             <p class="loading">Loading room times...</p>
         </div>
@@ -243,5 +244,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=14"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=15"></script>
 {% endblock %}

@@ -856,6 +856,15 @@ function renderRoomTimes(data) {
                         <button class="btn btn-primary btn-small" onclick="saveRoomTime(this)">Save</button>
                         <button class="btn btn-secondary btn-small" onclick="resetRoomTime(this)" ${r.is_override ? '' : 'disabled'}>Reset to usual hours</button>
                     </div>
+                    <div class="room-note-editor">
+                        <label>⚠️ Note for people booking this room on this date:</label>
+                        <textarea class="rt-note" rows="2" maxlength="500"
+                            placeholder="e.g. There is no step-free access to this room on this date — the 5th floor lift is being repaired.">${escapeHtml(r.note || '')}</textarea>
+                        <div class="room-note-actions">
+                            <button class="btn btn-primary btn-small" onclick="saveRoomNote(this)">Save note</button>
+                            <button class="btn btn-secondary btn-small" onclick="clearRoomNote(this)" ${r.note ? '' : 'disabled'}>Remove note</button>
+                        </div>
+                    </div>
                     <p class="rt-status form-status" role="status" aria-live="polite"></p>
                 </div>
             `).join('')}
@@ -916,6 +925,39 @@ async function resetRoomTime(btn) {
     } catch (e) {
         rtStatus(status, 'Network error. Please try again.', true);
     }
+}
+
+// Notes shown to people booking a specific room on a specific date
+async function _postRoomNote(btn, note, successMsg) {
+    const { date, roomId, status } = _rtRow(btn);
+    try {
+        const res = await fetch('/api/admin/room-notes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ date, room_id: roomId, note })
+        });
+        const result = await res.json();
+        if (!res.ok) { rtStatus(status, result.error || 'Failed to save the note.', true); return; }
+        rtStatus(status, successMsg, false);
+        loadRoomTimes();
+    } catch (e) {
+        rtStatus(status, 'Network error. Please try again.', true);
+    }
+}
+
+async function saveRoomNote(btn) {
+    const row = btn.closest('.room-times-row');
+    const note = row.querySelector('.rt-note').value.trim();
+    if (!note) {
+        rtStatus(row.querySelector('.rt-status'), 'Type a note first, or use "Remove note".', true);
+        return;
+    }
+    _postRoomNote(btn, note, '✅ Note saved — people will see this before they book this room on this date.');
+}
+
+async function clearRoomNote(btn) {
+    if (!confirm('Remove this note? People booking this room on this date will no longer see it.')) return;
+    _postRoomNote(btn, '', '✅ Note removed.');
 }
 
 // Usual (default) hours for a room — apply to every Friday going forward
