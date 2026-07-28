@@ -31,13 +31,14 @@ class AugustScheduleTest(unittest.TestCase):
                     with app.app_context():
                         init_default_data()
                         schedule = get_room_schedule_ids()
+                        august_dates = [
+                            day for day in schedule
+                            if day.startswith('2026-08-')
+                        ]
                         rooms = {
                             day: [db.session.get(Room, room_id).name
                                   for room_id in schedule[day]]
-                            for day in (
-                                '2026-08-07', '2026-08-14',
-                                '2026-08-21', '2026-08-28',
-                            )
+                            for day in august_dates
                         }
                         print(json.dumps({
                             'rooms': rooms,
@@ -57,10 +58,9 @@ class AugustScheduleTest(unittest.TestCase):
         rose_and_clerkenwell = [
             'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"',
         ]
-        self.assertEqual(payload['rooms']['2026-08-07'], rose_and_clerkenwell)
-        self.assertEqual(payload['rooms']['2026-08-14'], rose_and_clerkenwell)
-        self.assertEqual(payload['rooms']['2026-08-21'], rose_and_clerkenwell)
-        self.assertEqual(payload['rooms']['2026-08-28'], ['The Loft', 'Room 5.1'])
+        self.assertEqual(payload['rooms'], {
+            '2026-08-07': rose_and_clerkenwell,
+        })
         self.assertEqual(payload['yoga'], ['2026-08-07', '2026-08-28'])
 
     def test_booking_date_cards_do_not_advertise_yoga(self):
