@@ -61,9 +61,9 @@ class AugustScheduleTest(unittest.TestCase):
         self.assertEqual(payload['rooms'], {
             '2026-08-07': rose_and_clerkenwell,
         })
-        self.assertEqual(payload['yoga'], ['2026-08-07'])
+        self.assertEqual(payload['yoga'], [])
 
-    def test_removed_yoga_date_keeps_existing_admin_records(self):
+    def test_removed_yoga_dates_keep_existing_admin_records(self):
         with tempfile.TemporaryDirectory() as disk:
             env = {
                 **os.environ,
@@ -80,13 +80,15 @@ class AugustScheduleTest(unittest.TestCase):
 
                     with app.app_context():
                         db.create_all()
-                        for booking_id, name, email in (
-                            (1, 'Existing One', 'one@example.com'),
-                            (2, 'Existing Two', 'two@example.com'),
+                        for booking_id, session_date, name, email in (
+                            (1, date(2026, 8, 7), 'August 7 One', 'aug7-one@example.com'),
+                            (2, date(2026, 8, 7), 'August 7 Two', 'aug7-two@example.com'),
+                            (3, date(2026, 8, 28), 'August 28 One', 'aug28-one@example.com'),
+                            (4, date(2026, 8, 28), 'August 28 Two', 'aug28-two@example.com'),
                         ):
                             db.session.add(YogaBooking(
                                 id=booking_id,
-                                session_date=date(2026, 8, 28),
+                                session_date=session_date,
                                 name=name,
                                 email=email,
                                 phone='07000000000',
@@ -106,19 +108,25 @@ class AugustScheduleTest(unittest.TestCase):
                         admin_payload = client.get(
                             '/api/admin/yoga-bookings'
                         ).get_json()
-                        august_28 = next(
-                            session for session in admin_payload['sessions']
-                            if session['date'] == '2026-08-28'
-                        )
+                        removed_dates = {}
+                        for date_string in ('2026-08-07', '2026-08-28'):
+                            admin_session = next(
+                                session for session in admin_payload['sessions']
+                                if session['date'] == date_string
+                            )
+                            removed_dates[date_string] = {
+                                'booked': admin_session['booked'],
+                                'names': [
+                                    booking['name']
+                                    for booking in admin_session['bookings']
+                                ],
+                                'database_count': YogaBooking.query.filter_by(
+                                    session_date=date.fromisoformat(date_string)
+                                ).count(),
+                            }
                         print(json.dumps({
                             'public_dates': public_dates,
-                            'admin_booked': august_28['booked'],
-                            'admin_names': [
-                                booking['name'] for booking in august_28['bookings']
-                            ],
-                            'database_count': YogaBooking.query.filter_by(
-                                session_date=date(2026, 8, 28)
-                            ).count(),
+                            'removed_dates': removed_dates,
                         }))
                 """)],
                 cwd=APP_DIR,
@@ -130,10 +138,18 @@ class AugustScheduleTest(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         payload = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertNotIn('2026-08-07', payload['public_dates'])
         self.assertNotIn('2026-08-28', payload['public_dates'])
-        self.assertEqual(payload['admin_booked'], 2)
-        self.assertEqual(payload['admin_names'], ['Existing One', 'Existing Two'])
-        self.assertEqual(payload['database_count'], 2)
+        self.assertEqual(payload['removed_dates']['2026-08-07'], {
+            'booked': 2,
+            'names': ['August 7 One', 'August 7 Two'],
+            'database_count': 2,
+        })
+        self.assertEqual(payload['removed_dates']['2026-08-28'], {
+            'booked': 2,
+            'names': ['August 28 One', 'August 28 Two'],
+            'database_count': 2,
+        })
 
     def test_booking_date_cards_do_not_advertise_yoga(self):
         script_path = os.path.join(APP_DIR, 'static', 'js', 'app.js')
