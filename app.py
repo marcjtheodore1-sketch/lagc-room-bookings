@@ -86,6 +86,18 @@ class Booking(db.Model):
     cancel_token = db.Column(db.String(64), unique=True)  # For cancellation link
     attended = db.Column(db.Boolean, nullable=True)  # None = not recorded, True = came, False = no-show
 
+    # Attendance / access details collected at Step 4
+    accessibility_needs = db.Column(db.Text, default='')
+    bringing_others = db.Column(db.Boolean, default=False)
+    companion_names = db.Column(db.Text, default='')
+    other_info = db.Column(db.Text, default='')
+    # Carer / support worker details (only when one is attending)
+    carer_attending = db.Column(db.Boolean, default=False)
+    carer_name = db.Column(db.String(120), default='')
+    carer_organisation = db.Column(db.String(160), default='')
+    carer_phone = db.Column(db.String(50), default='')
+    carer_supervision_agreed = db.Column(db.Boolean, default=False)
+
     room = db.relationship('Room', backref='bookings')
 
 class Setting(db.Model):
@@ -1117,7 +1129,35 @@ def create_booking():
     # Validate email
     if '@' not in email or '.' not in email.split('@')[1]:
         return jsonify({'error': 'Invalid email address'}), 400
-    
+
+    # Accessibility / who else is attending (Step 4). Validated server-side too,
+    # so the carer safeguarding details can't be skipped by bypassing the form.
+    def field(key, limit=2000):
+        return (data.get(key) or '').strip()[:limit]
+
+    accessibility_needs = field('accessibility_needs', 4000)
+    bringing_others = bool(data.get('bringing_others'))
+    companion_names = field('companion_names', 500) if bringing_others else ''
+    other_info = field('other_info', 4000)
+    carer_attending = bool(data.get('carer_attending')) and bringing_others
+    carer_name = field('carer_name', 120) if carer_attending else ''
+    carer_organisation = field('carer_organisation', 160) if carer_attending else ''
+    carer_phone = field('carer_phone', 50) if carer_attending else ''
+    carer_supervision_agreed = bool(data.get('carer_supervision_agreed')) and carer_attending
+
+    if bringing_others and not companion_names:
+        return jsonify({'error': "Please give the first name(s) of who is coming with you, so we can plan numbers."}), 400
+    if carer_attending:
+        if not carer_name:
+            return jsonify({'error': "Please give the carer or support worker's full name."}), 400
+        if not carer_organisation:
+            return jsonify({'error': "Please give the carer or support worker's agency or organisation name (or write 'Independent' / 'Family')."}), 400
+        if not carer_phone:
+            return jsonify({'error': "Please give a mobile number for the carer or support worker, so we can contact them on the day."}), 400
+        if not carer_supervision_agreed:
+            return jsonify({'error': 'Please tick the box to confirm the carer or support worker remains responsible for supervision.'}), 400
+
+
     # Parse date
     try:
         booking_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -1195,9 +1235,18 @@ def create_booking():
         booking_date=booking_date,
         start_slot=start_slot,
         end_slot=end_slot,
-        cancel_token=cancel_token
+        cancel_token=cancel_token,
+        accessibility_needs=accessibility_needs,
+        bringing_others=bringing_others,
+        companion_names=companion_names,
+        other_info=other_info,
+        carer_attending=carer_attending,
+        carer_name=carer_name,
+        carer_organisation=carer_organisation,
+        carer_phone=carer_phone,
+        carer_supervision_agreed=carer_supervision_agreed,
     )
-    
+
     db.session.add(booking)
     db.session.commit()
     
@@ -1231,6 +1280,17 @@ def create_booking():
     # Queue all emails in the background so the person sees their on-screen
     # confirmation immediately, even if Gmail is slow or briefly down.
     admin_subject = f"New Booking: {name} booked {room.name}"
+    if carer_attending:
+        carer_block = f"""
+--- Carer / support worker attending ---
+Name: {carer_name}
+Agency / organisation: {carer_organisation}
+Mobile: {carer_phone}
+Confirmed they remain responsible for supervision: {'Yes' if carer_supervision_agreed else 'No'}
+"""
+    else:
+        carer_block = ''
+
     admin_message = f"""A new booking has been made:
 
 Name: {name}
@@ -1239,6 +1299,10 @@ Room: {room.name}
 Date: {date_display}
 Time: {start_time} - {end_time}
 
+Accessibility needs: {accessibility_needs or '(none given)'}
+Attending with others: {('Yes — ' + companion_names) if bringing_others else 'No'}
+Anything else to know: {other_info or '(nothing given)'}
+{carer_block}
 View all bookings at: {request.host_url.rstrip('/')}/admin
 """
     send_emails_async([
@@ -1951,10 +2015,57 @@ def admin_get_bookings():
             'start_time': start_time,
             'end_time': end_time,
             'room_type': booking.room.room_type,
-            'attended': booking.attended
+            'attended': booking.attended,
+            'accessibility_needs': booking.accessibility_needs or '',
+            'bringing_others': bool(booking.bringing_others),
+            'companion_names': booking.companion_names or '',
+            'other_info': booking.other_info or '',
+            'carer_attending': bool(booking.carer_attending),
+            'carer_name': booking.carer_name or '',
+            'carer_organisation': booking.carer_organisation or '',
+            'carer_phone': booking.carer_phone or '',
+            'carer_supervision_agreed': bool(booking.carer_supervision_agreed),
         })
 
     return jsonify(result)
+
+@app.route('/api/admin/bookings/export')
+@admin_required
+def admin_export_bookings():
+    """Download every room booking as a CSV, including the accessibility and
+    carer/supervision details collected at booking."""
+    import csv
+    import io
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow([
+        'Date', 'Room', 'Name', 'Email', 'Start', 'End', 'Attended',
+        'Accessibility needs', 'Attending with others', 'Who with',
+        'Anything else', 'Carer attending', 'Carer name',
+        'Carer agency/organisation', 'Carer mobile',
+        'Carer confirmed supervision', 'Booked at',
+    ])
+    attended_label = {True: 'Came', False: 'No-show', None: ''}
+    for b in Booking.query.filter(Booking.cancelled_at.is_(None)).order_by(
+            Booking.booking_date, Booking.start_slot).all():
+        start_time, end_time = booking_time_display(b)
+        writer.writerow([
+            b.booking_date.isoformat(), b.room.name, b.user_name, b.user_email,
+            start_time, end_time, attended_label.get(b.attended, ''),
+            b.accessibility_needs or '',
+            'Yes' if b.bringing_others else 'No', b.companion_names or '',
+            b.other_info or '',
+            'Yes' if b.carer_attending else 'No', b.carer_name or '',
+            b.carer_organisation or '', b.carer_phone or '',
+            'Yes' if b.carer_supervision_agreed else '',
+            b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '',
+        ])
+    from flask import Response
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': 'attachment; filename=room_bookings.csv'},
+    )
 
 @app.route('/api/admin/bookings/archive')
 @admin_required
@@ -1979,7 +2090,16 @@ def admin_get_bookings_archive():
             'start_time': start_time,
             'end_time': end_time,
             'room_type': booking.room.room_type,
-            'attended': booking.attended
+            'attended': booking.attended,
+            'accessibility_needs': booking.accessibility_needs or '',
+            'bringing_others': bool(booking.bringing_others),
+            'companion_names': booking.companion_names or '',
+            'other_info': booking.other_info or '',
+            'carer_attending': bool(booking.carer_attending),
+            'carer_name': booking.carer_name or '',
+            'carer_organisation': booking.carer_organisation or '',
+            'carer_phone': booking.carer_phone or '',
+            'carer_supervision_agreed': bool(booking.carer_supervision_agreed),
         })
 
     return jsonify(result)
@@ -2646,6 +2766,20 @@ def run_migrations():
     # Per-room default hours (Room Times tab: "set once, applies every week")
     _ensure_column('room', 'default_start', 'VARCHAR(5)')
     _ensure_column('room', 'default_end', 'VARCHAR(5)')
+
+    # Accessibility / who-is-attending details collected at booking
+    for column, definition in (
+        ('accessibility_needs', 'TEXT'),
+        ('bringing_others', 'BOOLEAN DEFAULT 0'),
+        ('companion_names', 'TEXT'),
+        ('other_info', 'TEXT'),
+        ('carer_attending', 'BOOLEAN DEFAULT 0'),
+        ('carer_name', 'VARCHAR(120)'),
+        ('carer_organisation', 'VARCHAR(160)'),
+        ('carer_phone', 'VARCHAR(50)'),
+        ('carer_supervision_agreed', 'BOOLEAN DEFAULT 0'),
+    ):
+        _ensure_column('booking', column, definition)
 
     # One-time: the time grid was re-based from 11:00 (old slot 0) to 09:30
     # (new slot 0), adding 3 earlier half-hour slots. Shift every existing

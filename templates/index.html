@@ -57,6 +57,80 @@
                 <label for="email">Email Address:</label>
                 <input type="email" id="email" placeholder="your@email.com" required>
             </div>
+
+            <div class="form-group">
+                <label for="accessibility-needs">Do you have any accessibility needs you would like us to be aware of?</label>
+                <small class="hint">Optional — anything that would help us make the day work better for you.</small>
+                <textarea id="accessibility-needs" rows="3" maxlength="4000" placeholder="e.g. I need a quiet space, step-free access, low lighting…"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Will you be attending with anyone else (family member, carer, friend, etc.)?</label>
+                <div class="yoga-radio-group">
+                    <label class="radio-option"><input type="radio" name="bringing-others" value="no" checked> No, just me</label>
+                    <label class="radio-option"><input type="radio" name="bringing-others" value="yes"> Yes</label>
+                </div>
+            </div>
+
+            <div class="form-group" id="companions-field" hidden>
+                <label for="companion-names">Who is coming with you? <span class="required">*</span></label>
+                <small class="hint">Please include their first name(s) so we can plan numbers accurately.</small>
+                <textarea id="companion-names" rows="2" maxlength="500" placeholder="e.g. Sam (friend), Jo (support worker)"></textarea>
+
+                <div class="carer-question">
+                    <label>Is one of them a carer or support worker?</label>
+                    <div class="yoga-radio-group">
+                        <label class="radio-option"><input type="radio" name="carer-attending" value="no" checked> No</label>
+                        <label class="radio-option"><input type="radio" name="carer-attending" value="yes"> Yes</label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Only shown when a carer or support worker is attending -->
+            <div class="carer-section" id="carer-section" hidden>
+                <h3>🧑‍🤝‍🧑 Carer or support worker details</h3>
+                <p class="carer-intro">Because a carer or support worker is attending, we need a few details so we can contact them on the day and be clear about responsibilities.</p>
+
+                <div class="notice-box warning carer-responsibility-note">
+                    <p><strong>Please read carefully:</strong></p>
+                    <ul>
+                        <li>LAGC volunteers <strong>cannot act as substitute carers</strong>. We cannot provide personal care, behavioural support, or one-to-one supervision.</li>
+                        <li>Parents, carers and support workers <strong>remain responsible for actively supervising</strong> the person they attend with, for the whole time they are with us.</li>
+                        <li>Failure to disclose relevant supervision or risk information may affect whether someone can attend future events.</li>
+                    </ul>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="carer-name">Carer / support worker full name <span class="required">*</span></label>
+                        <input type="text" id="carer-name" maxlength="120" placeholder="e.g. Jo Smith">
+                    </div>
+                    <div class="form-group">
+                        <label for="carer-organisation">Agency or organisation <span class="required">*</span></label>
+                        <input type="text" id="carer-organisation" maxlength="160" placeholder="e.g. Sunrise Care — or 'Independent' / 'Family'">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="carer-phone">Carer / support worker mobile number <span class="required">*</span></label>
+                    <small class="hint">So we can contact them during the day if needed.</small>
+                    <input type="tel" id="carer-phone" maxlength="50" placeholder="07…">
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="carer-supervision-agreed">
+                        <span>I confirm that the carer, support worker or parent attending <strong>remains responsible for actively supervising</strong> the person they are attending with, and I understand that LAGC volunteers cannot provide personal care, behavioural support or one-to-one supervision. <span class="required">*</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="other-info">Is there anything else you'd like us to know before the day?</label>
+                <small class="hint">Optional.</small>
+                <textarea id="other-info" rows="3" maxlength="4000" placeholder="Anything at all that would help us support you."></textarea>
+            </div>
+
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
                 <button class="btn btn-primary" id="btn-confirm-booking" onclick="submitBooking()">Confirm Booking</button>

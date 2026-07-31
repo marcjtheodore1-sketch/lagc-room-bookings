@@ -659,6 +659,7 @@ function resetBooking() {
     elements.firstNameInput.value = '';
     elements.lastNameInput.value = '';
     elements.emailInput.value = '';
+    resetAttendeeFields();
 
     // Reset subtitle visibility
     const subtitle = document.getElementById('booking-subtitle');
@@ -668,6 +669,62 @@ function resetBooking() {
 
     showStep('date');
     renderDates();
+}
+
+// ============================================
+// STEP 4 — WHO ELSE IS ATTENDING
+// ============================================
+
+function isBringingOthers() {
+    const el = document.querySelector('input[name="bringing-others"]:checked');
+    return !!el && el.value === 'yes';
+}
+
+function isCarerAttending() {
+    const el = document.querySelector('input[name="carer-attending"]:checked');
+    return !!el && el.value === 'yes';
+}
+
+// The carer questions only appear once someone says a carer/support worker is
+// coming, so the form stays short for the common "just me" case.
+function updateAttendeeFields() {
+    const bringing = isBringingOthers();
+    const companions = document.getElementById('companions-field');
+    const carerSection = document.getElementById('carer-section');
+    if (!companions || !carerSection) return;
+
+    companions.hidden = !bringing;
+    if (!bringing) {
+        // Clear anything already entered so it can't be submitted invisibly
+        document.getElementById('companion-names').value = '';
+        const carerNo = document.querySelector('input[name="carer-attending"][value="no"]');
+        if (carerNo) carerNo.checked = true;
+    }
+
+    const showCarer = bringing && isCarerAttending();
+    carerSection.hidden = !showCarer;
+    if (!showCarer) {
+        ['carer-name', 'carer-organisation', 'carer-phone'].forEach(id => {
+            document.getElementById(id).value = '';
+        });
+        document.getElementById('carer-supervision-agreed').checked = false;
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[name="bringing-others"], input[name="carer-attending"]')
+        .forEach(radio => radio.addEventListener('change', updateAttendeeFields));
+    updateAttendeeFields();
+});
+
+function resetAttendeeFields() {
+    const justMe = document.querySelector('input[name="bringing-others"][value="no"]');
+    if (justMe) justMe.checked = true;
+    ['accessibility-needs', 'other-info'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    updateAttendeeFields();
 }
 
 // ============================================
@@ -696,13 +753,59 @@ async function submitBooking() {
         return;
     }
     
+    const bringingOthers = isBringingOthers();
+    const carerAttending = bringingOthers && isCarerAttending();
+    const companionNames = document.getElementById('companion-names').value.trim();
+    const carerName = document.getElementById('carer-name').value.trim();
+    const carerOrganisation = document.getElementById('carer-organisation').value.trim();
+    const carerPhone = document.getElementById('carer-phone').value.trim();
+    const carerAgreed = document.getElementById('carer-supervision-agreed').checked;
+
+    // Mirror the server-side checks so people get an immediate, specific prompt
+    if (bringingOthers && !companionNames) {
+        alert('Please give the first name(s) of who is coming with you, so we can plan numbers.');
+        document.getElementById('companion-names').focus();
+        return;
+    }
+    if (carerAttending) {
+        if (!carerName) {
+            alert("Please enter the carer or support worker's full name.");
+            document.getElementById('carer-name').focus();
+            return;
+        }
+        if (!carerOrganisation) {
+            alert("Please enter the carer or support worker's agency or organisation (or write 'Independent' or 'Family').");
+            document.getElementById('carer-organisation').focus();
+            return;
+        }
+        if (!carerPhone) {
+            alert("Please enter a mobile number for the carer or support worker, so we can contact them on the day.");
+            document.getElementById('carer-phone').focus();
+            return;
+        }
+        if (!carerAgreed) {
+            alert('Please tick the box to confirm the carer or support worker remains responsible for supervision.');
+            document.getElementById('carer-supervision-agreed').focus();
+            return;
+        }
+    }
+
     const bookingData = {
         room_id: state.selectedRoom.id,
         date: state.selectedDate,
         name: name,
-        email: email
+        email: email,
+        accessibility_needs: document.getElementById('accessibility-needs').value.trim(),
+        bringing_others: bringingOthers,
+        companion_names: companionNames,
+        other_info: document.getElementById('other-info').value.trim(),
+        carer_attending: carerAttending,
+        carer_name: carerName,
+        carer_organisation: carerOrganisation,
+        carer_phone: carerPhone,
+        carer_supervision_agreed: carerAgreed
     };
-    
+
     // Only add slots for slot-type rooms
     if (state.selectedRoom.room_type === 'slot') {
         if (state.selectedSlots.length === 0) {

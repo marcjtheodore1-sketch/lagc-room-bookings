@@ -3452,3 +3452,74 @@ html {
     flex-wrap: wrap;
     margin-top: 0.45rem;
 }
+
+/* ============================================
+   STEP 4 — carer / support worker section (public booking form)
+   ============================================ */
+.carer-question {
+    margin-top: 0.9rem;
+    padding-top: 0.9rem;
+    border-top: 1px dashed var(--border);
+}
+
+.carer-section {
+    background: #fffbeb;
+    border: 2px solid var(--warning);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 1rem;
+}
+
+.carer-section h3 {
+    margin: 0 0 0.4rem;
+    color: #78350f;
+}
+
+.carer-intro {
+    margin: 0 0 0.9rem;
+    color: #92400e;
+}
+
+.carer-responsibility-note ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.2rem;
+}
+
+.carer-responsibility-note li {
+    margin-bottom: 0.4rem;
+    line-height: 1.5;
+}
+
+/* Admin: attendee / carer details under a booking row */
+.attendee-details {
+    flex-basis: 100%;
+    margin-top: 0.6rem;
+    padding-top: 0.6rem;
+    border-top: 1px dashed var(--border);
+    font-size: 0.9rem;
+}
+
+.attendee-row {
+    margin-bottom: 0.25rem;
+    line-height: 1.45;
+    color: var(--text);
+}
+
+.attendee-label {
+    font-weight: 600;
+    color: var(--text-light);
+}
+
+.attendee-carer {
+    margin-top: 0.5rem;
+    padding: 0.6rem 0.8rem;
+    background: #fffbeb;
+    border-left: 4px solid var(--warning);
+    border-radius: 6px;
+}
+
+.attendee-carer-title {
+    font-weight: 700;
+    color: #92400e;
+    margin-bottom: 0.3rem;
+}

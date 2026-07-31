@@ -1140,6 +1140,7 @@ function renderArchivedBookings(bookings) {
                                 <span class="user-email">${escapeHtml(booking.user_email)}</span>
                             </div>
                             ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
+                            ${attendeeDetails(booking)}
                         </div>
                     `).join('')}
                 </div>
@@ -1182,6 +1183,33 @@ function renderBookingCounts(counts) {
             </div>
         `;
     }).join('');
+}
+
+// Accessibility / who-else-is-attending details captured at booking.
+// Only rendered when something was actually provided, so ordinary bookings
+// stay compact; carer details are highlighted because volunteers need them.
+function attendeeDetails(b) {
+    const rows = [];
+    if (b.accessibility_needs) {
+        rows.push(`<div class="attendee-row"><span class="attendee-label">♿ Accessibility needs:</span> ${escapeHtml(b.accessibility_needs)}</div>`);
+    }
+    if (b.bringing_others) {
+        rows.push(`<div class="attendee-row"><span class="attendee-label">👥 Attending with:</span> ${escapeHtml(b.companion_names || '(not given)')}</div>`);
+    }
+    if (b.other_info) {
+        rows.push(`<div class="attendee-row"><span class="attendee-label">💬 Also told us:</span> ${escapeHtml(b.other_info)}</div>`);
+    }
+    if (b.carer_attending) {
+        rows.push(`
+            <div class="attendee-carer">
+                <div class="attendee-carer-title">🧑‍🤝‍🧑 Carer / support worker attending</div>
+                <div class="attendee-row"><span class="attendee-label">Name:</span> ${escapeHtml(b.carer_name || '(not given)')}</div>
+                <div class="attendee-row"><span class="attendee-label">Agency / organisation:</span> ${escapeHtml(b.carer_organisation || '(not given)')}</div>
+                <div class="attendee-row"><span class="attendee-label">Mobile:</span> ${escapeHtml(b.carer_phone || '(not given)')}</div>
+                <div class="attendee-row"><span class="attendee-label">Confirmed supervision responsibility:</span> ${b.carer_supervision_agreed ? '✅ Yes' : '⚠️ No'}</div>
+            </div>`);
+    }
+    return rows.length ? `<div class="attendee-details">${rows.join('')}</div>` : '';
 }
 
 function renderBookingsByDate(bookings) {
@@ -1232,6 +1260,7 @@ function renderBookingsByDate(bookings) {
                             </div>
                             ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
                             <button class="btn btn-small btn-danger" onclick="deleteBooking(${booking.id})">Delete</button>
+                            ${attendeeDetails(booking)}
                         </div>
                     `).join('')}
                 </div>

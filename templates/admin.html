@@ -88,7 +88,11 @@
             <p class="loading">Loading summary...</p>
         </div>
         
-        <h2>All Upcoming Bookings</h2>
+        <div class="yoga-admin-header">
+            <h2>All Upcoming Bookings</h2>
+            <a href="/api/admin/bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
+        </div>
+        <p class="hint">Accessibility needs, who someone is attending with, and carer/support worker details appear under each booking when given. The CSV includes all of it.</p>
         <div class="bookings-by-date-container" id="bookings-by-date">
             <p class="loading">Loading bookings...</p>
         </div>
@@ -244,5 +248,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=15"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=16"></script>
 {% endblock %}
