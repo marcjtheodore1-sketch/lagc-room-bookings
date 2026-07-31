@@ -43,6 +43,13 @@ app.config['SMTP_PASSWORD'] = 'gidxqeqyvdifqzqs'
 app.config['SMTP_FROM'] = 'miles.lagc@gmail.com'
 app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'true').lower() not in ('false', '0', 'no')
 
+# Addresses in this set must never receive email from the booking system,
+# even when they remain in historical booking records or are manually added
+# to an admin email.
+BLOCKED_EMAIL_RECIPIENTS = frozenset({
+    'zara.lagc@gmail.com',
+})
+
 # Admin password (set via environment variable or use default 'Moonlight')
 app.config['ADMIN_PASSWORD'] = os.environ.get('ADMIN_PASSWORD', 'Virtuoso')
 
@@ -517,8 +524,16 @@ def format_confirmation_message(template, **kwargs):
         result = result.replace(f'{{{{{key}}}}}', str(value))
     return result
 
+def is_blocked_email_recipient(email):
+    """Return True when an address must never receive system email."""
+    return (email or '').strip().lower() in BLOCKED_EMAIL_RECIPIENTS
+
 def send_confirmation_email(to_email, subject, message):
     """Send confirmation email to user"""
+    if is_blocked_email_recipient(to_email):
+        print(f"[EMAIL BLOCKED FOR {to_email}]")
+        return True
+
     if not app.config['ENABLE_EMAIL'] or not app.config['SMTP_USER']:
         # Email not configured, just log it
         print(f"[EMAIL WOULD BE SENT TO {to_email}]")
@@ -576,6 +591,11 @@ def send_bulk_email(recipients, subject, message):
     """Send one email to many recipients via BCC so addresses stay private.
 
     Returns (success, error_message)."""
+    recipients = [
+        recipient for recipient in recipients
+        if not is_blocked_email_recipient(recipient)
+    ]
+
     if not recipients:
         return False, 'No recipients'
 
@@ -1224,7 +1244,6 @@ View all bookings at: {request.host_url.rstrip('/')}/admin
     send_emails_async([
         (email, f"Booking Confirmed: {room.name} on {date_display}", confirmation_message),
         ('londonautismgroupcharity@gmail.com', admin_subject, admin_message),
-        ('zara.lagc@gmail.com', admin_subject, admin_message),
     ])
 
     return jsonify({
@@ -1520,7 +1539,7 @@ def cancel_booking(token):
     db.session.commit()
     
     # Send admin notification about cancellation
-    admin_emails = ['londonautismgroupcharity@gmail.com', 'zara.lagc@gmail.com']
+    admin_emails = ['londonautismgroupcharity@gmail.com']
     admin_subject = f"Booking Cancelled: {user_name} cancelled {room_name}"
     admin_message = f"""A booking has been cancelled:
 
@@ -2163,12 +2182,14 @@ Fridays @ Farringdon
     recipients = []
     for (email,) in db.session.query(Booking.user_email).distinct().all():
         email_clean = (email or '').strip().lower()
-        if email_clean and email_clean not in seen:
+        if (email_clean and not is_blocked_email_recipient(email_clean)
+                and email_clean not in seen):
             seen.add(email_clean)
             recipients.append(email_clean)
     for (email,) in db.session.query(YogaBooking.email).distinct().all():
         email_clean = (email or '').strip().lower()
-        if email_clean and email_clean not in seen:
+        if (email_clean and not is_blocked_email_recipient(email_clean)
+                and email_clean not in seen):
             seen.add(email_clean)
             recipients.append(email_clean)
     recipients.sort()
@@ -2216,6 +2237,8 @@ def admin_send_availability_email():
         r = (r or '').strip().lower()
         if not r:
             continue
+        if is_blocked_email_recipient(r):
+            continue
         if '@' not in r or '.' not in r.split('@')[1]:
             return jsonify({'error': f'Invalid email address: {r}'}), 400
         if r not in seen:
@@ -2260,6 +2283,8 @@ def admin_send_yoga_email():
     for r in recipients:
         r = (r or '').strip().lower()
         if not r:
+            continue
+        if is_blocked_email_recipient(r):
             continue
         if '@' not in r or '.' not in r.split('@')[1]:
             return jsonify({'error': f'Invalid email address: {r}'}), 400
@@ -2468,7 +2493,8 @@ def admin_bookings_email_recipients(date):
     ).all()
     for b in rows:
         email = (b.user_email or '').strip().lower()
-        if email and email not in seen:
+        if (email and not is_blocked_email_recipient(email)
+                and email not in seen):
             seen.add(email)
             recipients.append(email)
     recipients.sort()

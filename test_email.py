@@ -15,9 +15,13 @@ SMTP_PORT = 587
 SMTP_USER = 'miles.lagc@gmail.com'
 SMTP_PASSWORD = 'gidxqeqyvdifqzqs'
 SMTP_FROM = 'miles.lagc@gmail.com'
+BLOCKED_RECIPIENTS = {'zara.lagc@gmail.com'}
 
 def test_email():
     test_recipient = input("Enter email address to send test to: ").strip()
+    if test_recipient.lower() in BLOCKED_RECIPIENTS:
+        print("This address is blocked from receiving email from this system.")
+        return False
     
     print("\n" + "="*60)
     print("Testing Email Configuration")
