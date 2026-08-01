@@ -3523,3 +3523,24 @@ html {
     color: #92400e;
     margin-bottom: 0.3rem;
 }
+
+/* "What to expect from this space" — access information shown to everyone,
+   not hidden behind the carer question */
+.space-expectations {
+    margin-top: 1.5rem;
+    line-height: 1.55;
+}
+
+.space-expectations p:first-child {
+    font-size: 1.05rem;
+}
+
+.attending-hint {
+    margin: 0.35rem 0 0.6rem;
+    line-height: 1.5;
+}
+
+.volunteer-guidance {
+    margin-top: 1rem;
+    line-height: 1.55;
+}
