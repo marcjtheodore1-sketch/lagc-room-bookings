@@ -3544,3 +3544,11 @@ html {
     margin-top: 1rem;
     line-height: 1.55;
 }
+
+.volunteer-guidance-footnote {
+    margin-top: 0.85rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid rgba(0, 0, 0, 0.12);
+    font-size: 0.9rem;
+    color: var(--text-light);
+}
