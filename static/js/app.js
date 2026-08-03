@@ -8,6 +8,8 @@ let state = {
     fridays: [],
     timeSlots: [],
     yogaSessions: {},   // date -> yoga session info, so yoga shows as an option
+    bookingType: 'room',  // 'room' or 'yoga' — yoga is booked through the same flow
+    selectedYoga: null,
     selectedRoom: null,
     selectedDate: null,
     selectedSlots: [],
@@ -47,11 +49,32 @@ const steps = {
 document.addEventListener('DOMContentLoaded', async () => {
     loadTimeSlots();
     await Promise.all([loadFridays(), loadYogaSessions()]);
+    mergeYogaDatesIntoFridays();
     renderDates();
 
     // Check for email in URL (coming from cancel page)
     checkUrlForEmail();
 });
+
+// Yoga sometimes runs on a Friday with no rooms scheduled (September 2026 is
+// exactly that). Those dates must still appear in Step 1, or yoga would be
+// unbookable now that it is booked through this flow.
+function mergeYogaDatesIntoFridays() {
+    const known = new Set(state.fridays.map(f => f.date));
+    Object.values(state.yogaSessions).forEach(s => {
+        if (known.has(s.date)) return;
+        const [y, m, d] = s.date.split('-').map(Number);
+        state.fridays.push({
+            date: s.date,
+            // Match the server's "Friday, September 04, 2026" format
+            display: new Date(y, m - 1, d).toLocaleDateString('en-US', {
+                weekday: 'long', year: 'numeric', month: 'long', day: '2-digit'
+            }),
+            yoga_only: true
+        });
+    });
+    state.fridays.sort((a, b) => a.date.localeCompare(b.date));
+}
 
 // Yoga sessions by date, so yoga can be offered alongside the rooms
 async function loadYogaSessions() {
@@ -163,17 +186,17 @@ function getRoomPhotoUrl(room) {
 }
 
 function renderRooms() {
-    // Show which Friday the rooms are for
+    // Show which Friday these options are for
     const dateLabel = document.getElementById('room-step-date-label');
     if (dateLabel) {
         const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;
-        dateLabel.textContent = dateDisplay ? `Rooms available on ${dateDisplay}:` : '';
+        dateLabel.textContent = dateDisplay ? `Available on ${dateDisplay}:` : '';
     }
+    const stepHeading = document.querySelector('#step-room h2');
+    if (stepHeading) stepHeading.textContent = 'Step 2: Choose what you\'d like to book';
 
-    if (state.rooms.length === 0) {
-        elements.roomGrid.innerHTML = '<p>No rooms available on this date</p>';
-        return;
-    }
+    // Note: don't bail out when there are no rooms — some Fridays have yoga
+    // only, and the yoga card still needs to render below.
 
     // Add a special card for Peer Support Sessions
     const peerSupportCard = `
@@ -234,17 +257,25 @@ function renderRooms() {
         const placesLabel = yoga.full
             ? '<span class="room-type-badge yoga-full">FULL</span>'
             : `<span class="room-type-badge yoga">${yoga.remaining} place${yoga.remaining === 1 ? '' : 's'} left</span>`;
+        // Yoga is booked through this same flow — picking it here leads to the
+        // yoga questions at Step 4, rather than sending people to another page.
         yogaCard = `
-        <div class="room-card yoga-room-card" onclick="window.location.href='/yoga#yoga-register'">
+        <div class="room-card yoga-room-card${yoga.full ? ' room-card-full' : ''}"
+             ${yoga.full ? '' : 'onclick="selectYoga()"'}>
             <div class="room-card-image"><img src="/static/images/yoga-terrace-1.jpg" alt="Gentle yoga on the outdoor terrace" loading="lazy"></div>
             <h3>🧘 Gentle Yoga with Marlijn ${placesLabel}</h3>
             <p>Outdoor terrace — session starts at ${escapeHtml(yoga.time)}</p>
-            <small class="room-hint">Click to register your place on the yoga page</small>
+            <small class="room-hint">${yoga.full
+                ? 'This session is full — please choose another Friday'
+                : 'Gentle, neurodivergent-friendly — click to register'}</small>
         </div>
         `;
     }
 
-    elements.roomGrid.innerHTML = roomCards + yogaCard + peerSupportCard;
+    // Peer support is only relevant on days a room is actually open
+    const cards = roomCards + yogaCard + (state.rooms.length ? peerSupportCard : '');
+    elements.roomGrid.innerHTML = cards ||
+        '<p>Nothing is available to book on this date.</p>';
 }
 
 function renderDates() {
@@ -481,8 +512,49 @@ async function selectDate(date) {
     await loadRooms(date);
 }
 
+// Step 2: choose the yoga session instead of a room. Yoga has no time slots
+// (it always starts at 10am), so this goes straight to the details step, where
+// the yoga questions are shown in place of the room ones.
+function selectYoga() {
+    const yoga = state.yogaSessions[state.selectedDate];
+    if (!yoga || yoga.full) return;
+
+    state.bookingType = 'yoga';
+    state.selectedYoga = yoga;
+    state.selectedRoom = null;
+    state.selectedSlots = [];
+
+    document.querySelectorAll('.room-card').forEach(c => c.classList.remove('selected'));
+    if (typeof event !== 'undefined' && event && event.currentTarget) {
+        event.currentTarget.classList.add('selected');
+    }
+
+    const subtitle = document.getElementById('booking-subtitle');
+    if (subtitle) subtitle.classList.add('hidden');
+
+    showEmailStep();
+}
+
+// Show the question set that matches what's being booked
+function applyBookingTypeFields() {
+    const isYoga = state.bookingType === 'yoga';
+    const roomFields = document.getElementById('room-fields');
+    const yogaFields = document.getElementById('yoga-fields');
+    if (roomFields) roomFields.hidden = isYoga;
+    if (yogaFields) yogaFields.hidden = !isYoga;
+
+    const heading = document.querySelector('#step-email h2');
+    if (heading) {
+        heading.textContent = isYoga
+            ? 'Step 4: Your Yoga Registration Details'
+            : 'Step 4: Enter Your Details';
+    }
+}
+
 function selectRoom(roomId) {
     // Step 2: pick a room available on the chosen Friday
+    state.bookingType = 'room';
+    state.selectedYoga = null;
     state.selectedRoom = state.rooms.find(r => r.id === roomId);
     state.selectedSlots = [];
 
@@ -529,6 +601,8 @@ function showStep(stepName) {
 
 function backToDate() {
     state.selectedRoom = null;
+    state.bookingType = 'room';
+    state.selectedYoga = null;
     state.selectedSlots = [];
 
     // Reset subtitle visibility
@@ -550,9 +624,42 @@ function showTimeStep() {
 }
 
 function showEmailStep() {
+    // Yoga: fixed session, no time slots to summarise
+    if (state.bookingType === 'yoga') {
+        const yoga = state.selectedYoga;
+        if (!yoga) return;
+        const placesLeft = `${yoga.remaining} of ${yoga.capacity} place${yoga.remaining === 1 ? '' : 's'} left`;
+        elements.bookingSummary.innerHTML = `
+            <h3>Booking Summary</h3>
+            <div class="summary-row">
+                <span>Activity:</span>
+                <strong>🧘 Gentle Yoga with Marlijn</strong>
+            </div>
+            <div class="summary-row">
+                <span>Location:</span>
+                <span>Outdoor terrace, Pan Macmillan</span>
+            </div>
+            <div class="summary-row">
+                <span>Date:</span>
+                <span>${escapeHtml(yoga.display)}</span>
+            </div>
+            <div class="summary-row">
+                <span>Time:</span>
+                <span>Arrive from 9:30am — session starts ${escapeHtml(yoga.time)}</span>
+            </div>
+            <div class="summary-row">
+                <span>Availability:</span>
+                <span>${escapeHtml(placesLeft)}</span>
+            </div>
+        `;
+        applyBookingTypeFields();
+        showStep('email');
+        return;
+    }
+
     // Validate selection for slot rooms
     if (state.selectedRoom.room_type === 'slot' && state.selectedSlots.length === 0) return;
-    
+
     let startTime, endTime;
     
     // Special cases for Room 4.2 "Indigo" on specific dates
@@ -634,6 +741,7 @@ function showEmailStep() {
         </div>` : ''}
     `;
 
+    applyBookingTypeFields();
     showStep('email');
 }
 
@@ -643,9 +751,9 @@ function showEmailStepForOpenRoom() {
 }
 
 function showEmailStepBack() {
-    // For open rooms, go back to room selection (step 2)
+    // Yoga and open rooms both skip time selection, so go back to step 2
     // For slot rooms, go back to time selection (step 3)
-    if (state.selectedRoom.room_type === 'open') {
+    if (state.bookingType === 'yoga' || state.selectedRoom.room_type === 'open') {
         showStep('room');
     } else {
         showStep('time');
@@ -655,6 +763,8 @@ function showEmailStepBack() {
 function resetBooking() {
     state.selectedRoom = null;
     state.selectedDate = null;
+    state.bookingType = 'room';
+    state.selectedYoga = null;
     state.selectedSlots = [];
     elements.firstNameInput.value = '';
     elements.lastNameInput.value = '';
@@ -725,11 +835,87 @@ function resetAttendeeFields() {
         if (el) el.value = '';
     });
     updateAttendeeFields();
+    resetYogaFields();
+}
+
+function resetYogaFields() {
+    ['yoga-phone', 'yoga-ec-name', 'yoga-ec-phone', 'yoga-health', 'yoga-avoid', 'yoga-access']
+        .forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+    ['yoga-agree', 'yoga-reuse'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.checked = false;
+    });
+    document.querySelectorAll('input[name="yoga-experience"]').forEach(r => { r.checked = false; });
 }
 
 // ============================================
 // BOOKING SUBMISSION
 // ============================================
+
+async function submitYogaBooking(name, email) {
+    const val = (id) => (document.getElementById(id).value || '').trim();
+    const experienceEl = document.querySelector('input[name="yoga-experience"]:checked');
+
+    const payload = {
+        session_date: state.selectedDate,
+        name: name,
+        email: email,
+        phone: val('yoga-phone'),
+        emergency_name: val('yoga-ec-name'),
+        emergency_phone: val('yoga-ec-phone'),
+        experience: experienceEl ? experienceEl.value : '',
+        health_info: val('yoga-health'),
+        avoid_info: val('yoga-avoid'),
+        accessibility_info: val('yoga-access'),
+        agreed_safety: document.getElementById('yoga-agree').checked,
+        reuse_previous: document.getElementById('yoga-reuse').checked
+    };
+
+    if (!payload.phone) { alert('Please enter a phone number.'); document.getElementById('yoga-phone').focus(); return; }
+    if (!payload.emergency_name) { alert('Please enter an emergency contact name.'); document.getElementById('yoga-ec-name').focus(); return; }
+    if (!payload.emergency_phone) { alert('Please enter an emergency contact phone number.'); document.getElementById('yoga-ec-phone').focus(); return; }
+    if (!payload.experience) { alert('Please let us know if you have done yoga before.'); return; }
+    if (!payload.agreed_safety) { alert('Please tick the box to confirm you understand the session is gentle and you can rest at any time.'); document.getElementById('yoga-agree').focus(); return; }
+
+    const confirmBtn = document.getElementById('btn-confirm-booking');
+    if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = 'Booking…'; }
+
+    try {
+        const response = await fetch('/api/yoga/book', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json().catch(() => ({}));
+
+        if (response.ok && data.success) {
+            elements.confirmationMessage.textContent =
+                `Thank you ${name}, your place is registered.\n\n` +
+                `🧘 Gentle Yoga with Marlijn\n` +
+                `${data.date_display}\n` +
+                `The terrace is available from 9:30am, so you're welcome to arrive any time from then. The session starts at ${data.time}.\n` +
+                `Where: Outdoor terrace, Pan Macmillan, 6 Briset Street, London, EC1M 5NR\n\n` +
+                `Please bring your own yoga mat and wear loose, comfortable clothing.\n\n` +
+                `✉️ A confirmation email is on its way — if it hasn't arrived in a few minutes, please check your spam/junk folder. Your place is safe either way.`;
+            showStep('confirmation');
+            loadYogaSessions();   // refresh remaining places
+        } else if (data.full) {
+            alert(data.error || 'Sorry, this session is now full. Please choose another date.');
+            await loadYogaSessions();
+            showStep('room');
+            renderRooms();
+        } else {
+            alert(data.error || 'Something went wrong. Please try again.');
+        }
+    } catch (error) {
+        alert('Something went wrong while confirming. Your place may still have been registered — please contact us before trying again.');
+    } finally {
+        if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = 'Confirm Booking'; }
+    }
+}
 
 async function submitBooking() {
     const firstName = elements.firstNameInput.value.trim();
@@ -752,7 +938,14 @@ async function submitBooking() {
         alert('Please enter a valid email address');
         return;
     }
-    
+
+    // Yoga registrations go to the yoga endpoint, which enforces the 8-place
+    // capacity and stores the safety answers against the session
+    if (state.bookingType === 'yoga') {
+        await submitYogaBooking(name, email);
+        return;
+    }
+
     const bringingOthers = isBringingOthers();
     const carerAttending = bringingOthers && isCarerAttending();
     const companionNames = document.getElementById('companion-names').value.trim();

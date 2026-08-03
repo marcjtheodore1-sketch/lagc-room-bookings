@@ -3552,3 +3552,14 @@ html {
     font-size: 0.9rem;
     color: var(--text-light);
 }
+
+/* A yoga session with no places left — shown but not selectable */
+.room-card.room-card-full {
+    opacity: 0.62;
+    cursor: default;
+}
+
+.room-card.room-card-full:hover {
+    transform: none;
+    box-shadow: var(--shadow);
+}

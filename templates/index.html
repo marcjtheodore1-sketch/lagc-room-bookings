@@ -65,6 +65,8 @@
                 <input type="email" id="email" placeholder="your@email.com" required>
             </div>
 
+            <!-- Room-booking questions (hidden when booking yoga) -->
+            <div id="room-fields">
             <div class="form-group">
                 <label for="accessibility-needs">Do you have any accessibility needs you would like us to be aware of?</label>
                 <small class="hint">Optional — anything that would help us make the day work better for you.</small>
@@ -138,6 +140,71 @@
                 <small class="hint">Optional.</small>
                 <textarea id="other-info" rows="3" maxlength="4000" placeholder="Anything at all that would help us support you."></textarea>
             </div>
+            </div>
+
+            <!-- Yoga registration questions (hidden unless booking yoga) -->
+            <div id="yoga-fields" hidden>
+                <p class="hint">Places are limited to 8 per session, so this is not a drop-in — your place is held once you confirm below.</p>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="yoga-phone">Phone number <span class="required">*</span></label>
+                        <input type="tel" id="yoga-phone" maxlength="50" autocomplete="tel">
+                    </div>
+                    <div class="form-group">
+                        <label for="yoga-ec-name">Emergency contact name <span class="required">*</span></label>
+                        <input type="text" id="yoga-ec-name" maxlength="120">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="yoga-ec-phone">Emergency contact phone number <span class="required">*</span></label>
+                    <input type="tel" id="yoga-ec-phone" maxlength="50">
+                </div>
+
+                <div class="form-group">
+                    <label>Have you done yoga before? <span class="required">*</span></label>
+                    <div class="yoga-radio-group">
+                        <label class="radio-option"><input type="radio" name="yoga-experience" value="Yes"> Yes</label>
+                        <label class="radio-option"><input type="radio" name="yoga-experience" value="No"> No</label>
+                        <label class="radio-option"><input type="radio" name="yoga-experience" value="A little"> A little</label>
+                    </div>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="yoga-reuse">
+                        <span>📋 <strong>I have registered before — please use my answers from last time.</strong><br>
+                        If you tick this box, you can leave the three questions below empty. We will copy the answers you gave when you last registered.<br>
+                        If you want to change an answer, just type in that question box — we will use what you typed for that question.</span>
+                    </label>
+                </div>
+
+                <div class="form-group">
+                    <label for="yoga-health">Please tell us anything the instructor should know so the session can be adapted safely for you.</label>
+                    <small class="hint">This might include pain, injury, mobility issues, dizziness or fainting, epilepsy, pregnancy, recent surgery, heart or blood pressure issues, respiratory issues, joint problems, sensory needs, anxiety, trauma triggers, or anything else that may affect your participation. You only need to share what is relevant to taking part safely.</small>
+                    <textarea id="yoga-health" rows="4"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="yoga-avoid">Is there anything you definitely want the instructor to avoid?</label>
+                    <small class="hint">For example, certain movements, positions, breathing exercises, touch, bright lights, loud sounds, strong smells, or anything else.</small>
+                    <textarea id="yoga-avoid" rows="3"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="yoga-access">Is there anything about the way you experience, process, communicate, move, or learn that you would like the instructor to know so they can support you in class?</label>
+                    <small class="hint">Examples might include sensory preferences, communication preferences, movement needs, things that help you feel comfortable, or anything else you would like the instructor to be aware of.</small>
+                    <textarea id="yoga-access" rows="3"></textarea>
+                </div>
+
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="yoga-agree">
+                        <span>I understand that this is a gentle yoga session. I can choose what to take part in and I should stop or rest if I feel pain, strain, dizziness, discomfort or distress. I understand that the information I provide will only be used for safety, accessibility and session planning purposes. <span class="required">*</span></span>
+                    </label>
+                </div>
+            </div>
 
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
@@ -169,5 +236,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=13"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=14"></script>
 {% endblock %}

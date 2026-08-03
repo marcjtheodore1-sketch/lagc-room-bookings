@@ -36,112 +36,16 @@
             </div>
         </div>
 
-        <div class="info-card venue-card">
-            <h2>📅 Dates &amp; times</h2>
+        <div class="info-card venue-card" id="yoga-register">
+            <h2>📅 Dates &amp; booking</h2>
             <p class="yoga-time-note">🕤 <strong>You're welcome to arrive from 9:30am</strong> — that's when the terrace is available — and the <strong>yoga session begins at 10:00am</strong>.</p>
-            <p class="hint">This is not a drop-in activity — please register in advance.</p>
-            <p>All upcoming dates are shown in the registration form below, along with how many places are left on each one. That list updates automatically, so it's always the current one.</p>
+            <p class="hint">This is not a drop-in activity — please register in advance. Places are limited to 8 per session, and a session that is full can no longer be selected.</p>
+            <p>Yoga is booked in the same place as everything else at Fridays @ Farringdon. Choose your Friday, pick <strong>Gentle Yoga with Marlijn</strong>, and answer a few questions so Marlijn can adapt the session for you.</p>
+            <p>All upcoming dates — and how many places are left on each one — are shown there, so what you see is always current.</p>
+            <p class="hint">Please note: we may need to contact you regarding your booking — for example if a session is cancelled or there's another relevant update.</p>
             <div class="cta-section" style="margin-top: 1.25rem;">
-                <a href="#yoga-register" class="btn btn-primary">See dates &amp; register your place →</a>
+                <a href="/book" class="btn btn-primary btn-large">See dates &amp; book your place →</a>
             </div>
-        </div>
-
-        <div class="info-card" id="yoga-register">
-            <h2>📝 Register your place</h2>
-            <p class="yoga-time-note">🕤 The terrace is available from <strong>9:30am</strong>, so feel free to arrive any time from then. The <strong>session starts at 10:00am</strong>.</p>
-            <p class="hint">Places are limited to 8 per session. Once a session is full it will show as full and can no longer be selected.</p>
-
-            <form id="yoga-form" class="yoga-form" novalidate>
-                <div class="form-group">
-                    <label for="yoga-date">Which session/date would you like to attend? <span class="required">*</span></label>
-                    <select id="yoga-date" name="session_date" required>
-                        <option value="">— Select a date —</option>
-                        {% for s in sessions %}
-                        <option value="{{ s.date }}" {% if s.full %}disabled{% endif %}>
-                            {{ s.display }}, {{ s.time }}{% if s.full %} — FULL{% else %} — {{ s.remaining }} of {{ s.capacity }} place{{ '' if s.remaining == 1 else 's' }} left{% endif %}
-                        </option>
-                        {% endfor %}
-                    </select>
-                    {% if not sessions %}
-                    <small class="hint">There are no upcoming sessions open for registration right now. Please check back soon.</small>
-                    {% endif %}
-                </div>
-
-                <div class="form-group">
-                    <label for="yoga-name">Name <span class="required">*</span></label>
-                    <input type="text" id="yoga-name" name="name" required autocomplete="name">
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="yoga-email">Email address <span class="required">*</span></label>
-                        <input type="email" id="yoga-email" name="email" required autocomplete="email">
-                    </div>
-                    <div class="form-group">
-                        <label for="yoga-phone">Phone number <span class="required">*</span></label>
-                        <input type="tel" id="yoga-phone" name="phone" required autocomplete="tel">
-                    </div>
-                </div>
-
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="yoga-ec-name">Emergency contact name <span class="required">*</span></label>
-                        <input type="text" id="yoga-ec-name" name="emergency_name" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="yoga-ec-phone">Emergency contact phone number <span class="required">*</span></label>
-                        <input type="tel" id="yoga-ec-phone" name="emergency_phone" required>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label>Have you done yoga before? <span class="required">*</span></label>
-                    <div class="yoga-radio-group">
-                        <label class="radio-option"><input type="radio" name="experience" value="Yes" required> Yes</label>
-                        <label class="radio-option"><input type="radio" name="experience" value="No"> No</label>
-                        <label class="radio-option"><input type="radio" name="experience" value="A little"> A little</label>
-                    </div>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <label class="checkbox-option">
-                        <input type="checkbox" id="yoga-reuse" name="reuse_previous">
-                        <span>📋 <strong>I have registered before — please use my answers from last time.</strong><br>
-                        If you tick this box, you can leave the three questions below empty. We will copy the answers you gave when you last registered.<br>
-                        If you want to change an answer, just type in that question box — we will use what you typed for that question.</span>
-                    </label>
-                </div>
-
-                <div class="form-group">
-                    <label for="yoga-health">Please tell us anything the instructor should know so the session can be adapted safely for you.</label>
-                    <small class="hint">This might include pain, injury, mobility issues, dizziness or fainting, epilepsy, pregnancy, recent surgery, heart or blood pressure issues, respiratory issues, joint problems, sensory needs, anxiety, trauma triggers, or anything else that may affect your participation. You only need to share what is relevant to taking part safely.</small>
-                    <textarea id="yoga-health" name="health_info" rows="4"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="yoga-avoid">Is there anything you definitely want the instructor to avoid?</label>
-                    <small class="hint">For example, certain movements, positions, breathing exercises, touch, bright lights, loud sounds, strong smells, or anything else.</small>
-                    <textarea id="yoga-avoid" name="avoid_info" rows="3"></textarea>
-                </div>
-
-                <div class="form-group">
-                    <label for="yoga-access">Is there anything about the way you experience, process, communicate, move, or learn that you would like the instructor to know so they can support you in class?</label>
-                    <small class="hint">Examples might include sensory preferences, communication preferences, movement needs, things that help you feel comfortable, or anything else you would like the instructor to be aware of.</small>
-                    <textarea id="yoga-access" name="accessibility_info" rows="3"></textarea>
-                </div>
-
-                <div class="form-group checkbox-group">
-                    <label class="checkbox-option">
-                        <input type="checkbox" id="yoga-agree" name="agreed_safety" required>
-                        <span>I understand that this is a gentle yoga session. I can choose what to take part in and I should stop or rest if I feel pain, strain, dizziness, discomfort or distress. I understand that the information I provide will only be used for safety, accessibility and session planning purposes. <span class="required">*</span></span>
-                    </label>
-                </div>
-
-                <p class="hint">Please note: we may need to contact you regarding your booking — for example if a session is cancelled or there's another relevant update.</p>
-
-                <button type="submit" class="btn btn-primary btn-large" id="yoga-submit">Register for this session</button>
-                <p class="form-status" id="yoga-status" role="status" aria-live="polite"></p>
-            </form>
         </div>
 
         <div class="cta-section" style="margin-top: 2rem;">
@@ -151,6 +55,3 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
-<script src="{{ url_for('static', filename='js/yoga.js') }}?v=2"></script>
-{% endblock %}
