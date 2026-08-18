@@ -3564,14 +3564,7 @@ html {
     box-shadow: var(--shadow);
 }
 
-/* "Rooms not confirmed yet" notice on the room step, and the matching
-   note under the date list — both stop an unconfirmed month reading as
-   "nothing is happening" */
-.rooms-tbc {
-    grid-column: 1 / -1;
-    margin-bottom: 0;
-}
-
+/* Note under the date list for additional booking guidance. */
 .dates-note {
     margin-top: 1rem;
     line-height: 1.5;

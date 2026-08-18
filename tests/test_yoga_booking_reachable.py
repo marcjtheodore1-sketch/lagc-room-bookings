@@ -1,8 +1,8 @@
 """Yoga must stay bookable on Fridays that have no rooms scheduled.
 
 Yoga is booked through the room-booking flow, but yoga sessions and room
-availability are separate schedules — September 2026 runs yoga on Fridays with
-no rooms at all. Two things in the front end make those dates reachable:
+availability are separate schedules and may not always overlap. Two things in
+the front end make yoga-only dates reachable:
 
   * the date list merges in yoga dates that the room schedule doesn't have
   * the room step keeps rendering when there are no rooms, so the yoga card
@@ -57,7 +57,7 @@ class YogaBookingReachableTest(unittest.TestCase):
                          'yoga is booked in this flow, not on a separate page')
 
     def test_yoga_sessions_exist_for_dates_without_rooms(self):
-        """Guards the real-world case: yoga in September, rooms only to August."""
+        """Guards any configured yoga dates that do not also offer rooms."""
         with tempfile.TemporaryDirectory() as disk:
             env = {
                 **os.environ,

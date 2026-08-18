@@ -56,9 +56,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     checkUrlForEmail();
 });
 
-// Yoga sometimes runs on a Friday with no rooms scheduled (September 2026 is
-// exactly that). Those dates must still appear in Step 1, or yoga would be
-// unbookable now that it is booked through this flow.
+// Yoga can run on a Friday with no rooms scheduled. Those dates must still
+// appear in Step 1, or yoga would be unbookable through this flow.
 function mergeYogaDatesIntoFridays() {
     const known = new Set(state.fridays.map(f => f.date));
     Object.values(state.yogaSessions).forEach(s => {
@@ -198,14 +197,6 @@ function renderRooms() {
     // Note: don't bail out when there are no rooms — some Fridays have yoga
     // only, and the yoga card still needs to render below.
 
-    // A Friday with no rooms yet means the host hasn't confirmed them, NOT
-    // that nothing is happening. Say so, or people assume we're closed.
-    const roomsPendingNotice = state.rooms.length === 0 ? `
-        <div class="notice-box info rooms-tbc">
-            <p><strong>🏢 Room bookings for this Friday aren't open yet.</strong></p>
-            <p>We find out which rooms we have from our host at Pan Macmillan a few weeks ahead, so rooms for this date will appear here once they're confirmed. <strong>Fridays @ Farringdon is still running as usual</strong> — please check back nearer the time.</p>
-        </div>` : '';
-
     // Add a special card for Peer Support Sessions
     const peerSupportCard = `
         <div class="room-card peer-support-room" onclick="selectPeerSupport()">
@@ -282,7 +273,7 @@ function renderRooms() {
 
     // Peer support is only relevant on days a room is actually open
     const cards = roomCards + yogaCard + (state.rooms.length ? peerSupportCard : '');
-    elements.roomGrid.innerHTML = roomsPendingNotice + cards;
+    elements.roomGrid.innerHTML = cards;
 }
 
 function renderDates() {
