@@ -54,16 +54,16 @@ class SeptemberScheduleTest(unittest.TestCase):
             )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        rose_clerkenwell_terrace = [
-            'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"', 'Room 5.1',
+        rose_and_clerkenwell = [
+            'Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"',
         ]
         self.assertEqual(json.loads(result.stdout.strip().splitlines()[-1]), {
             'rooms': {
-                '2026-09-04': rose_clerkenwell_terrace,
-                '2026-09-11': rose_clerkenwell_terrace,
-                '2026-09-18': rose_clerkenwell_terrace,
+                '2026-09-04': rose_and_clerkenwell,
+                '2026-09-11': rose_and_clerkenwell,
+                '2026-09-18': rose_and_clerkenwell,
                 '2026-09-25': [
-                    'Room 4.4 "Rose"', 'The Loft', 'Room 5.1',
+                    'Room 4.4 "Rose"', 'The Loft',
                 ],
             },
             'yoga': [
