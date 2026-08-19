@@ -1083,16 +1083,22 @@ function renderMyBookings(bookings) {
         return;
     }
     
-    elements.myBookingsList.innerHTML = bookings.map(booking => `
+    elements.myBookingsList.innerHTML = bookings.map(booking => {
+        const isYoga = booking.booking_type === 'yoga';
+        const bookingLabel = isYoga
+            ? '<span class="my-booking-type yoga">🧘 Yoga</span>'
+            : '<span class="my-booking-type room">🏢 Room</span>';
+        return `
         <div class="booking-item">
             <div class="booking-item-info">
-                <h4>${escapeHtml(booking.room_name)}</h4>
-                <p>${escapeHtml(booking.date_display)} | ${escapeHtml(booking.start_time)} - ${escapeHtml(booking.end_time)}</p>
+                <div class="my-booking-heading">${bookingLabel}<h4>${escapeHtml(booking.title || booking.room_name)}</h4></div>
+                <p>${escapeHtml(booking.date_display)} | ${escapeHtml(booking.time_display || `${booking.start_time} - ${booking.end_time}`)}</p>
+                ${isYoga ? `<small>${escapeHtml(booking.building_location)}</small>` : ''}
                 <small>Booked by: ${escapeHtml(booking.name)}</small>
             </div>
-            <a href="/cancel/${booking.cancel_token}" class="btn btn-small btn-danger">Cancel</a>
+            <a href="${escapeHtml(booking.cancel_url || `/cancel/${booking.cancel_token}`)}" class="btn btn-small btn-danger">Cancel</a>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // ============================================

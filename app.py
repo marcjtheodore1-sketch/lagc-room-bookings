@@ -1622,6 +1622,30 @@ This booking has been cancelled by the user.
     
     for admin_email in admin_emails:
         send_confirmation_email(admin_email, admin_subject, admin_message)
+
+    # Give the person a written record too. Previously only the charity was
+    # emailed, leaving the attendee with an on-screen confirmation that was
+    # easy to lose once they closed the page.
+    user_message = f"""Dear {user_name},
+
+This confirms that your room booking has been cancelled.
+
+Cancelled booking:
+- Room: {room_name}
+- Date: {booking_date}
+- Time: {start_time} - {end_time}
+
+If you would like to attend on another date, you are very welcome to make a new booking at:
+{request.host_url.rstrip('/')}/
+
+Warm wishes,
+London Autism Group Charity — Fridays @ Farringdon
+"""
+    send_confirmation_email(
+        user_email,
+        f"Your room booking has been cancelled — {room_name}",
+        user_message,
+    )
     
     return jsonify({
         'success': True,
@@ -1630,25 +1654,32 @@ This booking has been cancelled by the user.
 
 @app.route('/api/my-bookings', methods=['POST'])
 def get_my_bookings():
-    """Get all bookings for an email address"""
+    """Get upcoming room and yoga bookings for an email address."""
     data = request.get_json()
     email = data.get('email', '').strip().lower()
     
     if not email:
         return jsonify({'error': 'Email is required'}), 400
     
-    bookings = Booking.query.filter(
-        Booking.user_email == email,
+    room_bookings = Booking.query.filter(
+        db.func.lower(Booking.user_email) == email,
         Booking.cancelled_at.is_(None),
         Booking.booking_date >= datetime.now().date()
     ).order_by(Booking.booking_date, Booking.start_slot).all()
+
+    yoga_bookings = YogaBooking.query.filter(
+        db.func.lower(YogaBooking.email) == email,
+        YogaBooking.session_date >= datetime.now().date(),
+    ).order_by(YogaBooking.session_date, YogaBooking.created_at).all()
     
     result = []
-    for booking in bookings:
+    for booking in room_bookings:
         start_time, end_time = booking_time_display(booking)
         
         result.append({
             'id': booking.id,
+            'booking_type': 'room',
+            'title': booking.room.name,
             'room_name': booking.room.name,
             'building_location': booking.room.building_location,
             'name': booking.user_name,
@@ -1656,9 +1687,33 @@ def get_my_bookings():
             'date_display': booking.booking_date.strftime('%A, %B %d, %Y'),
             'start_time': start_time,
             'end_time': end_time,
-            'cancel_token': booking.cancel_token
+            'time_display': f'{start_time} - {end_time}',
+            'cancel_token': booking.cancel_token,
+            'cancel_url': f'/cancel/{booking.cancel_token}',
         })
-    
+
+    # Yoga registrations live in their own table because they collect
+    # session-specific safety information. Only the safe, basic booking
+    # details are exposed here; health and emergency-contact answers remain
+    # private to the yoga admin view.
+    for booking in yoga_bookings:
+        date_str = booking.session_date.isoformat()
+        result.append({
+            'id': booking.id,
+            'booking_type': 'yoga',
+            'title': 'Gentle Yoga with Marlijn',
+            'building_location': YOGA_LOCATION,
+            'name': booking.name,
+            'date': date_str,
+            'date_display': _yoga_display(date_str),
+            'start_time': YOGA_TIME_DISPLAY,
+            'end_time': '',
+            'time_display': YOGA_TIME_DISPLAY,
+            'cancel_token': booking.cancel_token,
+            'cancel_url': f'/yoga/cancel/{booking.cancel_token}',
+        })
+
+    result.sort(key=lambda item: (item['date'], item['start_time'], item['booking_type']))
     return jsonify(result)
 
 # ============================================================================
