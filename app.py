@@ -16,6 +16,37 @@ import time
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
+
+def load_project_env():
+    """Load simple KEY=VALUE settings from the ignored project .env file.
+
+    PythonAnywhere WSGI processes do not inherit variables exported in a Bash
+    console. Keeping deployment secrets in this untracked file lets the app
+    read them without committing credentials to Git.
+    """
+    env_path = os.environ.get(
+        'APP_ENV_FILE', os.path.join(os.path.dirname(__file__), '.env')
+    )
+    try:
+        with open(env_path, encoding='utf-8') as env_file:
+            for raw_line in env_file:
+                line = raw_line.strip()
+                if not line or line.startswith('#') or '=' not in line:
+                    continue
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+                if (len(value) >= 2 and value[0] == value[-1]
+                        and value[0] in ('"', "'")):
+                    value = value[1:-1]
+                if key:
+                    os.environ.setdefault(key, value)
+    except FileNotFoundError:
+        pass
+
+
+load_project_env()
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', secrets.token_hex(16))
 
@@ -35,12 +66,15 @@ app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
     'connect_args': {'timeout': 30},
 }
 
-# Email configuration (hardcoded for PythonAnywhere deployment)
-app.config['SMTP_HOST'] = 'smtp.gmail.com'
-app.config['SMTP_PORT'] = 587
-app.config['SMTP_USER'] = 'miles.lagc@gmail.com'
-app.config['SMTP_PASSWORD'] = 'gidxqeqyvdifqzqs'
-app.config['SMTP_FROM'] = 'miles.lagc@gmail.com'
+# Email configuration. The password must come from the environment or the
+# ignored project .env file; credentials must never be committed to Git.
+app.config['SMTP_HOST'] = os.environ.get('SMTP_HOST', 'smtp.gmail.com')
+app.config['SMTP_PORT'] = int(os.environ.get('SMTP_PORT', '587'))
+app.config['SMTP_USER'] = os.environ.get('SMTP_USER', 'miles.lagc@gmail.com').strip()
+app.config['SMTP_PASSWORD'] = os.environ.get('SMTP_PASSWORD', '').replace(' ', '')
+app.config['SMTP_FROM'] = os.environ.get(
+    'SMTP_FROM', app.config['SMTP_USER']
+).strip()
 app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'true').lower() not in ('false', '0', 'no')
 
 # Addresses in this set must never receive email from the booking system,
@@ -544,63 +578,78 @@ def is_blocked_email_recipient(email):
     """Return True when an address must never receive system email."""
     return (email or '').strip().lower() in BLOCKED_EMAIL_RECIPIENTS
 
+
+def missing_email_configuration():
+    """Return the names of required SMTP settings that are not configured."""
+    return [
+        key for key in ('SMTP_USER', 'SMTP_PASSWORD', 'SMTP_FROM')
+        if not app.config.get(key)
+    ]
+
+
+def friendly_smtp_error(error):
+    """Turn low-level SMTP failures into useful, non-secret admin messages."""
+    if isinstance(error, smtplib.SMTPAuthenticationError):
+        return (
+            'Gmail rejected the saved login. The Gmail app password has '
+            'expired or been revoked and must be replaced in SMTP_PASSWORD.'
+        )
+    return str(error)
+
+
+def send_smtp_message(message, recipients=None):
+    """Send a prepared MIME message, preferring SSL with STARTTLS fallback."""
+    username = app.config['SMTP_USER']
+    password = app.config['SMTP_PASSWORD']
+    host = app.config['SMTP_HOST']
+
+    try:
+        with smtplib.SMTP_SSL(host, 465, timeout=20) as server:
+            server.login(username, password)
+            server.send_message(message, to_addrs=recipients)
+            return
+    except smtplib.SMTPAuthenticationError:
+        # A different port cannot repair rejected credentials, so do not make
+        # a second failed login attempt or obscure the real cause.
+        raise
+    except (smtplib.SMTPException, OSError) as ssl_error:
+        print(f'[EMAIL] SSL connection failed; trying STARTTLS: {ssl_error}')
+
+    with smtplib.SMTP(host, app.config['SMTP_PORT'], timeout=20) as server:
+        server.starttls()
+        server.login(username, password)
+        server.send_message(message, to_addrs=recipients)
+
+
 def send_confirmation_email(to_email, subject, message):
     """Send confirmation email to user"""
     if is_blocked_email_recipient(to_email):
         print(f"[EMAIL BLOCKED FOR {to_email}]")
         return True
 
-    if not app.config['ENABLE_EMAIL'] or not app.config['SMTP_USER']:
+    if not app.config['ENABLE_EMAIL']:
         # Email not configured, just log it
         print(f"[EMAIL WOULD BE SENT TO {to_email}]")
         print(f"Subject: {subject}")
         print(f"---")
         return True
+
+    missing = missing_email_configuration()
+    if missing:
+        print(f"[ERROR] Email configuration missing: {', '.join(missing)}")
+        return False
     
     try:
-        # Use password as-is (no cleaning needed for hardcoded password)
-        smtp_password = app.config['SMTP_PASSWORD']
-        
-        print(f"[DEBUG] Attempting to send email via {app.config['SMTP_HOST']}:{app.config['SMTP_PORT']}")
-        print(f"[DEBUG] Login user: {app.config['SMTP_USER']}")
-        print(f"[DEBUG] From address: {app.config['SMTP_FROM']}")
-        print(f"[DEBUG] To address: {to_email}")
-        
         msg = MIMEMultipart()
         msg['From'] = app.config['SMTP_FROM']
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(message, 'plain'))
-        
-        # Try SMTP_SSL on port 465 first (often works better on PythonAnywhere)
-        try:
-            print(f"[DEBUG] Trying SMTP_SSL on port 465...")
-            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465, timeout=20) as server:
-                server.set_debuglevel(1)
-                print(f"[DEBUG] Logging in with SSL...")
-                server.login(app.config['SMTP_USER'], smtp_password)
-                print(f"[DEBUG] Login successful, sending message...")
-                server.send_message(msg)
-                print(f"[DEBUG] Message sent via SSL!")
-                return True
-        except Exception as ssl_error:
-            print(f"[DEBUG] SSL failed ({ssl_error}), trying STARTTLS on port 587...")
-            # Fall back to STARTTLS on port 587
-            with smtplib.SMTP(app.config['SMTP_HOST'], 587, timeout=20) as server:
-                server.set_debuglevel(1)
-                server.starttls()
-                print(f"[DEBUG] Logging in with STARTTLS...")
-                server.login(app.config['SMTP_USER'], smtp_password)
-                print(f"[DEBUG] Login successful, sending message...")
-                server.send_message(msg)
-                print(f"[DEBUG] Message sent via STARTTLS!")
-                return True
-        
+        send_smtp_message(msg)
+        print('[EMAIL] Message sent successfully')
+        return True
     except Exception as e:
-        print(f"[ERROR] Failed to send email: {e}")
-        print(f"[ERROR] Type: {type(e).__name__}")
-        import traceback
-        traceback.print_exc()
+        print(f"[ERROR] Failed to send email: {friendly_smtp_error(e)}")
         return False
 
 def send_bulk_email(recipients, subject, message):
@@ -615,12 +664,18 @@ def send_bulk_email(recipients, subject, message):
     if not recipients:
         return False, 'No recipients'
 
-    if not app.config['ENABLE_EMAIL'] or not app.config['SMTP_USER']:
+    if not app.config['ENABLE_EMAIL']:
         print(f"[BULK EMAIL WOULD BE SENT TO {len(recipients)} RECIPIENTS]")
         print(f"Subject: {subject}")
         print(f"Recipients: {recipients}")
         print(f"---\n{message}\n---")
         return True, None
+
+    missing = missing_email_configuration()
+    if missing:
+        return False, (
+            'Email sending is not configured. Missing: ' + ', '.join(missing)
+        )
 
     try:
         msg = MIMEMultipart()
@@ -630,24 +685,12 @@ def send_bulk_email(recipients, subject, message):
         msg['Subject'] = subject
         msg.attach(MIMEText(message, 'plain'))
 
-        smtp_password = app.config['SMTP_PASSWORD']
-        try:
-            with smtplib.SMTP_SSL(app.config['SMTP_HOST'], 465, timeout=20) as server:
-                server.login(app.config['SMTP_USER'], smtp_password)
-                server.send_message(msg, to_addrs=recipients)
-                return True, None
-        except Exception as ssl_error:
-            print(f"[DEBUG] Bulk SSL failed ({ssl_error}), trying STARTTLS on port 587...")
-            with smtplib.SMTP(app.config['SMTP_HOST'], 587, timeout=20) as server:
-                server.starttls()
-                server.login(app.config['SMTP_USER'], smtp_password)
-                server.send_message(msg, to_addrs=recipients)
-                return True, None
+        send_smtp_message(msg, recipients=recipients)
+        return True, None
     except Exception as e:
-        print(f"[ERROR] Failed to send bulk email: {e}")
-        import traceback
-        traceback.print_exc()
-        return False, str(e)
+        error = friendly_smtp_error(e)
+        print(f"[ERROR] Failed to send bulk email: {error}")
+        return False, error
 
 def send_emails_async(emails):
     """Send a batch of (to, subject, body) emails in a background thread so

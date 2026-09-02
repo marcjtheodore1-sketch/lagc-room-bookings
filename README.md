@@ -23,7 +23,8 @@ pip install -r requirements.txt
 
 2. (Optional) Configure email settings to send real confirmation emails:
 
-   Set environment variables:
+   Set environment variables, or copy `.env.example` to an untracked `.env`
+   file in the project directory and fill in the same values:
    ```bash
    export SMTP_HOST=smtp.gmail.com
    export SMTP_PORT=587
@@ -34,6 +35,9 @@ pip install -r requirements.txt
    ```
 
    For Gmail, you'll need to create an App Password at: https://myaccount.google.com/apppasswords
+   Never commit the app password to Git. On PythonAnywhere, the project `.env`
+   file is loaded automatically by the application and is already ignored by
+   `.gitignore`.
 
 3. Run the application:
 ```bash

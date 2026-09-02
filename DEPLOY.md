@@ -28,7 +28,8 @@ Go to https://render.com and sign up with your GitHub account.
 4. Click "Create Web Service"
 
 ### 4. Add Environment Variables (Optional)
-After deployment, go to Environment tab and add:
+Set these as environment variables, or create an untracked `.env` file in the
+project directory using `.env.example` as the template:
 - `ADMIN_PASSWORD` = `Moonlight` (or your preferred password)
 - `ENABLE_EMAIL` = `true` (if you want email notifications)
 - `SMTP_HOST` = `smtp.gmail.com`
@@ -36,6 +37,9 @@ After deployment, go to Environment tab and add:
 - `SMTP_USER` = `miles.lagc@gmail.com`
 - `SMTP_PASSWORD` = `your-app-password`
 - `SMTP_FROM` = `londonautismgroupcharity@gmail.com`
+
+Never put a real app password in committed source code. The application loads
+the ignored `.env` file automatically, including under PythonAnywhere WSGI.
 
 ### 5. Add Persistent Disk (Important!)
 The free tier doesn't include persistent storage by default. To keep your database:
