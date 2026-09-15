@@ -851,12 +851,11 @@ YOGA_DOORS_DISPLAY = '9:30am'  # the terrace/space is available from this time
 YOGA_LOCATION = 'Outdoor terrace, Pan Macmillan, 6 Briset Street, London, EC1M 5NR'
 YOGA_NOTIFY_EMAIL = 'miles.lagc@gmail.com'
 
-# Concrete bookable session dates (each capped at YOGA_CAPACITY). The September
-# Fridays are included so "Fridays in September" can actually be booked; adjust
-# this list as the trial firms up.
+# Yoga is paused while a new venue is sought. Keep past dates for admin records.
+YOGA_PAUSED = True
 YOGA_SESSION_DATES = [
     '2026-07-03', '2026-07-10', '2026-07-24', '2026-07-31',
-    '2026-09-04', '2026-09-11', '2026-09-18', '2026-09-25',
+    '2026-09-04', '2026-09-11',
 ]
 
 def _yoga_display(date_str):
@@ -867,6 +866,8 @@ def _yoga_display(date_str):
 
 def get_yoga_availability(include_past=False):
     """Return upcoming yoga sessions with how many spaces are left in each."""
+    if YOGA_PAUSED and not include_past:
+        return []
     today = datetime.now().date()
     counts = {}
     for b in YogaBooking.query.all():
@@ -1462,6 +1463,8 @@ def yoga_availability():
 @app.route('/api/yoga/book', methods=['POST'])
 def yoga_book():
     """Public: register for a yoga session (enforces the per-date capacity)."""
+    if YOGA_PAUSED:
+        return jsonify({'success': False, 'error': 'Yoga is temporarily paused while we find a new venue. Sign-ups are closed.'}), 409
     data = request.get_json(silent=True) or {}
 
     def clean(key, limit=200):

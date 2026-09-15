@@ -68,7 +68,6 @@ class SeptemberScheduleTest(unittest.TestCase):
             },
             'yoga': [
                 '2026-09-04', '2026-09-11',
-                '2026-09-18', '2026-09-25',
             ],
         })
 

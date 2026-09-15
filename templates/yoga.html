@@ -1,57 +1,38 @@
 {% extends "base.html" %}
 
-{% block title %}Gentle Yoga with Marlijn - Fridays @ Farringdon{% endblock %}
+{% block title %}Gentle Yoga with Marlijn - Temporarily Paused{% endblock %}
 
 {% block content %}
 <div class="landing-page">
     <div class="landing-header">
         <h1>🧘 Gentle Yoga with Marlijn</h1>
-        <p class="subtitle">We're trying out gentle yoga on a few Fridays this summer, and hope to run it more regularly from September.</p>
+        <p class="subtitle">Temporarily paused while we find a new home.</p>
     </div>
-
     <div class="landing-content">
+        <div class="info-card venue-card" id="yoga-register">
+            <h2>Yoga is temporarily paused</h2>
+            <p>With the weather changing, the outdoor terrace at Pan Macmillan is no longer a suitable place for our yoga sessions. We are pausing yoga while we actively look for a new venue.</p>
+            <p><strong>The sessions on 18th and 25th September will not take place. Sign-ups are currently closed.</strong></p>
+            <p>We plan to continue the same gentle yoga with <strong>Marlijn</strong> in a new location. Sessions will still last <strong>one hour in the morning</strong>, although the day may change.</p>
+            <p>We will share the new venue, day and restart date here once they are confirmed. Thank you for your patience while we find the right space.</p>
+        </div>
         <div class="info-section yoga-intro-layout">
             <figure class="yoga-instructor-photo">
                 <img src="{{ url_for('static', filename='images/yoga-marlijn.jpg') }}" alt="Marlijn, the yoga instructor, sitting in a calm, plant-filled space" loading="lazy">
                 <figcaption>Your instructor, Marlijn</figcaption>
             </figure>
             <div class="yoga-intro-text">
-                <p class="intro-text">
-                    We are trialling <strong>gentle, neurodivergent-friendly yoga sessions</strong> as part of Fridays @ Farringdon.
-                </p>
+                <h2>The same gentle approach</h2>
+                <p class="intro-text">Gentle, neurodivergent-friendly yoga with Marlijn.</p>
                 <div class="initiative-description">
-                    <p>These sessions are designed to be beginner-friendly, accessible and low-pressure. You do not need previous yoga experience. The session will be adapted as much as possible around the needs of those attending.</p>
-                    <p>The sessions will take place on the <strong>outdoor terrace at Pan Macmillan, 6 Briset Street, London, EC1M 5NR</strong>. Places are limited to <strong>8 people per session</strong> because the terrace space is small.</p>
-                    <p>Please bring your own yoga mat and wear loose, comfortable clothing. As the session may take place in sunny weather, please consider wearing suncream and bringing a hat or water bottle if helpful.</p>
+                    <p>Our sessions are beginner-friendly, accessible and low-pressure. You do not need previous yoga experience, and Marlijn adapts the session as much as possible around the needs of those attending.</p>
+                    <p>We look forward to welcoming you back when our new home is ready.</p>
                 </div>
             </div>
         </div>
-
-        <div class="info-card">
-            <h2>🌿 The terrace</h2>
-            <p>Sessions take place on our calm outdoor terrace, high above Farringdon with open views across London.</p>
-            <div class="yoga-terrace-gallery">
-                <img src="{{ url_for('static', filename='images/yoga-terrace-1.jpg') }}" alt="The outdoor terrace at Pan Macmillan with seating and city views" loading="lazy">
-                <img src="{{ url_for('static', filename='images/yoga-terrace-2.jpg') }}" alt="The outdoor terrace overlooking the London skyline" loading="lazy">
-            </div>
-        </div>
-
-        <div class="info-card venue-card" id="yoga-register">
-            <h2>📅 Dates &amp; booking</h2>
-            <p class="yoga-time-note">🕤 <strong>You're welcome to arrive from 9:30am</strong> — that's when the terrace is available — and the <strong>yoga session begins at 10:00am</strong>.</p>
-            <p class="hint">This is not a drop-in activity — please register in advance. Places are limited to 8 per session, and a session that is full can no longer be selected.</p>
-            <p>Yoga is booked in the same place as everything else at Fridays @ Farringdon. Choose your Friday, pick <strong>Gentle Yoga with Marlijn</strong>, and answer a few questions so Marlijn can adapt the session for you.</p>
-            <p>All upcoming dates — and how many places are left on each one — are shown there, so what you see is always current.</p>
-            <p class="hint">Please note: we may need to contact you regarding your booking — for example if a session is cancelled or there's another relevant update.</p>
-            <div class="cta-section" style="margin-top: 1.25rem;">
-                <a href="/book" class="btn btn-primary btn-large">See dates &amp; book your place →</a>
-            </div>
-        </div>
-
         <div class="cta-section" style="margin-top: 2rem;">
             <a href="/" class="btn btn-secondary">← Back to Home</a>
         </div>
     </div>
 </div>
 {% endblock %}
-
