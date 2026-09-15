@@ -228,9 +228,15 @@ async function loadVolunteers() {
     }
 }
 
+function volunteerShiftLabel(shift) {
+    if (shift?.shift_type === 'all_day') return 'All day';
+    if (shift?.shift_type === 'specific') return `${shift.start_time} to ${shift.end_time}`;
+    return 'Time not confirmed';
+}
+
 function volChips(people) {
     return people.length
-        ? people.map(p => `<span class="vol-chip">${escapeHtml(p.name)}${p.note ? ` <em>(${escapeHtml(p.note)})</em>` : ''}</span>`).join('')
+        ? people.map(p => `<span class="vol-chip">${escapeHtml(p.name)} <strong>${p.unavailable ? 'Unavailable' : volunteerShiftLabel(p)}</strong>${p.note ? ` <em>(${escapeHtml(p.note)})</em>` : ''}</span>`).join('')
         : '<span class="vol-none">No one</span>';
 }
 
@@ -306,6 +312,27 @@ async function unarchiveVolunteerDate(date) {
     }
 }
 
+function volunteerTimeOptions() {
+    return '<option value="">Choose time</option>' + (volunteerRota.time_options || []).map(t =>
+        `<option value="${t.time}">${escapeHtml(t.display)}</option>`).join('');
+}
+
+function updateVolunteerTimeFields() {
+    document.querySelectorAll('.vol-entry-row').forEach(row => {
+        const available = row.querySelector('.vol-entry-status').value === 'available';
+        const shift = row.querySelector('.vol-entry-shift');
+        row.querySelector('.vol-shift-fields').hidden = !available;
+        shift.required = available;
+        shift.disabled = !available;
+        const specific = available && shift.value === 'specific';
+        row.querySelector('.vol-specific-times').hidden = !specific;
+        row.querySelectorAll('.vol-entry-start, .vol-entry-end').forEach(input => {
+            input.required = specific;
+            input.disabled = !specific;
+        });
+    });
+}
+
 function renderVolunteerEntries() {
     const wrap = document.getElementById('vol-date-entries');
     if (!volunteerRota.fridays.length) {
@@ -315,15 +342,29 @@ function renderVolunteerEntries() {
     wrap.innerHTML = volunteerRota.fridays.map(f => `
         <div class="vol-entry-row">
             <span class="vol-entry-date">${escapeHtml(f.display)}</span>
-            <select class="vol-entry-status" data-date="${f.date}">
-                <option value="">— not set —</option>
+            <select class="vol-entry-status" data-date="${f.date}" aria-label="Availability for ${escapeHtml(f.display)}" onchange="updateVolunteerTimeFields()">
+                <option value="">Choose availability</option>
                 <option value="available">✓ Available</option>
                 <option value="unavailable">✗ Can't make it</option>
             </select>
+            <div class="vol-shift-fields" data-date="${f.date}" hidden>
+                <label>Time commitment <span class="required">*</span>
+                    <select class="vol-entry-shift" data-date="${f.date}" onchange="updateVolunteerTimeFields()">
+                        <option value="">Choose times</option>
+                        <option value="all_day">All day</option>
+                        <option value="specific">Specific times</option>
+                    </select>
+                </label>
+                <div class="vol-specific-times" hidden>
+                    <label>Arriving <select class="vol-entry-start" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
+                    <label>Leaving <select class="vol-entry-end" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
+                </div>
+            </div>
             <input type="text" class="vol-entry-note" data-date="${f.date}" maxlength="200"
-                placeholder="e.g. 2:30pm–5:30pm" aria-label="Note for ${escapeHtml(f.display)}">
+                placeholder="Optional note" aria-label="Note for ${escapeHtml(f.display)}">
         </div>
     `).join('');
+    updateVolunteerTimeFields();
 }
 
 function renderVolunteerCoverage() {
@@ -342,7 +383,7 @@ function renderVolunteerCoverage() {
         let chips = available.length
             ? available.map(v => {
                 const note = (v.date_notes || {})[f.date];
-                return `<span class="vol-chip">${escapeHtml(v.name)}${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
+                return `<span class="vol-chip">${escapeHtml(v.name)} <strong>${volunteerShiftLabel((v.date_shifts || {})[f.date])}</strong>${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
             }).join('')
             : '<span class="vol-none">No one yet</span>';
 
@@ -400,7 +441,12 @@ function applyVolunteerToForm(v) {
     document.querySelectorAll('.vol-entry-note').forEach(inp => {
         const date = inp.dataset.date;
         inp.value = (v.date_notes || {})[date] || '';
+        const shift = (v.date_shifts || {})[date] || {};
+        document.querySelector(`.vol-entry-shift[data-date="${date}"]`).value = shift.shift_type || '';
+        document.querySelector(`.vol-entry-start[data-date="${date}"]`).value = shift.start_time || '';
+        document.querySelector(`.vol-entry-end[data-date="${date}"]`).value = shift.end_time || '';
     });
+    updateVolunteerTimeFields();
 }
 
 function findVolunteerByName(name) {
@@ -441,8 +487,30 @@ async function saveVolunteer() {
         const status = sel.value;
         if (!status) return;
         const note = (document.querySelector(`.vol-entry-note[data-date="${date}"]`) || {}).value || '';
-        entries.push({ date, status, note: note.trim() });
+        const shift_type = document.querySelector(`.vol-entry-shift[data-date="${date}"]`).value;
+        const start_time = document.querySelector(`.vol-entry-start[data-date="${date}"]`).value;
+        const end_time = document.querySelector(`.vol-entry-end[data-date="${date}"]`).value;
+        entries.push({ date, status, note: note.trim(), shift_type, start_time, end_time });
     });
+
+    if (!entries.length) {
+        volunteerStatus('Choose your availability for at least one Friday.', true);
+        return;
+    }
+    for (const entry of entries) {
+        if (entry.status !== 'available') continue;
+        const shift = document.querySelector(`.vol-entry-shift[data-date="${entry.date}"]`);
+        if (!entry.shift_type) {
+            volunteerStatus('Choose All day or specific times for each Friday you are available.', true);
+            shift.focus();
+            return;
+        }
+        if (entry.shift_type === 'specific' && (!entry.start_time || !entry.end_time || entry.start_time >= entry.end_time)) {
+            volunteerStatus('Choose an arrival time and a later leaving time for each specific shift.', true);
+            document.querySelector(`.vol-entry-start[data-date="${entry.date}"]`).focus();
+            return;
+        }
+    }
 
     try {
         const res = await fetch('/api/admin/volunteers', {
@@ -460,7 +528,8 @@ async function saveVolunteer() {
         // Clear the form for the next person
         document.getElementById('vol-name').value = '';
         document.querySelectorAll('.vol-entry-status').forEach(sel => { sel.value = ''; });
-        document.querySelectorAll('.vol-entry-note').forEach(inp => { inp.value = ''; });
+        document.querySelectorAll('.vol-entry-note, .vol-entry-shift, .vol-entry-start, .vol-entry-end').forEach(inp => { inp.value = ''; });
+        updateVolunteerTimeFields();
         const availCount = entries.filter(e => e.status === 'available').length;
         volunteerStatus(entries.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
     } catch (e) {
@@ -1129,20 +1198,7 @@ function renderArchivedBookings(bookings) {
                     <span class="booking-count">(${dateData.bookings.length} booking${dateData.bookings.length !== 1 ? 's' : ''})</span>
                 </div>
                 <div class="date-bookings">
-                    ${dateData.bookings.map(booking => `
-                        <div class="booking-row">
-                            <div class="booking-info">
-                                <span class="room-name">${escapeHtml(booking.room_name)}</span>
-                                <span class="booking-time">${escapeHtml(booking.start_time)} - ${escapeHtml(booking.end_time)}</span>
-                            </div>
-                            <div class="booking-user">
-                                <span class="user-name">${escapeHtml(booking.user_name)}</span>
-                                <span class="user-email">${escapeHtml(booking.user_email)}</span>
-                            </div>
-                            ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
-                            ${attendeeDetails(booking)}
-                        </div>
-                    `).join('')}
+                    ${bookingTable(dateData.bookings, true)}
                 </div>
             </div>
         `;
@@ -1185,31 +1241,38 @@ function renderBookingCounts(counts) {
     }).join('');
 }
 
-// Accessibility / who-else-is-attending details captured at booking.
-// Only rendered when something was actually provided, so ordinary bookings
-// stay compact; carer details are highlighted because volunteers need them.
-function attendeeDetails(b) {
-    const rows = [];
-    if (b.accessibility_needs) {
-        rows.push(`<div class="attendee-row"><span class="attendee-label">♿ Accessibility needs:</span> ${escapeHtml(b.accessibility_needs)}</div>`);
-    }
-    if (b.bringing_others) {
-        rows.push(`<div class="attendee-row"><span class="attendee-label">👥 Attending with:</span> ${escapeHtml(b.companion_names || '(not given)')}</div>`);
-    }
-    if (b.other_info) {
-        rows.push(`<div class="attendee-row"><span class="attendee-label">💬 Also told us:</span> ${escapeHtml(b.other_info)}</div>`);
-    }
-    if (b.carer_attending) {
-        rows.push(`
-            <div class="attendee-carer">
-                <div class="attendee-carer-title">🧑‍🤝‍🧑 Carer / support worker attending</div>
-                <div class="attendee-row"><span class="attendee-label">Name:</span> ${escapeHtml(b.carer_name || '(not given)')}</div>
-                <div class="attendee-row"><span class="attendee-label">Agency / organisation:</span> ${escapeHtml(b.carer_organisation || '(not given)')}</div>
-                <div class="attendee-row"><span class="attendee-label">Mobile:</span> ${escapeHtml(b.carer_phone || '(not given)')}</div>
-                <div class="attendee-row"><span class="attendee-label">Confirmed supervision responsibility:</span> ${b.carer_supervision_agreed ? '✅ Yes' : '⚠️ No'}</div>
-            </div>`);
-    }
-    return rows.length ? `<div class="attendee-details">${rows.join('')}</div>` : '';
+// Separate columns on desktop become labelled cards on small screens.
+function mobilitySummary(b) {
+    if (b.mobility_needs === true) return `Yes: ${b.mobility_details || 'Details not given'}`;
+    if (b.mobility_needs === false) return 'No';
+    return 'Not yet asked';
+}
+
+function bookingTable(bookings, archived = false) {
+    return `<div class="booking-table-wrap"><table class="booking-table">
+        <thead><tr><th scope="col">Attendee</th><th scope="col">Room &amp; time</th>
+        <th scope="col">Accessibility</th><th scope="col">Mobility</th>
+        <th scope="col">Companions &amp; carer</th><th scope="col">Other information</th>
+        <th scope="col">Actions</th></tr></thead><tbody>
+        ${bookings.map(b => `<tr>
+            <td data-label="Attendee"><strong>${escapeHtml(b.user_name)}</strong><span class="booking-cell-line">${escapeHtml(b.user_email)}</span></td>
+            <td data-label="Room &amp; time"><strong>${escapeHtml(b.room_name)}</strong><span class="booking-cell-line">${escapeHtml(b.start_time)} to ${escapeHtml(b.end_time)}</span></td>
+            <td data-label="Accessibility" class="booking-answer">${escapeHtml(b.accessibility_needs || 'None given')}</td>
+            <td data-label="Mobility" class="booking-answer">${escapeHtml(mobilitySummary(b))}</td>
+            <td data-label="Companions &amp; carer">
+                ${b.bringing_others ? escapeHtml(b.companion_names || 'Names not given') : 'Attending alone'}
+                ${b.carer_attending ? `<div class="booking-carer"><strong>Carer / support worker</strong>
+                    <span class="booking-cell-line">${escapeHtml(b.carer_name || 'Name not given')}</span>
+                    <span class="booking-cell-line">${escapeHtml(b.carer_organisation || 'Organisation not given')}</span>
+                    <span class="booking-cell-line">Mobile: ${escapeHtml(b.carer_phone || 'Not given')}</span>
+                    <span class="booking-cell-line">Supervision agreed: ${b.carer_supervision_agreed ? 'Yes' : 'No'}</span></div>` : ''}
+            </td>
+            <td data-label="Other information" class="booking-answer">${escapeHtml(b.other_info || 'None given')}</td>
+            <td data-label="Actions"><div class="booking-actions">
+                ${b.room_type === 'slot' ? attendanceButtons('booking', b.id, b.attended) : '<span class="hint">Open booking</span>'}
+                ${archived ? '' : `<button class="btn btn-small btn-danger" onclick="deleteBooking(${b.id})">Delete</button>`}
+            </div></td>
+        </tr>`).join('')}</tbody></table></div>`;
 }
 
 function renderBookingsByDate(bookings) {
@@ -1248,21 +1311,7 @@ function renderBookingsByDate(bookings) {
                     <button class="btn btn-secondary btn-small date-email-btn" onclick="event.stopPropagation(); openBookingsEmail('${date}')">📧 Email these people</button>
                 </div>
                 <div class="date-bookings">
-                    ${dateData.bookings.map(booking => `
-                        <div class="booking-row">
-                            <div class="booking-info">
-                                <span class="room-name">${escapeHtml(booking.room_name)}</span>
-                                <span class="booking-time">${escapeHtml(booking.start_time)} - ${escapeHtml(booking.end_time)}</span>
-                            </div>
-                            <div class="booking-user">
-                                <span class="user-name">${escapeHtml(booking.user_name)}</span>
-                                <span class="user-email">${escapeHtml(booking.user_email)}</span>
-                            </div>
-                            ${booking.room_type === 'slot' ? attendanceButtons('booking', booking.id, booking.attended) : ''}
-                            <button class="btn btn-small btn-danger" onclick="deleteBooking(${booking.id})">Delete</button>
-                            ${attendeeDetails(booking)}
-                        </div>
-                    `).join('')}
+                    ${bookingTable(dateData.bookings)}
                 </div>
             </div>
         `;

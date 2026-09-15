@@ -122,12 +122,16 @@ class Booking(db.Model):
 
     # Attendance / access details collected at Step 4
     accessibility_needs = db.Column(db.Text, default='')
+    mobility_needs = db.Column(db.Boolean, nullable=True)
+    mobility_details = db.Column(db.Text, default='')
     bringing_others = db.Column(db.Boolean, default=False)
     companion_names = db.Column(db.Text, default='')
     other_info = db.Column(db.Text, default='')
     # Carer / support worker details (only when one is attending)
     carer_attending = db.Column(db.Boolean, default=False)
     carer_name = db.Column(db.String(120), default='')
+    carer_first_name = db.Column(db.String(60), default='')
+    carer_last_name = db.Column(db.String(60), default='')
     carer_organisation = db.Column(db.String(160), default='')
     carer_phone = db.Column(db.String(50), default='')
     carer_supervision_agreed = db.Column(db.Boolean, default=False)
@@ -145,6 +149,9 @@ class VolunteerAvailability(db.Model):
     name = db.Column(db.String(120), nullable=False)
     booking_date = db.Column(db.Date, nullable=False)
     note = db.Column(db.String(200), default='')
+    shift_type = db.Column(db.String(20), default='')
+    start_time = db.Column(db.String(5), default='')
+    end_time = db.Column(db.String(5), default='')
     unavailable = db.Column(db.Boolean, default=False)  # True = can't make it
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -793,15 +800,21 @@ def get_volunteer_rota(count=8):
                 'dates': [],
                 'unavailable_dates': [],
                 'date_notes': {},
+                'date_shifts': {},
             })
             if is_unavail:
                 v['unavailable_dates'].append(ds)
             else:
                 v['dates'].append(ds)
+            v['date_shifts'][ds] = {'shift_type': r.shift_type or '',
+                                    'start_time': r.start_time or '',
+                                    'end_time': r.end_time or ''}
             if r.note:
                 v['date_notes'][ds] = r.note
         elif r.booking_date < today:
-            entry = {'name': r.name, 'note': r.note or '', 'unavailable': is_unavail}
+            entry = {'name': r.name, 'note': r.note or '', 'unavailable': is_unavail,
+                     'shift_type': r.shift_type or '', 'start_time': r.start_time or '',
+                     'end_time': r.end_time or ''}
             if ds in archived_strs:
                 archived_map.setdefault(ds, []).append(entry)
             else:
@@ -817,6 +830,7 @@ def get_volunteer_rota(count=8):
     vol_list = sorted(volunteers.values(), key=lambda v: v['name'].lower())
     return {
         'fridays': fridays,
+        'time_options': TIME_SLOTS,
         'volunteers': vol_list,
         'past': build_date_list(past_map),
         'archived': build_date_list(archived_map),
@@ -1183,11 +1197,19 @@ def create_booking():
         return (data.get(key) or '').strip()[:limit]
 
     accessibility_needs = field('accessibility_needs', 4000)
+    mobility_needs = data.get('mobility_needs')
+    if type(mobility_needs) is not bool:
+        return jsonify({'error': 'Please answer Yes or No to the mobility question.'}), 400
+    mobility_details = field('mobility_details', 4000) if mobility_needs else ''
+    if mobility_needs and not mobility_details:
+        return jsonify({'error': 'Please tell us about the mobility support needed.'}), 400
     bringing_others = bool(data.get('bringing_others'))
     companion_names = field('companion_names', 500) if bringing_others else ''
     other_info = field('other_info', 4000)
     carer_attending = bool(data.get('carer_attending')) and bringing_others
-    carer_name = field('carer_name', 120) if carer_attending else ''
+    carer_first_name = field('carer_first_name', 60) if carer_attending else ''
+    carer_last_name = field('carer_last_name', 60) if carer_attending else ''
+    carer_name = f'{carer_first_name} {carer_last_name}'.strip()
     carer_organisation = field('carer_organisation', 160) if carer_attending else ''
     carer_phone = field('carer_phone', 50) if carer_attending else ''
     carer_supervision_agreed = bool(data.get('carer_supervision_agreed')) and carer_attending
@@ -1195,8 +1217,8 @@ def create_booking():
     if bringing_others and not companion_names:
         return jsonify({'error': "Please give the first name(s) of who is coming with you, so we can plan numbers."}), 400
     if carer_attending:
-        if not carer_name:
-            return jsonify({'error': "Please give the carer or support worker's full name."}), 400
+        if not carer_first_name or not carer_last_name:
+            return jsonify({'error': "Please give both the carer or support worker's first name and last name."}), 400
         if not carer_organisation:
             return jsonify({'error': "Please give the carer or support worker's agency or organisation name (or write 'Independent' / 'Family')."}), 400
         if not carer_phone:
@@ -1284,11 +1306,15 @@ def create_booking():
         end_slot=end_slot,
         cancel_token=cancel_token,
         accessibility_needs=accessibility_needs,
+        mobility_needs=mobility_needs,
+        mobility_details=mobility_details,
         bringing_others=bringing_others,
         companion_names=companion_names,
         other_info=other_info,
         carer_attending=carer_attending,
         carer_name=carer_name,
+        carer_first_name=carer_first_name,
+        carer_last_name=carer_last_name,
         carer_organisation=carer_organisation,
         carer_phone=carer_phone,
         carer_supervision_agreed=carer_supervision_agreed,
@@ -1346,7 +1372,9 @@ Room: {room.name}
 Date: {date_display}
 Time: {start_time} - {end_time}
 
-Accessibility needs: {accessibility_needs or '(none given)'}
+Other accessibility needs: {accessibility_needs or '(none given)'}
+Mobility needs: {'Yes' if mobility_needs else 'No'}
+Mobility support details: {mobility_details or '(none needed)'}
 Attending with others: {('Yes — ' + companion_names) if bringing_others else 'No'}
 Anything else to know: {other_info or '(nothing given)'}
 {carer_block}
@@ -1874,13 +1902,30 @@ def admin_set_volunteer():
 
     upcoming = {f['date'] for f in get_rota_fridays()}
 
-    # Accept new {entries} format or old {dates, note} for backward compat
     entries = data.get('entries')
-    if entries is None:
-        # Legacy format: list of available dates with a single note
-        legacy_note = (data.get('note') or '').strip()[:200]
-        entries = [{'date': ds, 'status': 'available', 'note': legacy_note}
-                   for ds in (data.get('dates') or [])]
+    if not isinstance(entries, list) or not entries:
+        return jsonify({'error': 'Choose your availability for at least one Friday.'}), 400
+    valid_times = {slot['time'] for slot in TIME_SLOTS}
+    seen = set()
+    # Validate the whole request before replacing any saved availability.
+    for entry in entries:
+        if not isinstance(entry, dict):
+            return jsonify({'error': 'Invalid availability entry.'}), 400
+        ds = entry.get('date')
+        status = entry.get('status')
+        if ds not in upcoming or ds in seen or status not in ('available', 'unavailable'):
+            return jsonify({'error': 'Choose a valid upcoming Friday and availability.'}), 400
+        seen.add(ds)
+        if status == 'available':
+            shift = entry.get('shift_type')
+            if shift not in ('all_day', 'specific'):
+                return jsonify({'error': f'Choose All day or specific times for {ds}.'}), 400
+            if shift == 'specific':
+                start, end = entry.get('start_time'), entry.get('end_time')
+                if start not in valid_times or end not in valid_times or start >= end:
+                    return jsonify({'error': f'Choose a valid arrival and leaving time for {ds}.'}), 400
+        if not isinstance(entry.get('note', ''), str):
+            return jsonify({'error': 'Notes must be text.'}), 400
 
     # Replace this volunteer's entries within the upcoming window
     today = datetime.now().date()
@@ -1904,6 +1949,9 @@ def admin_set_volunteer():
             name=name,
             booking_date=datetime.strptime(ds, '%Y-%m-%d').date(),
             note=note,
+            shift_type=entry.get('shift_type', '') if status == 'available' else '',
+            start_time=entry.get('start_time', '') if status == 'available' and entry.get('shift_type') == 'specific' else '',
+            end_time=entry.get('end_time', '') if status == 'available' and entry.get('shift_type') == 'specific' else '',
             unavailable=(status == 'unavailable'),
         ))
     db.session.commit()
@@ -2067,6 +2115,9 @@ def admin_export_yoga_bookings():
             b.health_info, b.avoid_info, b.accessibility_info,
             'Yes' if b.agreed_safety else 'No',
             b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '',
+            b.carer_first_name or '', b.carer_last_name or '',
+            {True: 'Yes', False: 'No', None: 'Not yet asked'}.get(b.mobility_needs),
+            b.mobility_details or '',
         ])
     from flask import Response
     return Response(
@@ -2119,11 +2170,15 @@ def admin_get_bookings():
             'room_type': booking.room.room_type,
             'attended': booking.attended,
             'accessibility_needs': booking.accessibility_needs or '',
+            'mobility_needs': booking.mobility_needs,
+            'mobility_details': booking.mobility_details or '',
             'bringing_others': bool(booking.bringing_others),
             'companion_names': booking.companion_names or '',
             'other_info': booking.other_info or '',
             'carer_attending': bool(booking.carer_attending),
             'carer_name': booking.carer_name or '',
+            'carer_first_name': booking.carer_first_name or '',
+            'carer_last_name': booking.carer_last_name or '',
             'carer_organisation': booking.carer_organisation or '',
             'carer_phone': booking.carer_phone or '',
             'carer_supervision_agreed': bool(booking.carer_supervision_agreed),
@@ -2146,6 +2201,7 @@ def admin_export_bookings():
         'Anything else', 'Carer attending', 'Carer name',
         'Carer agency/organisation', 'Carer mobile',
         'Carer confirmed supervision', 'Booked at',
+        'Carer first name', 'Carer last name', 'Mobility needs', 'Mobility details',
     ])
     attended_label = {True: 'Came', False: 'No-show', None: ''}
     for b in Booking.query.filter(Booking.cancelled_at.is_(None)).order_by(
@@ -2161,6 +2217,9 @@ def admin_export_bookings():
             b.carer_organisation or '', b.carer_phone or '',
             'Yes' if b.carer_supervision_agreed else '',
             b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '',
+            b.carer_first_name or '', b.carer_last_name or '',
+            {True: 'Yes', False: 'No', None: 'Not yet asked'}.get(b.mobility_needs),
+            b.mobility_details or '',
         ])
     from flask import Response
     return Response(
@@ -2194,11 +2253,15 @@ def admin_get_bookings_archive():
             'room_type': booking.room.room_type,
             'attended': booking.attended,
             'accessibility_needs': booking.accessibility_needs or '',
+            'mobility_needs': booking.mobility_needs,
+            'mobility_details': booking.mobility_details or '',
             'bringing_others': bool(booking.bringing_others),
             'companion_names': booking.companion_names or '',
             'other_info': booking.other_info or '',
             'carer_attending': bool(booking.carer_attending),
             'carer_name': booking.carer_name or '',
+            'carer_first_name': booking.carer_first_name or '',
+            'carer_last_name': booking.carer_last_name or '',
             'carer_organisation': booking.carer_organisation or '',
             'carer_phone': booking.carer_phone or '',
             'carer_supervision_agreed': bool(booking.carer_supervision_agreed),
@@ -2861,6 +2924,11 @@ def run_migrations():
         'volunteer_availability', 'unavailable', 'BOOLEAN DEFAULT 0'
     )
 
+    for column, definition in (('shift_type', 'VARCHAR(20)'),
+                               ('start_time', 'VARCHAR(5)'),
+                               ('end_time', 'VARCHAR(5)')):
+        _ensure_column('volunteer_availability', column, definition)
+
     # Attendance tracking for capacity-limited spaces (Rose + yoga)
     for table in ('booking', 'yoga_booking'):
         _ensure_column(table, 'attended', 'BOOLEAN')
@@ -2872,6 +2940,10 @@ def run_migrations():
     # Accessibility / who-is-attending details collected at booking
     for column, definition in (
         ('accessibility_needs', 'TEXT'),
+        ('mobility_needs', 'BOOLEAN'),
+        ('mobility_details', 'TEXT'),
+        ('carer_first_name', 'VARCHAR(60)'),
+        ('carer_last_name', 'VARCHAR(60)'),
         ('bringing_others', 'BOOLEAN DEFAULT 0'),
         ('companion_names', 'TEXT'),
         ('other_info', 'TEXT'),

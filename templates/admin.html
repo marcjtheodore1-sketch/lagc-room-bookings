@@ -2,6 +2,8 @@
 
 {% block title %}Admin - LAGC Room Bookings{% endblock %}
 
+{% block main_class %} admin-wide{% endblock %}
+
 {% block content %}
 <div class="admin-page">
     <div class="admin-header">
@@ -92,7 +94,7 @@
             <h2>All Upcoming Bookings</h2>
             <a href="/api/admin/bookings/export" class="btn btn-secondary btn-small">⬇ Export CSV</a>
         </div>
-        <p class="hint">Accessibility needs, who someone is attending with, and carer/support worker details appear under each booking when given. The CSV includes all of it.</p>
+        <p class="hint">Accessibility and mobility have separate columns. On phones, each booking appears as a labelled card. The CSV includes carer names and all support details. Older bookings show “Not yet asked” for mobility.</p>
         <div class="bookings-by-date-container" id="bookings-by-date">
             <p class="loading">Loading bookings...</p>
         </div>
@@ -145,12 +147,12 @@
     <!-- Volunteer Rota Tab -->
     <div class="tab-content" id="tab-volunteers">
         <h2>🙋 Volunteer Rota</h2>
-        <p class="hint">Volunteers: enter your name, tick the Fridays you can support, and save. Everyone's availability is shown below so we can see coverage at a glance — no more juggling it on WhatsApp.</p>
+        <p class="hint">Volunteers: enter your name and choose your availability for each Friday. When available, you must choose All day or specific arrival and leaving times. Everyone's availability is shown below.</p>
 
         <div class="notice-box info volunteer-guidance">
             <p><strong>🛟 If someone needs more support than we can offer</strong></p>
             <p>You are a <strong>host, not a carer</strong>. You're not expected to provide personal care, one-to-one support or supervision — and you're not expected to judge whether someone needs a carer. That isn't your call to make.</p>
-            <p><strong>Before the day:</strong> open <strong>All Bookings</strong> and read the details under each booking. Anyone attending with a carer or support worker shows there, along with their agency and a contact mobile number. Save those numbers to your phone before you arrive.</p>
+            <p><strong>Before the day:</strong> open <strong>All Bookings</strong> and read the details in each booking. Anyone attending with a carer or support worker shows there, along with their agency and a contact mobile number. Save those numbers to your phone before you arrive.</p>
             <p><strong>What to do in the moment:</strong> do what feels reasonable and kind, keep yourself and everyone else safe, and don't take on more than you're comfortable with. You don't have to handle it alone — check the rota below for who else is volunteering that day. If someone came with a carer or support worker, go to them first: supervision is their responsibility, not yours. <strong>If anyone is in danger or needs urgent medical help, call 999.</strong></p>
             <p><strong>Afterwards,</strong> write down what actually happened as soon as you can — what you saw and did, not conclusions about the person.</p>
             <p><strong>Then tell Chris or Kirsty.</strong> They'll follow it up properly.</p>
@@ -166,7 +168,7 @@
             </div>
             <div class="form-group">
                 <label>Your availability for upcoming Fridays:</label>
-                <p class="hint">Mark each date as available (with your time window if needed) or can't make it. Leave a date blank if you're not sure yet.</p>
+                <p class="hint">Mark each date as available and choose All day or specific times, or select can't make it. Leave a date blank if you're not sure yet.</p>
                 <div class="vol-date-entries" id="vol-date-entries">
                     <p class="loading">Loading dates...</p>
                 </div>
@@ -258,5 +260,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=16"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=42"></script>
 {% endblock %}

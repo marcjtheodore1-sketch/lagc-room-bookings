@@ -811,8 +811,13 @@ function updateAttendeeFields() {
 
     const showCarer = bringing && isCarerAttending();
     carerSection.hidden = !showCarer;
+    ['carer-first-name', 'carer-last-name', 'carer-organisation', 'carer-phone', 'carer-supervision-agreed'].forEach(id => {
+        const input = document.getElementById(id);
+        input.required = showCarer;
+        input.disabled = !showCarer;
+    });
     if (!showCarer) {
-        ['carer-name', 'carer-organisation', 'carer-phone'].forEach(id => {
+        ['carer-first-name', 'carer-last-name', 'carer-organisation', 'carer-phone'].forEach(id => {
             document.getElementById(id).value = '';
         });
         document.getElementById('carer-supervision-agreed').checked = false;
@@ -820,12 +825,24 @@ function updateAttendeeFields() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => radio.addEventListener('change', updateMobilityFields));
     document.querySelectorAll('input[name="bringing-others"], input[name="carer-attending"]')
         .forEach(radio => radio.addEventListener('change', updateAttendeeFields));
     updateAttendeeFields();
 });
 
+function updateMobilityFields() {
+    const yes = document.querySelector('input[name="mobility-needs"]:checked')?.value === 'yes';
+    document.getElementById('mobility-details-field').hidden = !yes;
+    const details = document.getElementById('mobility-details');
+    details.required = yes;
+    details.disabled = !yes;
+    if (!yes) details.value = '';
+}
+
 function resetAttendeeFields() {
+    document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => { radio.checked = false; });
+    updateMobilityFields();
     const justMe = document.querySelector('input[name="bringing-others"][value="no"]');
     if (justMe) justMe.checked = true;
     ['accessibility-needs', 'other-info'].forEach(id => {
@@ -947,7 +964,15 @@ async function submitBooking() {
     const bringingOthers = isBringingOthers();
     const carerAttending = bringingOthers && isCarerAttending();
     const companionNames = document.getElementById('companion-names').value.trim();
-    const carerName = document.getElementById('carer-name').value.trim();
+    const carerFirstName = document.getElementById('carer-first-name').value.trim();
+    const carerLastName = document.getElementById('carer-last-name').value.trim();
+    const mobilityAnswer = document.querySelector('input[name="mobility-needs"]:checked');
+    const mobilityDetails = document.getElementById('mobility-details').value.trim();
+    if (!mobilityAnswer || (mobilityAnswer.value === 'yes' && !mobilityDetails)) {
+        alert('Please answer the mobility question and give details if support is needed.');
+        (!mobilityAnswer ? document.querySelector('input[name="mobility-needs"]') : document.getElementById('mobility-details')).focus();
+        return;
+    }
     const carerOrganisation = document.getElementById('carer-organisation').value.trim();
     const carerPhone = document.getElementById('carer-phone').value.trim();
     const carerAgreed = document.getElementById('carer-supervision-agreed').checked;
@@ -959,9 +984,9 @@ async function submitBooking() {
         return;
     }
     if (carerAttending) {
-        if (!carerName) {
-            alert("Please enter the carer or support worker's full name.");
-            document.getElementById('carer-name').focus();
+        if (!carerFirstName || !carerLastName) {
+            alert("Please enter the carer or support worker's first and last names.");
+            document.getElementById(!carerFirstName ? 'carer-first-name' : 'carer-last-name').focus();
             return;
         }
         if (!carerOrganisation) {
@@ -991,7 +1016,10 @@ async function submitBooking() {
         companion_names: companionNames,
         other_info: document.getElementById('other-info').value.trim(),
         carer_attending: carerAttending,
-        carer_name: carerName,
+        carer_first_name: carerFirstName,
+        carer_last_name: carerLastName,
+        mobility_needs: mobilityAnswer.value === 'yes',
+        mobility_details: mobilityAnswer.value === 'yes' ? mobilityDetails : '',
         carer_organisation: carerOrganisation,
         carer_phone: carerPhone,
         carer_supervision_agreed: carerAgreed
