@@ -208,6 +208,12 @@ def get_time_slots():
     return slots
 
 TIME_SLOTS = get_time_slots()
+# Volunteer shifts include preparation and closing time, beyond public room hours.
+VOLUNTEER_TIME_OPTIONS = [
+    {'time': f'{minute // 60:02d}:{minute % 60:02d}',
+     'display': datetime.strptime(f'{minute // 60:02d}:{minute % 60:02d}', '%H:%M').strftime('%I:%M %p').lstrip('0')}
+    for minute in range(8 * 60, 18 * 60 + 1, 15)
+]
 # Display time used when an open room is booked through to the end of the day.
 LAST_SLOT_DISPLAY = TIME_SLOTS[-1]['display']  # '5:00 PM'
 
@@ -830,7 +836,7 @@ def get_volunteer_rota(count=8):
     vol_list = sorted(volunteers.values(), key=lambda v: v['name'].lower())
     return {
         'fridays': fridays,
-        'time_options': TIME_SLOTS,
+        'time_options': VOLUNTEER_TIME_OPTIONS,
         'volunteers': vol_list,
         'past': build_date_list(past_map),
         'archived': build_date_list(archived_map),
@@ -1905,7 +1911,7 @@ def admin_set_volunteer():
     entries = data.get('entries')
     if not isinstance(entries, list) or not entries:
         return jsonify({'error': 'Choose your availability for at least one Friday.'}), 400
-    valid_times = {slot['time'] for slot in TIME_SLOTS}
+    valid_times = {slot['time'] for slot in VOLUNTEER_TIME_OPTIONS}
     seen = set()
     # Validate the whole request before replacing any saved availability.
     for entry in entries:

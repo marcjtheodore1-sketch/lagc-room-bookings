@@ -79,12 +79,12 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                     assert save([bad]).status_code == 400
                     assert VolunteerAvailability.query.one().shift_type == 'all_day'
                 assert save([]).status_code == 400
-                assert save([dict(entry, shift_type='specific', start_time='11:00', end_time='15:00'),
+                assert save([dict(entry, shift_type='specific', start_time='10:45', end_time='17:30'),
                     {'date':'2099-01-09', 'status':'unavailable'}]).status_code == 200
                 rows = VolunteerAvailability.query.order_by(VolunteerAvailability.booking_date).all()
-                assert len(rows) == 2 and rows[0].start_time == '11:00' and rows[1].unavailable
+                assert len(rows) == 2 and rows[0].start_time == '10:45' and rows[1].unavailable
                 response = client.get('/api/admin/volunteers').json
-                assert response['volunteers'][0]['date_shifts']['2099-01-02']['end_time'] == '15:00'
+                assert response['volunteers'][0]['date_shifts']['2099-01-02']['end_time'] == '17:30'
                 assert response['volunteers'][0]['date_notes']['2099-01-02'] == 'Original note'
                 assert response['time_options']
         ''')

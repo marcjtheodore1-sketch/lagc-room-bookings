@@ -228,15 +228,15 @@ async function loadVolunteers() {
     }
 }
 
-function volunteerShiftLabel(shift) {
+function volunteerShiftLabel(shift, note = '') {
     if (shift?.shift_type === 'all_day') return 'All day';
     if (shift?.shift_type === 'specific') return `${shift.start_time} to ${shift.end_time}`;
-    return 'Time not confirmed';
+    return note ? 'Previous note' : 'Time not confirmed';
 }
 
 function volChips(people) {
     return people.length
-        ? people.map(p => `<span class="vol-chip">${escapeHtml(p.name)} <strong>${p.unavailable ? 'Unavailable' : volunteerShiftLabel(p)}</strong>${p.note ? ` <em>(${escapeHtml(p.note)})</em>` : ''}</span>`).join('')
+        ? people.map(p => `<span class="vol-chip">${escapeHtml(p.name)} <strong>${p.unavailable ? 'Unavailable' : volunteerShiftLabel(p, p.note)}</strong>${p.note ? ` <em>(${escapeHtml(p.note)})</em>` : ''}</span>`).join('')
         : '<span class="vol-none">No one</span>';
 }
 
@@ -383,7 +383,7 @@ function renderVolunteerCoverage() {
         let chips = available.length
             ? available.map(v => {
                 const note = (v.date_notes || {})[f.date];
-                return `<span class="vol-chip">${escapeHtml(v.name)} <strong>${volunteerShiftLabel((v.date_shifts || {})[f.date])}</strong>${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
+                return `<span class="vol-chip">${escapeHtml(v.name)} <strong>${volunteerShiftLabel((v.date_shifts || {})[f.date], note)}</strong>${note ? ` <em>(${escapeHtml(note)})</em>` : ''}</span>`;
             }).join('')
             : '<span class="vol-none">No one yet</span>';
 
