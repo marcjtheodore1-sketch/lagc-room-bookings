@@ -1923,13 +1923,11 @@ def admin_set_volunteer():
             return jsonify({'error': 'Choose a valid upcoming Friday and availability.'}), 400
         seen.add(ds)
         if status == 'available':
-            shift = entry.get('shift_type')
-            if shift not in ('all_day', 'specific'):
-                return jsonify({'error': f'Choose All day or specific times for {ds}.'}), 400
-            if shift == 'specific':
-                start, end = entry.get('start_time'), entry.get('end_time')
-                if start not in valid_times or end not in valid_times or start >= end:
-                    return jsonify({'error': f'Choose a valid arrival and leaving time for {ds}.'}), 400
+            if entry.get('shift_type') != 'specific':
+                return jsonify({'error': f'Choose specific arrival and leaving times for {ds}.'}), 400
+            start, end = entry.get('start_time'), entry.get('end_time')
+            if start not in valid_times or end not in valid_times or start >= end:
+                return jsonify({'error': f'Choose a valid arrival and leaving time for {ds}.'}), 400
         if not isinstance(entry.get('note', ''), str):
             return jsonify({'error': 'Notes must be text.'}), 400
 

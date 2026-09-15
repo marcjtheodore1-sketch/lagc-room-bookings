@@ -147,7 +147,7 @@
     <!-- Volunteer Rota Tab -->
     <div class="tab-content" id="tab-volunteers">
         <h2>🙋 Volunteer Rota</h2>
-        <p class="hint">Volunteers: enter your name and choose your availability for each Friday. When available, you must choose All day or specific arrival and leaving times, including any setup or closing time. Everyone's availability is shown below.</p>
+        <p class="hint">Volunteers: enter your name and choose your availability for each Friday. When available, you must choose specific arrival and leaving times, including any setup or closing time. Everyone's availability is shown below.</p>
 
         <div class="notice-box info volunteer-guidance">
             <p><strong>🛟 If someone needs more support than we can offer</strong></p>
@@ -168,7 +168,7 @@
             </div>
             <div class="form-group">
                 <label>Your availability for upcoming Fridays:</label>
-                <p class="hint">Mark each date as available and choose All day or specific times, or select can't make it. Leave a date blank if you're not sure yet.</p>
+                <p class="hint">Mark each date as available and choose your arrival and leaving times, or select can't make it. Leave a date blank if you're not sure yet.</p>
                 <div class="vol-date-entries" id="vol-date-entries">
                     <p class="loading">Loading dates...</p>
                 </div>
@@ -260,5 +260,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=43"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=44"></script>
 {% endblock %}

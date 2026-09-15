@@ -72,12 +72,15 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 def save(entries):
                     return client.post('/api/admin/volunteers', json={'name':'Test Volunteer', 'entries':entries})
                 entry = dict(date='2099-01-02', status='available', note='Original note')
-                assert save([dict(entry, shift_type='all_day')]).status_code == 200
-                for bad in [entry, dict(entry, shift_type='specific'),
+                assert save([dict(entry, shift_type='specific', start_time='09:00', end_time='17:00')]).status_code == 200
+                for bad in [entry, dict(entry, shift_type='all_day'),
+                            dict(entry, shift_type='all_day', start_time='09:00', end_time='17:00'),
+                            dict(entry, shift_type='specific'),
                             dict(entry, shift_type='specific', start_time='14:00', end_time='13:00'),
                             dict(entry, shift_type='specific', start_time='bad', end_time='17:00')]:
                     assert save([bad]).status_code == 400
-                    assert VolunteerAvailability.query.one().shift_type == 'all_day'
+                    assert VolunteerAvailability.query.one().shift_type == 'specific'
+                    assert VolunteerAvailability.query.one().start_time == '09:00'
                 assert save([]).status_code == 400
                 assert save([dict(entry, shift_type='specific', start_time='10:45', end_time='17:30'),
                     {'date':'2099-01-09', 'status':'unavailable'}]).status_code == 200

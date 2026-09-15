@@ -229,7 +229,7 @@ async function loadVolunteers() {
 }
 
 function volunteerShiftLabel(shift, note = '') {
-    if (shift?.shift_type === 'all_day') return 'All day';
+    if (shift?.shift_type === 'all_day') return 'Specific times needed (previously all day)';
     if (shift?.shift_type === 'specific') return `${shift.start_time} to ${shift.end_time}`;
     return note ? 'Previous note' : 'Time not confirmed';
 }
@@ -320,15 +320,10 @@ function volunteerTimeOptions() {
 function updateVolunteerTimeFields() {
     document.querySelectorAll('.vol-entry-row').forEach(row => {
         const available = row.querySelector('.vol-entry-status').value === 'available';
-        const shift = row.querySelector('.vol-entry-shift');
         row.querySelector('.vol-shift-fields').hidden = !available;
-        shift.required = available;
-        shift.disabled = !available;
-        const specific = available && shift.value === 'specific';
-        row.querySelector('.vol-specific-times').hidden = !specific;
         row.querySelectorAll('.vol-entry-start, .vol-entry-end').forEach(input => {
-            input.required = specific;
-            input.disabled = !specific;
+            input.required = available;
+            input.disabled = !available;
         });
     });
 }
@@ -348,16 +343,9 @@ function renderVolunteerEntries() {
                 <option value="unavailable">✗ Can't make it</option>
             </select>
             <div class="vol-shift-fields" data-date="${f.date}" hidden>
-                <label>Time commitment <span class="required">*</span>
-                    <select class="vol-entry-shift" data-date="${f.date}" onchange="updateVolunteerTimeFields()">
-                        <option value="">Choose times</option>
-                        <option value="all_day">All day</option>
-                        <option value="specific">Specific times</option>
-                    </select>
-                </label>
-                <div class="vol-specific-times" hidden>
-                    <label>Arriving <select class="vol-entry-start" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
-                    <label>Leaving <select class="vol-entry-end" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
+                <div class="vol-specific-times">
+                    <label>Arriving <span class="required">*</span> <select class="vol-entry-start" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
+                    <label>Leaving <span class="required">*</span> <select class="vol-entry-end" data-date="${f.date}">${volunteerTimeOptions()}</select></label>
                 </div>
             </div>
             <input type="text" class="vol-entry-note" data-date="${f.date}" maxlength="200"
@@ -442,7 +430,6 @@ function applyVolunteerToForm(v) {
         const date = inp.dataset.date;
         inp.value = (v.date_notes || {})[date] || '';
         const shift = (v.date_shifts || {})[date] || {};
-        document.querySelector(`.vol-entry-shift[data-date="${date}"]`).value = shift.shift_type || '';
         document.querySelector(`.vol-entry-start[data-date="${date}"]`).value = shift.start_time || '';
         document.querySelector(`.vol-entry-end[data-date="${date}"]`).value = shift.end_time || '';
     });
@@ -487,7 +474,7 @@ async function saveVolunteer() {
         const status = sel.value;
         if (!status) return;
         const note = (document.querySelector(`.vol-entry-note[data-date="${date}"]`) || {}).value || '';
-        const shift_type = document.querySelector(`.vol-entry-shift[data-date="${date}"]`).value;
+        const shift_type = status === 'available' ? 'specific' : '';
         const start_time = document.querySelector(`.vol-entry-start[data-date="${date}"]`).value;
         const end_time = document.querySelector(`.vol-entry-end[data-date="${date}"]`).value;
         entries.push({ date, status, note: note.trim(), shift_type, start_time, end_time });
@@ -499,14 +486,8 @@ async function saveVolunteer() {
     }
     for (const entry of entries) {
         if (entry.status !== 'available') continue;
-        const shift = document.querySelector(`.vol-entry-shift[data-date="${entry.date}"]`);
-        if (!entry.shift_type) {
-            volunteerStatus('Choose All day or specific times for each Friday you are available.', true);
-            shift.focus();
-            return;
-        }
-        if (entry.shift_type === 'specific' && (!entry.start_time || !entry.end_time || entry.start_time >= entry.end_time)) {
-            volunteerStatus('Choose an arrival time and a later leaving time for each specific shift.', true);
+        if (!entry.start_time || !entry.end_time || entry.start_time >= entry.end_time) {
+            volunteerStatus('Choose an arrival time and a later leaving time for each Friday you are available.', true);
             document.querySelector(`.vol-entry-start[data-date="${entry.date}"]`).focus();
             return;
         }
@@ -528,7 +509,7 @@ async function saveVolunteer() {
         // Clear the form for the next person
         document.getElementById('vol-name').value = '';
         document.querySelectorAll('.vol-entry-status').forEach(sel => { sel.value = ''; });
-        document.querySelectorAll('.vol-entry-note, .vol-entry-shift, .vol-entry-start, .vol-entry-end').forEach(inp => { inp.value = ''; });
+        document.querySelectorAll('.vol-entry-note, .vol-entry-start, .vol-entry-end').forEach(inp => { inp.value = ''; });
         updateVolunteerTimeFields();
         const availCount = entries.filter(e => e.status === 'available').length;
         volunteerStatus(entries.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
