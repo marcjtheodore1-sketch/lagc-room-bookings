@@ -964,7 +964,19 @@ def get_free_time_ranges(room_id, booking_date):
 @app.route('/')
 def landing():
     """Landing page with information about the initiative"""
-    return render_template('landing.html', announcements=get_announcements())
+    room_dates = {key: [] for key in ('rose', 'clerkenwell', 'indigo', 'loft', 'farringdon')}
+    active_rooms = Room.query.filter_by(is_active=True).all()
+    schedule = get_room_schedule_ids()
+    for friday in get_upcoming_fridays():
+        day = datetime.strptime(friday['date'], '%Y-%m-%d').date()
+        suffix = 'th' if 11 <= day.day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day.day % 10, 'th')
+        display = f"{day.day}{suffix} {day.strftime('%B')}"
+        for room in active_rooms:
+            if room.id in schedule.get(friday['date'], []):
+                for key in room_dates:
+                    if key in room.name.lower() and display not in room_dates[key]:
+                        room_dates[key].append(display)
+    return render_template('landing.html', announcements=get_announcements(), room_dates=room_dates)
 
 @app.route('/peer-support')
 def peer_support():
