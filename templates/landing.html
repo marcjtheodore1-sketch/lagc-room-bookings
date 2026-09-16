@@ -126,15 +126,15 @@
             <!-- Box 1: Current rooms and activities -->
             <button type="button" class="collapse-toggle collapse-toggle-available" aria-expanded="false" data-target="rooms-current">
                 <span class="collapse-toggle-text">
-                    <span class="collapse-toggle-title">✅ Current rooms and activities</span>
-                    <span class="collapse-toggle-sub">Available on the dates listed below. Rooms vary by Friday.</span>
+                    <span class="collapse-toggle-title">✅ {% if schedule_available %}Current rooms and activities{% else %}Rooms and activities{% endif %}</span>
+                    <span class="collapse-toggle-sub">{% if schedule_available %}Available on the dates listed below. Rooms vary by Friday.{% else %}Dates are temporarily unavailable. Please check the booking page shortly.{% endif %}</span>
                 </span>
                 <span class="collapse-chevron" aria-hidden="true">▾</span>
             </button>
             <div class="collapsible" id="rooms-current" hidden>
                 <div class="pentagon-container">
                     <div class="pentagon-row top-row">
-                        {% for key in room_dates if room_dates[key] %}{{ room_card(key) }}{% endfor %}
+                        {% for key in room_dates if room_dates[key] or not schedule_available %}{{ room_card(key) }}{% endfor %}
 
 
 
@@ -153,6 +153,7 @@
                 </div>
             </div>
 
+            {% if schedule_available %}
             <!-- Box 2: Other spaces -->
             <button type="button" class="collapse-toggle" aria-expanded="false" data-target="rooms-other">
                 <span class="collapse-toggle-text">
@@ -174,6 +175,7 @@
                 </div>
             </div>
 
+            {% endif %}
             <!-- Box 3 & 4: direct links to Yoga and Student Support, so
                  they're visible on the homepage rather than buried inside
                  the room details above. -->
