@@ -126,6 +126,7 @@ class Booking(db.Model):
     mobility_details = db.Column(db.Text, default='')
     bringing_others = db.Column(db.Boolean, default=False)
     companion_names = db.Column(db.Text, default='')
+    additional_attendees = db.Column(db.Integer, nullable=True)
     other_info = db.Column(db.Text, default='')
     # Carer / support worker details (only when one is attending)
     carer_attending = db.Column(db.Boolean, default=False)
@@ -1038,6 +1039,18 @@ def cancel_page(token):
 # API ENDPOINTS
 # ============================================================================
 
+def attendee_count(booking):
+    """Count people, keeping legacy free-text companions readable and unduplicated."""
+    if booking.additional_attendees is not None:
+        return 1 + booking.additional_attendees
+    if not booking.bringing_others and not booking.carer_attending:
+        return 1
+    # Old forms included the carer in companion_names, so never add them twice.
+    import re
+    names = [name.strip() for name in re.split(r'[;,\n]+', booking.companion_names or '') if name.strip()]
+    return 1 + max(1, len(names))
+
+
 @app.route('/api/rooms')
 def get_rooms():
     """Get all active rooms; with ?date=YYYY-MM-DD, only rooms scheduled that
@@ -1064,11 +1077,11 @@ def get_rooms():
             'room_type': r.room_type
         }
         if booking_date and r.room_type == 'open':
-            item['booking_count'] = Booking.query.filter(
+            item['booking_count'] = sum(attendee_count(b) for b in Booking.query.filter(
                 Booking.room_id == r.id,
                 Booking.booking_date == booking_date,
                 Booking.cancelled_at.is_(None)
-            ).count()
+            ).all())
         # Custom hours set by admin — per-date change or the room's default
         # hours (drives the room card and booking summary)
         if booking_date:
@@ -1211,8 +1224,13 @@ def create_booking():
     if mobility_needs and not mobility_details:
         return jsonify({'error': 'Please tell us about the mobility support needed.'}), 400
     bringing_others = bool(data.get('bringing_others'))
+    carer_attending = bool(data.get('carer_attending')) and bringing_others
+    attendee_type = data.get('attendee_type')
+    if attendee_type is not None and attendee_type != ('carer' if carer_attending else 'companion' if bringing_others else 'solo'):
+        return jsonify({'error': 'Please choose companion or carer.'}), 400
     companion_names = ''
-    if bringing_others:
+    additional_attendees = 0
+    if bringing_others and (not carer_attending or (attendee_type is None and data.get('companions'))):
         companions = data.get('companions')
         if not isinstance(companions, list) or not companions:
             return jsonify({'error': "Please enter each companion's first and last name in the separate fields. Refresh the page if you cannot see them."}), 400
@@ -1225,6 +1243,7 @@ def create_booking():
                 return jsonify({'error': 'Please enter both the first name and last name of every companion (up to 60 characters each).'}), 400
             full_names.append(' '.join(name.strip() for name in names))
         companion_names = '; '.join(full_names)
+        additional_attendees = len(full_names)
     other_info = field('other_info', 4000)
     carer_attending = bool(data.get('carer_attending')) and bringing_others
     carer_first_name = field('carer_first_name', 60) if carer_attending else ''
@@ -1244,6 +1263,10 @@ def create_booking():
         if not carer_supervision_agreed:
             return jsonify({'error': 'Please tick the box to confirm the carer or support worker remains responsible for supervision.'}), 400
 
+
+    if carer_attending and not companion_names:
+        companion_names = carer_name
+        additional_attendees = 1
 
     # Parse date
     try:
@@ -1328,6 +1351,7 @@ def create_booking():
         mobility_details=mobility_details,
         bringing_others=bringing_others,
         companion_names=companion_names,
+        additional_attendees=additional_attendees,
         other_info=other_info,
         carer_attending=carer_attending,
         carer_name=carer_name,
@@ -2192,6 +2216,7 @@ def admin_get_bookings():
             'mobility_details': booking.mobility_details or '',
             'bringing_others': bool(booking.bringing_others),
             'companion_names': booking.companion_names or '',
+            'attendee_count': attendee_count(booking),
             'other_info': booking.other_info or '',
             'carer_attending': bool(booking.carer_attending),
             'carer_name': booking.carer_name or '',
@@ -2275,6 +2300,7 @@ def admin_get_bookings_archive():
             'mobility_details': booking.mobility_details or '',
             'bringing_others': bool(booking.bringing_others),
             'companion_names': booking.companion_names or '',
+            'attendee_count': attendee_count(booking),
             'other_info': booking.other_info or '',
             'carer_attending': bool(booking.carer_attending),
             'carer_name': booking.carer_name or '',
@@ -2365,27 +2391,13 @@ def admin_attendance_summary():
 @admin_required
 def admin_get_booking_counts():
     """Get booking counts per room per date"""
-    from sqlalchemy import func
-    
-    counts = db.session.query(
-        Booking.booking_date,
-        Room.name.label('room_name'),
-        func.count(Booking.id).label('count')
-    ).join(Room).filter(
-        Booking.cancelled_at.is_(None),
-        Booking.booking_date >= datetime.now().date()
-    ).group_by(Booking.booking_date, Room.name).order_by(Booking.booking_date, Room.name).all()
-    
-    result = []
-    for row in counts:
-        result.append({
-            'date': row.booking_date.isoformat(),
-            'date_display': row.booking_date.strftime('%A, %B %d, %Y'),
-            'room_name': row.room_name,
-            'count': row.count
-        })
-    
-    return jsonify(result)
+    counts = {}
+    for booking in Booking.query.filter(Booking.cancelled_at.is_(None), Booking.booking_date >= datetime.now().date()).all():
+        key = (booking.booking_date, booking.room.name)
+        counts[key] = counts.get(key, 0) + attendee_count(booking)
+    return jsonify([{'date': day.isoformat(), 'date_display': day.strftime('%A, %B %d, %Y'),
+                     'room_name': room, 'count': count} for (day, room), count in sorted(counts.items())])
+
 
 def blast_sent_key(date_str):
     """Setting key that records an availability blast was sent for a date"""
@@ -2810,31 +2822,13 @@ def admin_bookings_email_recipients(date):
 @app.route('/api/open-booking-counts')
 def get_open_booking_counts():
     """Get booking counts for open booking rooms only (public endpoint)"""
-    from sqlalchemy import func
-    
-    # Get all rooms that are "open" type
-    open_rooms = Room.query.filter_by(room_type='open', is_active=True).all()
-    open_room_ids = [r.id for r in open_rooms]
-    
-    # Get counts per date for open rooms
-    counts = db.session.query(
-        Booking.booking_date,
-        func.count(Booking.id).label('count')
-    ).filter(
-        Booking.room_id.in_(open_room_ids),
-        Booking.cancelled_at.is_(None),
-        Booking.booking_date >= datetime.now().date()
-    ).group_by(Booking.booking_date).order_by(Booking.booking_date).all()
-    
-    result = []
-    for row in counts:
-        result.append({
-            'date': row.booking_date.isoformat(),
-            'date_display': row.booking_date.strftime('%A, %B %d, %Y'),
-            'count': row.count
-        })
-    
-    return jsonify(result)
+    counts = {}
+    for booking in Booking.query.join(Room).filter(Room.room_type == 'open', Room.is_active.is_(True),
+            Booking.cancelled_at.is_(None), Booking.booking_date >= datetime.now().date()).all():
+        day = booking.booking_date
+        counts[day] = counts.get(day, 0) + attendee_count(booking)
+    return jsonify([{'date': day.isoformat(), 'date_display': day.strftime('%A, %B %d, %Y'),
+                     'count': count} for day, count in sorted(counts.items())])
 
 @app.route('/api/admin/bookings/<int:booking_id>', methods=['DELETE'])
 @admin_required
@@ -2964,6 +2958,7 @@ def run_migrations():
         ('carer_last_name', 'VARCHAR(60)'),
         ('bringing_others', 'BOOLEAN DEFAULT 0'),
         ('companion_names', 'TEXT'),
+        ('additional_attendees', 'INTEGER'),
         ('other_info', 'TEXT'),
         ('carer_attending', 'BOOLEAN DEFAULT 0'),
         ('carer_name', 'VARCHAR(120)'),

@@ -824,11 +824,15 @@ function updateAttendeeFields() {
     if (!bringing) {
         // Clear anything already entered so it can't be submitted invisibly
         document.getElementById('companion-list').replaceChildren();
-        const carerNo = document.querySelector('input[name="carer-attending"][value="no"]');
-        if (carerNo) carerNo.checked = true;
+        document.querySelectorAll('input[name="carer-attending"]').forEach(input => { input.checked = false; });
     }
 
-    if (bringing && !document.querySelector('.companion-entry')) addCompanion();
+    const type = document.querySelector('input[name="carer-attending"]:checked');
+    const showCompanions = bringing && type?.value === 'no';
+    document.getElementById('companion-details').hidden = !showCompanions;
+    document.querySelectorAll('input[name="carer-attending"]').forEach(input => { input.required = bringing; input.disabled = !bringing; });
+    if (!showCompanions) document.getElementById('companion-list').replaceChildren();
+    if (showCompanions && !document.querySelector('.companion-entry')) addCompanion();
 
     const showCarer = bringing && isCarerAttending();
     carerSection.hidden = !showCarer;
@@ -985,7 +989,7 @@ async function submitBooking() {
 
     const bringingOthers = isBringingOthers();
     const carerAttending = bringingOthers && isCarerAttending();
-    const companions = bringingOthers ? Array.from(document.querySelectorAll('.companion-entry'), entry => ({
+    const companions = bringingOthers && !carerAttending ? Array.from(document.querySelectorAll('.companion-entry'), entry => ({
         first_name: entry.querySelector('.companion-first-name').value.trim(),
         last_name: entry.querySelector('.companion-last-name').value.trim()
     })) : [];
@@ -1003,7 +1007,11 @@ async function submitBooking() {
     const carerAgreed = document.getElementById('carer-supervision-agreed').checked;
 
     // Mirror the server-side checks so people get an immediate, specific prompt
-    if (bringingOthers && (!companions.length || companions.some(person => !person.first_name || !person.last_name))) {
+    if (bringingOthers && !document.querySelector('input[name="carer-attending"]:checked')) {
+        alert('Please choose companion or carer.');
+        return;
+    }
+    if (bringingOthers && !carerAttending && (!companions.length || companions.some(person => !person.first_name || !person.last_name))) {
         alert('Please enter both the first name and last name of every companion.');
         Array.from(document.querySelectorAll('.companion-entry input')).find(input => !input.value.trim())?.focus();
         return;
@@ -1041,6 +1049,7 @@ async function submitBooking() {
         companions: companions,
         other_info: document.getElementById('other-info').value.trim(),
         carer_attending: carerAttending,
+        attendee_type: bringingOthers ? (carerAttending ? 'carer' : 'companion') : 'solo',
         carer_first_name: carerFirstName,
         carer_last_name: carerLastName,
         mobility_needs: mobilityAnswer.value === 'yes',

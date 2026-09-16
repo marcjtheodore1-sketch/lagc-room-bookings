@@ -99,7 +99,12 @@
 
             <div class="form-group" id="companions-field" hidden>
                 <h3>Who is coming with you?</h3>
-                <p class="hint">We need each companion's first and last name for the building's attendee list. This includes friends, family members, carers and support workers.</p>
+                <div class="yoga-radio-group">
+                    <label class="radio-option"><input type="radio" name="carer-attending" value="no" required> Companion (friend or family member)</label>
+                    <label class="radio-option"><input type="radio" name="carer-attending" value="yes" required> Carer or support worker</label>
+                </div>
+                <div id="companion-details" hidden>
+                <p class="hint">We need each companion's first and last name for the building's attendee list. This includes friends and family members.</p>
                 <div id="companion-list"></div>
                 <button type="button" class="btn btn-secondary" id="add-companion">Add another companion</button>
                 <template id="companion-template">
@@ -116,14 +121,9 @@
                         <button type="button" class="btn btn-secondary remove-companion">Remove companion</button>
                     </fieldset>
                 </template>
-
-                <div class="carer-question">
-                    <label>Is one of them a carer or support worker?</label>
-                    <div class="yoga-radio-group">
-                        <label class="radio-option"><input type="radio" name="carer-attending" value="no" checked> No</label>
-                        <label class="radio-option"><input type="radio" name="carer-attending" value="yes"> Yes</label>
-                    </div>
                 </div>
+
+
             </div>
 
             <!-- Only shown when a carer or support worker is attending -->
@@ -270,5 +270,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=43"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=44"></script>
 {% endblock %}

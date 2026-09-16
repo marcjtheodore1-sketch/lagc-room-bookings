@@ -1176,7 +1176,7 @@ function renderArchivedBookings(bookings) {
                 <div class="date-header" onclick="toggleDateGroup(this)">
                     <span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>
                     <h4>${escapeHtml(dateData.display)}</h4>
-                    <span class="booking-count">(${dateData.bookings.length} booking${dateData.bookings.length !== 1 ? 's' : ''})</span>
+                    <span class="booking-count">(${dateData.bookings.reduce((total, booking) => total + (booking.attendee_count || 1), 0)} attendees)</span>
                 </div>
                 <div class="date-bookings">
                     ${bookingTable(dateData.bookings, true)}
@@ -1288,7 +1288,7 @@ function renderBookingsByDate(bookings) {
                 <div class="date-header" onclick="toggleDateGroup(this)">
                     <span class="toggle-icon">${isExpanded ? '▼' : '▶'}</span>
                     <h4>${escapeHtml(dateData.display)}</h4>
-                    <span class="booking-count">(${dateData.bookings.length} booking${dateData.bookings.length !== 1 ? 's' : ''})</span>
+                    <span class="booking-count">(${dateData.bookings.reduce((total, booking) => total + (booking.attendee_count || 1), 0)} attendees)</span>
                     <button class="btn btn-secondary btn-small date-email-btn" onclick="event.stopPropagation(); openBookingsEmail('${date}')">📧 Email these people</button>
                 </div>
                 <div class="date-bookings">

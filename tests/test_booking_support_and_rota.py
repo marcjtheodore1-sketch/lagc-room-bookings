@@ -9,7 +9,7 @@ class BookingSupportAndRotaTest(unittest.TestCase):
             import csv, io
             from datetime import date
             from unittest.mock import patch
-            from app import app, db, Booking, Room, run_migrations
+            from app import app, db, Booking, Room, run_migrations, attendee_count
             with app.app_context():
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room)
@@ -31,7 +31,7 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                     assert Booking.query.filter_by(user_email='companions@example.test').one().companion_names == 'Sam Smith; Jo Jones'
                     carer = dict(body, mobility_needs=True, mobility_details='Step-free access',
                         accessibility_needs='Quiet space', bringing_others=True, companions=[dict(first_name='Jo', last_name='Smith')],
-                        carer_attending=True, carer_name='Legacy name', carer_organisation='Family',
+                        carer_attending=True, attendee_type='carer', carer_name='Legacy name', carer_organisation='Family',
                         carer_phone='07000000000', carer_supervision_agreed=True)
                     for first, last in [('', ''), ('Jo', ''), (' ', 'Smith'), ('', 'Smith')]:
                         response = client.post('/api/book', json=dict(carer, carer_first_name=first, carer_last_name=last))
@@ -45,6 +45,8 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 saved = Booking.query.filter_by(user_email='person@example.test').one()
                 assert (saved.carer_first_name, saved.carer_last_name, saved.carer_name) == ('Jo', 'Smith', 'Jo Smith')
                 assert saved.companion_names == 'Jo Smith'
+                assert attendee_count(saved) == 2
+                assert saved.additional_attendees == 1
                 assert saved.mobility_needs is True and saved.mobility_details == 'Step-free access'
                 solo = Booking.query.filter_by(user_email='solo@example.test').one()
                 assert solo.mobility_details == '' and solo.carer_name == ''
@@ -65,6 +67,20 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 assert saved['Mobility needs'] == 'Yes' and saved['Mobility details'] == 'Step-free access'
                 assert next(r for r in rows if r['Name'] == 'Legacy')['Mobility needs'] == 'Not yet asked'
                 assert client.get('/api/admin/bookings/archive').status_code == 200
+                assert client.get('/api/open-booking-counts').json[0]['count'] == 7
+                assert client.get('/api/admin/booking-counts').json[0]['count'] == 7
+                with patch('app.get_room_schedule_ids', return_value={'2099-01-02': [room.id]}):
+                    assert client.get('/api/rooms?date=2099-01-02').json[0]['booking_count'] == 7
+                old = Booking(bringing_others=True, carer_attending=True, companion_names='Jo (carer)')
+                assert attendee_count(old) == 2
+                old.companion_names = 'Jo Smith; Sam Jones'
+                assert attendee_count(old) == 3
+                from datetime import datetime
+                saved_booking = Booking.query.filter_by(user_email='companions@example.test').one()
+                saved_booking.cancelled_at = datetime.now()
+                db.session.commit()
+                assert client.get('/api/open-booking-counts').json[0]['count'] == 4
+
                 public = client.post('/api/my-bookings', json={'email': 'person@example.test'}).json
                 assert all('mobility_details' not in b and 'carer_phone' not in b for b in public)
         ''')
