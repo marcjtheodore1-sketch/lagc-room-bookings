@@ -793,6 +793,25 @@ function isCarerAttending() {
     return !!el && el.value === 'yes';
 }
 
+function addCompanion() {
+    const list = document.getElementById('companion-list');
+    const entry = document.getElementById('companion-template').content.cloneNode(true);
+    entry.querySelector('.remove-companion').addEventListener('click', event => {
+        event.target.closest('.companion-entry').remove();
+        numberCompanions();
+    });
+    list.appendChild(entry);
+    numberCompanions();
+}
+
+function numberCompanions() {
+    const entries = document.querySelectorAll('.companion-entry');
+    entries.forEach((entry, index) => {
+        entry.querySelector('legend').textContent = `Companion ${index + 1}`;
+        entry.querySelector('.remove-companion').hidden = entries.length === 1;
+    });
+}
+
 // The carer questions only appear once someone says a carer/support worker is
 // coming, so the form stays short for the common "just me" case.
 function updateAttendeeFields() {
@@ -804,10 +823,12 @@ function updateAttendeeFields() {
     companions.hidden = !bringing;
     if (!bringing) {
         // Clear anything already entered so it can't be submitted invisibly
-        document.getElementById('companion-names').value = '';
+        document.getElementById('companion-list').replaceChildren();
         const carerNo = document.querySelector('input[name="carer-attending"][value="no"]');
         if (carerNo) carerNo.checked = true;
     }
+
+    if (bringing && !document.querySelector('.companion-entry')) addCompanion();
 
     const showCarer = bringing && isCarerAttending();
     carerSection.hidden = !showCarer;
@@ -828,6 +849,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => radio.addEventListener('change', updateMobilityFields));
     document.querySelectorAll('input[name="bringing-others"], input[name="carer-attending"]')
         .forEach(radio => radio.addEventListener('change', updateAttendeeFields));
+    document.getElementById('add-companion').addEventListener('click', addCompanion);
     updateAttendeeFields();
 });
 
@@ -963,7 +985,10 @@ async function submitBooking() {
 
     const bringingOthers = isBringingOthers();
     const carerAttending = bringingOthers && isCarerAttending();
-    const companionNames = document.getElementById('companion-names').value.trim();
+    const companions = bringingOthers ? Array.from(document.querySelectorAll('.companion-entry'), entry => ({
+        first_name: entry.querySelector('.companion-first-name').value.trim(),
+        last_name: entry.querySelector('.companion-last-name').value.trim()
+    })) : [];
     const carerFirstName = document.getElementById('carer-first-name').value.trim();
     const carerLastName = document.getElementById('carer-last-name').value.trim();
     const mobilityAnswer = document.querySelector('input[name="mobility-needs"]:checked');
@@ -978,9 +1003,9 @@ async function submitBooking() {
     const carerAgreed = document.getElementById('carer-supervision-agreed').checked;
 
     // Mirror the server-side checks so people get an immediate, specific prompt
-    if (bringingOthers && !companionNames) {
-        alert('Please give the first name(s) of who is coming with you, so we can plan numbers.');
-        document.getElementById('companion-names').focus();
+    if (bringingOthers && (!companions.length || companions.some(person => !person.first_name || !person.last_name))) {
+        alert('Please enter both the first name and last name of every companion.');
+        Array.from(document.querySelectorAll('.companion-entry input')).find(input => !input.value.trim())?.focus();
         return;
     }
     if (carerAttending) {
@@ -1013,7 +1038,7 @@ async function submitBooking() {
         email: email,
         accessibility_needs: document.getElementById('accessibility-needs').value.trim(),
         bringing_others: bringingOthers,
-        companion_names: companionNames,
+        companions: companions,
         other_info: document.getElementById('other-info').value.trim(),
         carer_attending: carerAttending,
         carer_first_name: carerFirstName,

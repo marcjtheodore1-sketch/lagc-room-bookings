@@ -98,9 +98,24 @@
             </div>
 
             <div class="form-group" id="companions-field" hidden>
-                <label for="companion-names">Who is coming with you? <span class="required">*</span></label>
-                <small class="hint">Please include their first name(s) so we can plan numbers accurately.</small>
-                <textarea id="companion-names" rows="2" maxlength="500" placeholder="e.g. Sam (friend), Jo (support worker)"></textarea>
+                <h3>Who is coming with you?</h3>
+                <p class="hint">We need each companion's first and last name for the building's attendee list. This includes friends, family members, carers and support workers.</p>
+                <div id="companion-list"></div>
+                <button type="button" class="btn btn-secondary" id="add-companion">Add another companion</button>
+                <template id="companion-template">
+                    <fieldset class="companion-entry form-group">
+                        <legend>Companion</legend>
+                        <div class="form-row">
+                            <label class="form-group">First name <span class="required">*</span>
+                                <input type="text" class="companion-first-name" maxlength="60" placeholder="e.g. Sam" required>
+                            </label>
+                            <label class="form-group">Last name <span class="required">*</span>
+                                <input type="text" class="companion-last-name" maxlength="60" placeholder="e.g. Smith" required>
+                            </label>
+                        </div>
+                        <button type="button" class="btn btn-secondary remove-companion">Remove companion</button>
+                    </fieldset>
+                </template>
 
                 <div class="carer-question">
                     <label>Is one of them a carer or support worker?</label>
@@ -255,5 +270,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=42"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=43"></script>
 {% endblock %}

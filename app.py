@@ -1211,7 +1211,20 @@ def create_booking():
     if mobility_needs and not mobility_details:
         return jsonify({'error': 'Please tell us about the mobility support needed.'}), 400
     bringing_others = bool(data.get('bringing_others'))
-    companion_names = field('companion_names', 500) if bringing_others else ''
+    companion_names = ''
+    if bringing_others:
+        companions = data.get('companions')
+        if not isinstance(companions, list) or not companions:
+            return jsonify({'error': "Please enter each companion's first and last name in the separate fields. Refresh the page if you cannot see them."}), 400
+        full_names = []
+        for person in companions:
+            if not isinstance(person, dict):
+                return jsonify({'error': 'Please enter both names for every companion.'}), 400
+            names = [person.get(key) for key in ('first_name', 'last_name')]
+            if any(not isinstance(name, str) or not name.strip() or len(name.strip()) > 60 for name in names):
+                return jsonify({'error': 'Please enter both the first name and last name of every companion (up to 60 characters each).'}), 400
+            full_names.append(' '.join(name.strip() for name in names))
+        companion_names = '; '.join(full_names)
     other_info = field('other_info', 4000)
     carer_attending = bool(data.get('carer_attending')) and bringing_others
     carer_first_name = field('carer_first_name', 60) if carer_attending else ''
@@ -1221,8 +1234,6 @@ def create_booking():
     carer_phone = field('carer_phone', 50) if carer_attending else ''
     carer_supervision_agreed = bool(data.get('carer_supervision_agreed')) and carer_attending
 
-    if bringing_others and not companion_names:
-        return jsonify({'error': "Please give the first name(s) of who is coming with you, so we can plan numbers."}), 400
     if carer_attending:
         if not carer_first_name or not carer_last_name:
             return jsonify({'error': "Please give both the carer or support worker's first name and last name."}), 400

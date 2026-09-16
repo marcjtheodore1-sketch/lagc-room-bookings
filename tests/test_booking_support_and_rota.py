@@ -20,14 +20,23 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                     assert client.post('/api/book', json=body).status_code == 400
                     assert client.post('/api/book', json=dict(body, mobility_needs='false')).status_code == 400
                     assert client.post('/api/book', json=dict(body, mobility_needs=True, mobility_details='  ')).status_code == 400
+                    companion_body = dict(body, mobility_needs=False, bringing_others=True)
+                    for bad in [None, [], 'Jo', [{}], [dict(first_name='Jo', last_name=' ')],
+                                [dict(first_name='', last_name='Smith')], [dict(first_name=7, last_name='Smith')]]:
+                        response = client.post('/api/book', json=dict(companion_body, companions=bad, companion_names='Jo (friend)'))
+                        assert response.status_code == 400, response.get_json()
+                    response = client.post('/api/book', json=dict(companion_body, email='companions@example.test',
+                        companions=[dict(first_name=' Sam ', last_name=' Smith '), dict(first_name='Jo', last_name='Jones')]))
+                    assert response.status_code == 200, response.get_json()
+                    assert Booking.query.filter_by(user_email='companions@example.test').one().companion_names == 'Sam Smith; Jo Jones'
                     carer = dict(body, mobility_needs=True, mobility_details='Step-free access',
-                        accessibility_needs='Quiet space', bringing_others=True, companion_names='Jo',
+                        accessibility_needs='Quiet space', bringing_others=True, companions=[dict(first_name='Jo', last_name='Smith')],
                         carer_attending=True, carer_name='Legacy name', carer_organisation='Family',
                         carer_phone='07000000000', carer_supervision_agreed=True)
                     for first, last in [('', ''), ('Jo', ''), (' ', 'Smith'), ('', 'Smith')]:
                         response = client.post('/api/book', json=dict(carer, carer_first_name=first, carer_last_name=last))
                         assert response.status_code == 400, response.get_json()
-                    assert Booking.query.count() == 0
+                    assert Booking.query.count() == 1
                     response = client.post('/api/book', json=dict(carer, carer_first_name=' Jo ', carer_last_name=' Smith '))
                     assert response.status_code == 200, response.get_json()
                     response = client.post('/api/book', json=dict(body, email='solo@example.test', mobility_needs=False,
@@ -35,6 +44,7 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                     assert response.status_code == 200, response.get_json()
                 saved = Booking.query.filter_by(user_email='person@example.test').one()
                 assert (saved.carer_first_name, saved.carer_last_name, saved.carer_name) == ('Jo', 'Smith', 'Jo Smith')
+                assert saved.companion_names == 'Jo Smith'
                 assert saved.mobility_needs is True and saved.mobility_details == 'Step-free access'
                 solo = Booking.query.filter_by(user_email='solo@example.test').one()
                 assert solo.mobility_details == '' and solo.carer_name == ''
