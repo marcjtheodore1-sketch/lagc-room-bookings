@@ -1959,8 +1959,8 @@ def admin_set_volunteer():
     """Set one volunteer's status across the upcoming Fridays.
 
     Body: {name, entries: [{date, status, note}]} where status is
-    'available' or 'unavailable'. Replaces that volunteer's rows within
-    the upcoming-Friday window."""
+    'available', 'unavailable', or 'clear'. Only submitted Fridays change;
+    other saved dates are retained."""
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
     if not name:
@@ -1979,7 +1979,7 @@ def admin_set_volunteer():
             return jsonify({'error': 'Invalid availability entry.'}), 400
         ds = entry.get('date')
         status = entry.get('status')
-        if ds not in upcoming or ds in seen or status not in ('available', 'unavailable'):
+        if ds not in upcoming or ds in seen or status not in ('available', 'unavailable', 'clear'):
             return jsonify({'error': 'Choose a valid upcoming Friday and availability.'}), 400
         seen.add(ds)
         if status == 'available':
@@ -1991,24 +1991,20 @@ def admin_set_volunteer():
         if not isinstance(entry.get('note', ''), str):
             return jsonify({'error': 'Notes must be text.'}), 400
 
-    # Replace this volunteer's entries within the upcoming window
-    today = datetime.now().date()
+    # Replace only the dates explicitly submitted. Blank dates remain saved.
     existing = VolunteerAvailability.query.filter(
         db.func.lower(VolunteerAvailability.name) == name.lower(),
-        VolunteerAvailability.booking_date >= today,
     ).all()
     for row in existing:
-        if row.booking_date.isoformat() in upcoming:
+        if row.booking_date.isoformat() in seen:
             db.session.delete(row)
 
-    seen = set()
     for entry in entries:
         ds = (entry.get('date') or '').strip()
         status = (entry.get('status') or '').strip()
-        note = (entry.get('note') or '').strip()[:200]
-        if ds not in upcoming or ds in seen or status not in ('available', 'unavailable'):
+        if status == 'clear':
             continue
-        seen.add(ds)
+        note = (entry.get('note') or '').strip()[:200]
         db.session.add(VolunteerAvailability(
             name=name,
             booking_date=datetime.strptime(ds, '%Y-%m-%d').date(),

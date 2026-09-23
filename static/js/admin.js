@@ -214,8 +214,8 @@ async function loadVolunteers() {
         renderVolunteerCoverage();
         renderVolunteerPast();
         renderVolunteerArchived();
-        // Auto-load a returning volunteer's saved availability when they
-        // enter their name, so adding a date never wipes their other dates.
+        // Tell returning volunteers their existing dates will be preserved.
+        // Loading rows here would overwrite dates entered before their name.
         const nameInput = document.getElementById('vol-name');
         if (nameInput && !nameInput.dataset.autoloadBound) {
             nameInput.addEventListener('change', maybeLoadExistingVolunteer);
@@ -341,6 +341,7 @@ function renderVolunteerEntries() {
                 <option value="">Choose availability</option>
                 <option value="available">✓ Available</option>
                 <option value="unavailable">✗ Can't make it</option>
+                <option value="clear">Remove my saved entry</option>
             </select>
             <div class="vol-shift-fields" data-date="${f.date}" hidden>
                 <div class="vol-specific-times">
@@ -442,13 +443,12 @@ function findVolunteerByName(name) {
     return volunteerRota.volunteers.find(x => x.name.toLowerCase() === target) || null;
 }
 
-// When a returning volunteer types their name, pre-load their existing
-// availability so adding a new date keeps everything they saved before.
+// Looking up a name must never replace dates already entered in the form.
+// The Edit button below is the explicit way to load saved dates.
 function maybeLoadExistingVolunteer() {
     const v = findVolunteerByName(document.getElementById('vol-name').value);
     if (!v) return;
-    applyVolunteerToForm(v);
-    volunteerStatus(`Loaded ${v.name}'s current availability — change or add any dates, then save. Your existing dates are kept.`, false);
+    volunteerStatus(`Found ${v.name}'s saved availability. Your selections are kept, and saving changes only the dates you selected. Use Edit below to review earlier dates.`, false);
 }
 
 function editVolunteer(encodedName) {
@@ -512,7 +512,7 @@ async function saveVolunteer() {
         document.querySelectorAll('.vol-entry-note, .vol-entry-start, .vol-entry-end').forEach(inp => { inp.value = ''; });
         updateVolunteerTimeFields();
         const availCount = entries.filter(e => e.status === 'available').length;
-        volunteerStatus(entries.length ? `Thanks ${name}! Your availability is saved.` : `${name}'s availability has been cleared.`, false);
+        volunteerStatus(`Thanks ${name}! Your changes are saved. Other saved dates have been kept. Check the rota below.`, false);
     } catch (e) {
         volunteerStatus('Failed to save. Please try again.', true);
     }

@@ -116,5 +116,23 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 assert response['volunteers'][0]['date_shifts']['2099-01-02']['end_time'] == '17:30'
                 assert response['volunteers'][0]['date_notes']['2099-01-02'] == 'Original note'
                 assert response['time_options']
+                # Older September entries may have no specific times yet.
+                # They must not block or disappear when October is added.
+                previous = VolunteerAvailability.query.filter_by(booking_date=date(2099, 1, 2)).one()
+                previous.shift_type = 'all_day'
+                previous.start_time = ''
+                previous.end_time = ''
+                db.session.commit()
+                # Adding or changing one Friday must not erase other saved dates.
+                assert save([{'date':'2099-01-09', 'status':'available', 'shift_type':'specific',
+                              'start_time':'11:00', 'end_time':'16:00'}]).status_code == 200
+                rows = VolunteerAvailability.query.order_by(VolunteerAvailability.booking_date).all()
+                assert len(rows) == 2 and rows[0].shift_type == 'all_day'
+                assert rows[0].note == 'Original note'
+                assert rows[1].start_time == '11:00'
+                # Clearing a date is explicit and leaves the other Friday intact.
+                assert save([{'date':'2099-01-02', 'status':'clear'}]).status_code == 200
+                rows = VolunteerAvailability.query.all()
+                assert len(rows) == 1 and rows[0].booking_date.isoformat() == '2099-01-09'
         ''')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
