@@ -11,7 +11,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class SeptemberScheduleTest(unittest.TestCase):
-    def test_september_rooms_and_yoga_dates(self):
+    def test_autumn_rooms_and_yoga_dates(self):
         with tempfile.TemporaryDirectory() as disk:
             env = {
                 **os.environ,
@@ -31,14 +31,14 @@ class SeptemberScheduleTest(unittest.TestCase):
                     with app.app_context():
                         init_default_data()
                         schedule = get_room_schedule_ids()
-                        september_dates = [
+                        autumn_dates = [
                             day for day in schedule
-                            if day.startswith('2026-09-')
+                            if day.startswith(('2026-09-', '2026-10-'))
                         ]
                         rooms = {
                             day: [db.session.get(Room, room_id).name
                                   for room_id in schedule[day]]
-                            for day in september_dates
+                            for day in autumn_dates
                         }
                         print(json.dumps({
                             'rooms': rooms,
@@ -65,6 +65,10 @@ class SeptemberScheduleTest(unittest.TestCase):
                 '2026-09-25': [
                     'Room 4.4 "Rose"', 'The Loft',
                 ],
+                '2026-10-02': rose_and_clerkenwell,
+                '2026-10-09': ['Room 4.4 "Rose"', 'The Loft'],
+                '2026-10-16': rose_and_clerkenwell,
+                '2026-10-23': ['Room 4.4 "Rose"', 'The Loft'],
             },
             'yoga': [
                 '2026-09-04', '2026-09-11',

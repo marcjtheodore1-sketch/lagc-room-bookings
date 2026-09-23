@@ -248,6 +248,10 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-09-11': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-09-18': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-09-25': ['Room 4.4 "Rose"', 'The Loft'],
+    '2026-10-02': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-10-09': ['Room 4.4 "Rose"', 'The Loft'],
+    '2026-10-16': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    '2026-10-23': ['Room 4.4 "Rose"', 'The Loft'],
 }
 
 def get_room_schedule_ids():
