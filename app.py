@@ -1192,7 +1192,9 @@ def confirm_reminders(token):
         subscription.confirm_token = None
         subscription.confirmed_at = datetime.utcnow()
         db.session.commit()
-        return render_template('reminders.html', notice='Your reminder choices are confirmed. You can change or stop them using the link in any reminder email.')
+        return render_template('reminders.html',
+            notice='Your reminder choices are confirmed.',
+            manage_url=f'/reminders/manage/{subscription.manage_token}')
     return render_template('reminder_confirm.html', token=token, booking_open=subscription.pending_booking_open, booking_day=subscription.pending_booking_day)
 
 @app.route('/reminders/manage/<token>', methods=['GET', 'POST'])
