@@ -800,12 +800,25 @@ def reminder_base_url():
 def reminders_mail_ready():
     return app.config['ENABLE_EMAIL'] and not missing_email_configuration()
 
-def run_reminder_job(now=None):
-    """Run once daily. Only confirmed, opted-in people receive reminders.
+def booking_start_datetime(booking):
+    """Local start time, including a custom start for an open room."""
+    if booking.room.room_type == 'open':
+        start_hhmm = get_effective_room_hours(
+            booking.booking_date.isoformat(), booking.room)[0]
+    else:
+        start_hhmm = TIME_SLOTS[booking.start_slot]['time']
+    return datetime.combine(
+        booking.booking_date,
+        datetime.strptime(start_hhmm, '%H:%M').time(),
+        tzinfo=ZoneInfo('Europe/London'),
+    )
 
-    Weekly booking reminders are due Monday to Thursday for the next Friday,
-    and only once that Friday has been published in the booking schedule. A
-    date published after Monday is picked up on the next daily run.
+def run_reminder_job(now=None):
+    """Run hourly. Only confirmed, opted-in people receive reminders.
+
+    Weekly booking reminders are due on the first daytime run Monday to
+    Thursday after that Friday has been published in the booking schedule.
+    Booked-session reminders are due within 24 hours of the booking start.
     """
     if not reminders_mail_ready():
         raise RuntimeError('Reminder email is not configured; no reminders were marked sent')
@@ -814,7 +827,8 @@ def run_reminder_job(now=None):
     schedule = get_room_schedule_ids()
     next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
     days_until = (next_friday - today).days
-    bookable_this_week = 1 <= days_until <= 4 and bool(schedule.get(next_friday.isoformat()))
+    bookable_this_week = (1 <= days_until <= 4 and now.hour >= 9
+                          and bool(schedule.get(next_friday.isoformat())))
     tomorrow = today + timedelta(days=1)
     bookings = []
     if tomorrow.weekday() == 4 and schedule.get(tomorrow.isoformat()):
@@ -824,7 +838,9 @@ def run_reminder_job(now=None):
         ).all()
     bookings_by_email = {}
     for booking in bookings:
-        if booking.room_id in schedule[tomorrow.isoformat()] and booking.room.is_active:
+        hours_until = (booking_start_datetime(booking) - now).total_seconds() / 3600
+        if (booking.room_id in schedule[tomorrow.isoformat()]
+                and booking.room.is_active and 0 < hours_until <= 24):
             bookings_by_email.setdefault(booking.user_email.strip().lower(), []).append(booking)
 
     counts = {'booking_open': 0, 'booking_day': 0, 'failed': 0}
@@ -1161,7 +1177,7 @@ def request_reminders():
     if booking_open:
         choices.append('a weekly reminder when that Friday is open for booking')
     if booking_day:
-        choices.append('a reminder the day before each room booking you make with this email address')
+        choices.append('a reminder around 24 hours before each room booking you make with this email address')
     body = (
         'Hello,\n\nSomeone requested Fridays @ Farringdon email reminders for this address.\n\n'
         'Requested reminders:\n- ' + '\n- '.join(choices) + '\n\n'

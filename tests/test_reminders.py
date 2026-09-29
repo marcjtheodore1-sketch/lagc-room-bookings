@@ -76,14 +76,15 @@ class ReminderTest(unittest.TestCase):
                     confirmation = client.post('/reminders/confirm/' + subscription.confirm_token)
                     # The person already booked Friday, so there is no "please book" email.
                     open_day = run_reminder_job(datetime(2026, 9, 29, 9, tzinfo=ZoneInfo('Europe/London')))
-                    day_before = run_reminder_job(datetime(2026, 10, 1, 9, tzinfo=ZoneInfo('Europe/London')))
-                    repeated = run_reminder_job(datetime(2026, 10, 1, 10, tzinfo=ZoneInfo('Europe/London')))
+                    too_early = run_reminder_job(datetime(2026, 10, 1, 9, 30, tzinfo=ZoneInfo('Europe/London')))
+                    day_before = run_reminder_job(datetime(2026, 10, 1, 10, 30, tzinfo=ZoneInfo('Europe/London')))
+                    repeated = run_reminder_job(datetime(2026, 10, 1, 11, 30, tzinfo=ZoneInfo('Europe/London')))
                     manage = client.post('/reminders/manage/' + subscription.manage_token, data={})
                     after_stop = run_reminder_job(datetime(2026, 10, 8, 9, tzinfo=ZoneInfo('Europe/London')))
 
                 print(json.dumps({'signup': signup.status_code, 'confirmation': confirmation.status_code,
                     'before_confirm': before_confirm, 'open_day': open_day,
-                    'day_before': day_before, 'repeated': repeated, 'manage': manage.status_code,
+                    'too_early': too_early, 'day_before': day_before, 'repeated': repeated, 'manage': manage.status_code,
                     'after_stop': after_stop, 'sent': sent,
                     'deliveries': ReminderDelivery.query.count(),
                     'booking_open': subscription.booking_open, 'booking_day': subscription.booking_day}))
@@ -94,6 +95,7 @@ class ReminderTest(unittest.TestCase):
         self.assertEqual(data['confirmation'], 200)
         self.assertEqual(data['before_confirm']['booking_day'], 0)
         self.assertEqual(data['open_day']['booking_open'], 0)
+        self.assertEqual(data['too_early']['booking_day'], 0)
         self.assertEqual(data['day_before']['booking_day'], 1)
         self.assertEqual(data['repeated']['booking_day'], 0)
         self.assertEqual(data['deliveries'], 1)

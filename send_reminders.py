@@ -1,4 +1,4 @@
-"""Run once each morning using a PythonAnywhere scheduled task.
+"""Run hourly using a PythonAnywhere scheduled task.
 
 Use the same virtual environment as the web app. Its actual path must be
 checked on the host before configuring the scheduled task.

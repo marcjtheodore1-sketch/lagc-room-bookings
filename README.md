@@ -15,25 +15,25 @@ A simple web application for booking meeting rooms in 30-minute slots on Fridays
 ## Opt-in email reminders
 
 People can use `/reminders` to request either a weekly booking reminder, a
-reminder the day before their room bookings, or both. They must confirm the
+reminder around 24 hours before their room bookings, or both. They must confirm the
 request through an email link. Every reminder has a private link to change or
 stop the preferences. Historic bookers are not subscribed automatically.
 
 The reminder job is `send_reminders.py`. When this app runs on a paid host,
-run it once each morning as a PythonAnywhere scheduled task, using the same
+run it hourly as a PythonAnywhere scheduled task, using the same
 Python virtual environment and database as the web app. On the existing free
-host, a separate paid charity account runs a daily task that POSTs to
+host, a separate paid charity account runs an hourly task that POSTs to
 `/api/internal/send-reminders` with the `X-Reminder-Token` header. The value
 must match `REMINDER_JOB_TOKEN` in the bookings app's ignored `.env` file.
 Set `PUBLIC_BASE_URL` to the public site origin if it
 differs from the default in `.env.example`. The job uses London dates regardless
-of the host timezone. It sends a booking reminder only Monday to Thursday for
+of the host timezone. It sends a booking reminder during daytime Monday to Thursday for
 that week's Friday and only if rooms for that date appear in
-`ROOM_SCHEDULE_BY_NAME`. It sends booked-session reminders on Thursday for
-Friday bookings, skipping cancelled bookings and withdrawn rooms. Successful
-sends are recorded so rerunning the job does not duplicate emails. A daily
-task means booked-session reminders arrive the day before, rather than at the
-exact minute 24 hours before a person's chosen start time.
+`ROOM_SCHEDULE_BY_NAME`. It sends booked-session reminders on Thursday when
+the booking starts within 24 hours, skipping cancelled bookings and withdrawn
+rooms. Successful sends are recorded so rerunning the job does not duplicate
+emails. An hourly task sends these within roughly 30 minutes of the 24-hour
+mark for the site's half-hour booking slots.
 
 ## Installation
 

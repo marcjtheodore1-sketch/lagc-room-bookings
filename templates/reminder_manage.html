@@ -8,7 +8,7 @@
         <fieldset>
             <legend>Send me</legend>
             <label class="reminder-choice"><input type="checkbox" name="booking_open" {% if subscription.booking_open %}checked{% endif %}> <span>A weekly reminder when that Friday is open for booking.</span></label>
-            <label class="reminder-choice"><input type="checkbox" name="booking_day" {% if subscription.booking_day %}checked{% endif %}> <span>A reminder the day before each room booking I make.</span></label>
+            <label class="reminder-choice"><input type="checkbox" name="booking_day" {% if subscription.booking_day %}checked{% endif %}> <span>A reminder around 24 hours before each room booking I make.</span></label>
         </fieldset>
         <p class="hint">Untick both boxes to stop all reminders.</p>
         <button class="btn btn-primary" type="submit">Save choices</button>

@@ -1,4 +1,4 @@
-"""Daily task on the charity's paid PythonAnywhere account.
+"""Hourly task on the charity's paid PythonAnywhere account.
 
 The free bookings host cannot run its own scheduled tasks. Install this script
 on the charity account and put the matching trigger token in a mode-600 file
