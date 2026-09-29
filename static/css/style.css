@@ -3608,6 +3608,19 @@ html {
     line-height: 1.5;
 }
 
+.reminder-page { max-width: 740px; margin: 2rem auto; }
+.reminder-page h1 { margin-bottom: 1rem; }
+.reminder-page p, .reminder-page ul { margin-bottom: 1rem; }
+.reminder-page ul { padding-left: 1.5rem; }
+.reminder-form { background: var(--card-bg); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.5rem; margin: 1.5rem 0; }
+.reminder-form fieldset { border: 0; margin-bottom: 1.25rem; }
+.reminder-form legend { font-weight: 700; margin-bottom: .65rem; }
+.reminder-choice { display: flex; gap: .65rem; align-items: flex-start; margin-bottom: .9rem; cursor: pointer; }
+.reminder-choice input { flex: 0 0 auto; margin-top: .4rem; width: 1.1rem; height: 1.1rem; }
+.reminder-message { padding: .9rem 1rem; border-radius: var(--radius); background: #ecfdf5; border: 1px solid #6ee7b7; }
+.reminder-message.error-text { background: #fef2f2; border-color: #fca5a5; }
+.reminder-footnote { color: var(--text-light); }
+
 /* Clear booking columns on desktop, complete labelled cards on mobile. */
 .container.admin-wide { max-width: 1680px; }
 .admin-wide .admin-page { min-width: 0; max-width: none; }

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Email reminders | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<div class="reminder-page">
+    <h1>Fridays @ Farringdon email reminders</h1>
+    <p>Choose the reminders that would help you. You can change or stop them at any time using a link in each email.</p>
+    {% if error %}<p class="reminder-message error-text" role="alert">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="reminder-message" role="status">{{ notice }}</p>{% endif %}
+    <form action="/reminders/request" method="post" class="reminder-form">
+        <div class="form-group">
+            <label for="reminder-email">Email address</label>
+            <input id="reminder-email" name="email" type="email" autocomplete="email" required maxlength="254">
+        </div>
+        <fieldset>
+            <legend>Send me</legend>
+            <label class="reminder-choice"><input type="checkbox" name="booking_open"> <span>A weekly reminder to book, when that Friday's rooms are confirmed and open for booking.</span></label>
+            <label class="reminder-choice"><input type="checkbox" name="booking_day"> <span>A reminder the day before each room booking I make with this email address.</span></label>
+        </fieldset>
+        <p class="hint">We only add dates after Pan Macmillan confirms the rooms, usually a few weeks ahead. If a Friday has not been released, there is nothing to book yet. We do not send booking reminders for unreleased dates.</p>
+        <button class="btn btn-primary" type="submit">Send me a confirmation link</button>
+    </form>
+    <p class="reminder-footnote">Already signed up? Use the link in a reminder email to change your choices. <a href="/book">Book a room</a>.</p>
+</div>
+{% endblock %}

@@ -6,6 +6,7 @@ Handles 30-minute booking slots on Fridays from 11am to 4pm
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from functools import wraps
 import json
 import os
@@ -143,6 +144,28 @@ class Setting(db.Model):
     """Configurable settings"""
     key = db.Column(db.String(100), primary_key=True)
     value = db.Column(db.Text, nullable=False)
+
+class ReminderSubscription(db.Model):
+    """Email-verified, self-managed reminder preferences."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), unique=True, nullable=False)
+    booking_open = db.Column(db.Boolean, nullable=False, default=False)
+    booking_day = db.Column(db.Boolean, nullable=False, default=False)
+    pending_booking_open = db.Column(db.Boolean, nullable=True)
+    pending_booking_day = db.Column(db.Boolean, nullable=True)
+    confirm_token = db.Column(db.String(64), unique=True, nullable=True)
+    manage_token = db.Column(db.String(64), unique=True, nullable=False)
+    confirmed_at = db.Column(db.DateTime, nullable=True)
+    confirmation_requested_at = db.Column(db.DateTime, nullable=True)
+
+class ReminderDelivery(db.Model):
+    """One successful email per subscription and Friday or booking."""
+    id = db.Column(db.Integer, primary_key=True)
+    subscription_id = db.Column(db.Integer, db.ForeignKey('reminder_subscription.id'), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    reference = db.Column(db.String(40), nullable=False)
+    sent_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('subscription_id', 'kind', 'reference'),)
 
 class VolunteerAvailability(db.Model):
     """A volunteer marking their status for a given Friday"""
@@ -766,6 +789,93 @@ def get_rota_fridays(count=8):
     see dates that are genuinely open for sessions."""
     return get_upcoming_fridays(count=count)
 
+def reminder_date_display(day):
+    """British date with an ordinal suffix for attendee emails."""
+    suffix = 'th' if 11 <= day.day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day.day % 10, 'th')
+    return f"{day.strftime('%A')} {day.day}{suffix} {day.strftime('%B')}"
+
+def reminder_base_url():
+    return os.environ.get('PUBLIC_BASE_URL', 'https://milestheodore.pythonanywhere.com').rstrip('/')
+
+def reminders_mail_ready():
+    return app.config['ENABLE_EMAIL'] and not missing_email_configuration()
+
+def run_reminder_job(now=None):
+    """Run once daily. Only confirmed, opted-in people receive reminders.
+
+    Weekly booking reminders are due Monday to Thursday for the next Friday,
+    and only once that Friday has been published in the booking schedule. A
+    date published after Monday is picked up on the next daily run.
+    """
+    if not reminders_mail_ready():
+        raise RuntimeError('Reminder email is not configured; no reminders were marked sent')
+    now = now or datetime.now(ZoneInfo('Europe/London'))
+    today = now.date()
+    schedule = get_room_schedule_ids()
+    next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
+    days_until = (next_friday - today).days
+    bookable_this_week = 1 <= days_until <= 4 and bool(schedule.get(next_friday.isoformat()))
+    tomorrow = today + timedelta(days=1)
+    bookings = []
+    if tomorrow.weekday() == 4 and schedule.get(tomorrow.isoformat()):
+        bookings = Booking.query.filter(
+            Booking.booking_date == tomorrow,
+            Booking.cancelled_at.is_(None),
+        ).all()
+    bookings_by_email = {}
+    for booking in bookings:
+        if booking.room_id in schedule[tomorrow.isoformat()] and booking.room.is_active:
+            bookings_by_email.setdefault(booking.user_email.strip().lower(), []).append(booking)
+
+    counts = {'booking_open': 0, 'booking_day': 0, 'failed': 0}
+    subscriptions = ReminderSubscription.query.filter(ReminderSubscription.confirmed_at.isnot(None)).all()
+    for subscription in subscriptions:
+        manage_url = f'{reminder_base_url()}/reminders/manage/{subscription.manage_token}'
+        footer = f'\n\nChange or stop these reminders: {manage_url}\n'
+        already_booked = bookable_this_week and Booking.query.filter(
+            Booking.booking_date == next_friday,
+            db.func.lower(Booking.user_email) == subscription.email,
+            Booking.cancelled_at.is_(None),
+        ).first() is not None
+        if subscription.booking_open and bookable_this_week and not already_booked:
+            reference = next_friday.isoformat()
+            if not ReminderDelivery.query.filter_by(subscription_id=subscription.id, kind='booking_open', reference=reference).first():
+                subject = f'Fridays @ Farringdon: bookings for {reminder_date_display(next_friday)}'
+                body = (
+                    f'Hello,\n\nA reminder that bookings are open for Fridays @ Farringdon on {reminder_date_display(next_friday)}. '
+                    'Please use the link below to see the rooms and times available and book your place:\n\n'
+                    f'{reminder_base_url()}/book\n\n'
+                    'Dates are added only after our host confirms the rooms. If another Friday is not listed yet, it has not been released for booking.\n\n'
+                    'Warm wishes,\nLondon Autism Group Charity' + footer
+                )
+                if send_confirmation_email(subscription.email, subject, body):
+                    db.session.add(ReminderDelivery(subscription_id=subscription.id, kind='booking_open', reference=reference))
+                    db.session.commit()
+                    counts['booking_open'] += 1
+                else:
+                    counts['failed'] += 1
+        if subscription.booking_day:
+            for booking in bookings_by_email.get(subscription.email, []):
+                reference = str(booking.id)
+                if ReminderDelivery.query.filter_by(subscription_id=subscription.id, kind='booking_day', reference=reference).first():
+                    continue
+                start, end = booking_time_display(booking)
+                subject = f'Your Fridays @ Farringdon booking is tomorrow, {reminder_date_display(tomorrow)}'
+                body = (
+                    f'Hello {booking.user_name},\n\nA reminder about your booking tomorrow, {reminder_date_display(tomorrow)}.\n\n'
+                    f'Room: {booking.room.name}\nTime: {start} to {end}\n'
+                    f'Location: {booking.room.building_location}\n\n'
+                    f'View or cancel this booking: {reminder_base_url()}/cancel/{booking.cancel_token}\n\n'
+                    'Warm wishes,\nLondon Autism Group Charity' + footer
+                )
+                if send_confirmation_email(subscription.email, subject, body):
+                    db.session.add(ReminderDelivery(subscription_id=subscription.id, kind='booking_day', reference=reference))
+                    db.session.commit()
+                    counts['booking_day'] += 1
+                else:
+                    counts['failed'] += 1
+    return counts
+
 VOLUNTEER_ARCHIVED_KEY = 'volunteer_archived_dates'
 
 def get_archived_volunteer_dates():
@@ -1021,6 +1131,82 @@ def yoga_cancel_page(token):
 def index():
     """Main booking page"""
     return render_template('index.html')
+
+@app.route('/reminders')
+def reminder_signup_page():
+    return render_template('reminders.html')
+
+@app.route('/reminders/request', methods=['POST'])
+def request_reminders():
+    email = (request.form.get('email') or '').strip().lower()
+    booking_open = request.form.get('booking_open') == 'on'
+    booking_day = request.form.get('booking_day') == 'on'
+    if len(email) > 254 or '@' not in email or '.' not in email.rsplit('@', 1)[-1]:
+        return render_template('reminders.html', error='Please enter a valid email address.'), 400
+    if not (booking_open or booking_day):
+        return render_template('reminders.html', error='Please choose at least one reminder.'), 400
+    if is_blocked_email_recipient(email):
+        return render_template('reminders.html', notice='If this address can receive reminders, a confirmation email will arrive shortly.')
+    if not reminders_mail_ready():
+        return render_template('reminders.html', error='Email reminders are temporarily unavailable. Please try again later.'), 503
+
+    subscription = ReminderSubscription.query.filter_by(email=email).first()
+    now = datetime.utcnow()
+    # Avoid repeated confirmation messages when a form is resubmitted.
+    if subscription and subscription.confirmation_requested_at and now - subscription.confirmation_requested_at < timedelta(minutes=10):
+        return render_template('reminders.html', notice='If this address can receive reminders, a confirmation email will arrive shortly.')
+    token = secrets.token_urlsafe(32)
+    confirm_url = f'{reminder_base_url()}/reminders/confirm/{token}'
+    choices = []
+    if booking_open:
+        choices.append('a weekly reminder when that Friday is open for booking')
+    if booking_day:
+        choices.append('a reminder the day before each room booking you make with this email address')
+    body = (
+        'Hello,\n\nSomeone requested Fridays @ Farringdon email reminders for this address.\n\n'
+        'Requested reminders:\n- ' + '\n- '.join(choices) + '\n\n'
+        f'If this was you, confirm your choices here:\n{confirm_url}\n\n'
+        'If you did not request this, you can ignore this email. No reminder preferences will change.\n\n'
+        'Warm wishes,\nLondon Autism Group Charity\n'
+    )
+    if not send_confirmation_email(email, 'Confirm your Fridays @ Farringdon reminders', body):
+        return render_template('reminders.html', error='We could not send the confirmation email. Please try again later.'), 503
+    if not subscription:
+        subscription = ReminderSubscription(email=email, manage_token=secrets.token_urlsafe(32))
+        db.session.add(subscription)
+    subscription.pending_booking_open = booking_open
+    subscription.pending_booking_day = booking_day
+    subscription.confirm_token = token
+    subscription.confirmation_requested_at = now
+    db.session.commit()
+    return render_template('reminders.html', notice='Check your email and follow the confirmation link. Your reminders will only start after you confirm.')
+
+@app.route('/reminders/confirm/<token>', methods=['GET', 'POST'])
+def confirm_reminders(token):
+    subscription = ReminderSubscription.query.filter_by(confirm_token=token).first_or_404()
+    if request.method == 'POST':
+        subscription.booking_open = bool(subscription.pending_booking_open)
+        subscription.booking_day = bool(subscription.pending_booking_day)
+        subscription.pending_booking_open = None
+        subscription.pending_booking_day = None
+        subscription.confirm_token = None
+        subscription.confirmed_at = datetime.utcnow()
+        db.session.commit()
+        return render_template('reminders.html', notice='Your reminder choices are confirmed. You can change or stop them using the link in any reminder email.')
+    return render_template('reminder_confirm.html', token=token, booking_open=subscription.pending_booking_open, booking_day=subscription.pending_booking_day)
+
+@app.route('/reminders/manage/<token>', methods=['GET', 'POST'])
+def manage_reminders(token):
+    subscription = ReminderSubscription.query.filter_by(manage_token=token).first_or_404()
+    if request.method == 'POST':
+        subscription.booking_open = request.form.get('booking_open') == 'on'
+        subscription.booking_day = request.form.get('booking_day') == 'on'
+        subscription.confirm_token = None
+        subscription.pending_booking_open = None
+        subscription.pending_booking_day = None
+        db.session.commit()
+        return render_template('reminder_manage.html', token=token, subscription=subscription, saved=True)
+    return render_template('reminder_manage.html', token=token, subscription=subscription, saved=False)
 
 @app.route('/admin')
 def admin():

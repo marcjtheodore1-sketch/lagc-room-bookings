@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Confirm reminders | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<div class="reminder-page">
+    <h1>Confirm your email reminders</h1>
+    <p>You have chosen:</p>
+    <ul>
+        {% if booking_open %}<li>A weekly reminder when that Friday is open for booking.</li>{% endif %}
+        {% if booking_day %}<li>A reminder the day before each room booking made with this email address.</li>{% endif %}
+    </ul>
+    <form action="/reminders/confirm/{{ token }}" method="post"><button class="btn btn-primary" type="submit">Confirm these reminders</button></form>
+    <p>If you did not request this, close this page. No reminders will start.</p>
+</div>
+{% endblock %}

@@ -12,6 +12,25 @@ A simple web application for booking meeting rooms in 30-minute slots on Fridays
 - **Admin panel** for managing rooms and confirmation messages
 - **No double booking** - booked slots are automatically unavailable
 
+## Opt-in email reminders
+
+People can use `/reminders` to request either a weekly booking reminder, a
+reminder the day before their room bookings, or both. They must confirm the
+request through an email link. Every reminder has a private link to change or
+stop the preferences. Historic bookers are not subscribed automatically.
+
+The reminder job is `send_reminders.py`. Run it once each morning as a
+PythonAnywhere scheduled task, using the same Python virtual environment and
+database as the web app. Set `PUBLIC_BASE_URL` to the public site origin if it
+differs from the default in `.env.example`. The job uses London dates regardless
+of the host timezone. It sends a booking reminder only Monday to Thursday for
+that week's Friday and only if rooms for that date appear in
+`ROOM_SCHEDULE_BY_NAME`. It sends booked-session reminders on Thursday for
+Friday bookings, skipping cancelled bookings and withdrawn rooms. Successful
+sends are recorded so rerunning the job does not duplicate emails. A daily
+task means booked-session reminders arrive the day before, rather than at the
+exact minute 24 hours before a person's chosen start time.
+
 ## Installation
 
 1. Create a virtual environment and install dependencies:
