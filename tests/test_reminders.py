@@ -22,6 +22,29 @@ def run_isolated(script):
 
 
 class ReminderTest(unittest.TestCase):
+    def test_scheduler_endpoint_needs_secret_header(self):
+        result = run_isolated('''
+            import json
+            import os
+            from unittest.mock import patch
+            from app import app
+            client = app.test_client()
+            with patch.dict(os.environ, {'REMINDER_JOB_TOKEN': 'private-token'}):
+                no_header = client.post('/api/internal/send-reminders').status_code
+                wrong_header = client.post('/api/internal/send-reminders',
+                    headers={'X-Reminder-Token': 'incorrect'}).status_code
+                right_header = client.post('/api/internal/send-reminders',
+                    headers={'X-Reminder-Token': 'private-token'})
+            print(json.dumps({'no_header': no_header, 'wrong_header': wrong_header,
+                              'right_header': right_header.status_code,
+                              'counts': right_header.get_json()}))
+        ''')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        data = json.loads(result.stdout.strip().splitlines()[-1])
+        self.assertEqual((data['no_header'], data['wrong_header']), (404, 404))
+        self.assertEqual(data['right_header'], 200)
+        self.assertEqual(data['counts']['failed'], 0)
+
     def test_opt_in_and_daily_delivery_are_confirmed_and_idempotent(self):
         result = run_isolated('''
             import json

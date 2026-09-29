@@ -19,9 +19,13 @@ reminder the day before their room bookings, or both. They must confirm the
 request through an email link. Every reminder has a private link to change or
 stop the preferences. Historic bookers are not subscribed automatically.
 
-The reminder job is `send_reminders.py`. Run it once each morning as a
-PythonAnywhere scheduled task, using the same Python virtual environment and
-database as the web app. Set `PUBLIC_BASE_URL` to the public site origin if it
+The reminder job is `send_reminders.py`. When this app runs on a paid host,
+run it once each morning as a PythonAnywhere scheduled task, using the same
+Python virtual environment and database as the web app. On the existing free
+host, a separate paid charity account runs a daily task that POSTs to
+`/api/internal/send-reminders` with the `X-Reminder-Token` header. The value
+must match `REMINDER_JOB_TOKEN` in the bookings app's ignored `.env` file.
+Set `PUBLIC_BASE_URL` to the public site origin if it
 differs from the default in `.env.example`. The job uses London dates regardless
 of the host timezone. It sends a booking reminder only Monday to Thursday for
 that week's Friday and only if rooms for that date appear in

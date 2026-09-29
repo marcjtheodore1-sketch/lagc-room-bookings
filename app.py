@@ -1208,6 +1208,20 @@ def manage_reminders(token):
         return render_template('reminder_manage.html', token=token, subscription=subscription, saved=True)
     return render_template('reminder_manage.html', token=token, subscription=subscription, saved=False)
 
+@app.route('/api/internal/send-reminders', methods=['POST'])
+def scheduled_reminder_trigger():
+    """Allow the charity's separate paid scheduler to run this site's job."""
+    expected = os.environ.get('REMINDER_JOB_TOKEN', '')
+    supplied = request.headers.get('X-Reminder-Token', '')
+    if not expected or not supplied or not secrets.compare_digest(supplied, expected):
+        return jsonify({'error': 'Not found'}), 404
+    try:
+        counts = run_reminder_job()
+    except RuntimeError:
+        app.logger.exception('Reminder job unavailable')
+        return jsonify({'error': 'Reminder job unavailable'}), 503
+    return jsonify(counts), (500 if counts['failed'] else 200)
+
 @app.route('/admin')
 def admin():
     """Admin configuration page - requires login"""
