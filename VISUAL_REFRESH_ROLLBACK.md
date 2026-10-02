@@ -43,8 +43,11 @@ In the existing PythonAnywhere console:
 cd ~/lagc-room-bookings
 git fetch origin main
 git merge --ff-only origin/main
-touch /var/www/milestheodore_pythonanywhere_com_wsgi.py
 ```
+
+Then open PythonAnywhere's **Web** tab while signed in as MilesTheodore and click
+**Reload MilesTheodore.pythonanywhere.com**. Use this reload button: touching the
+WSGI file did not refresh the cached templates during this visual deployment.
 
 Check the live homepage, booking page and reminders page. The new presentation
 stylesheet and carousel should no longer be referenced. Do not send test emails.
