@@ -180,6 +180,20 @@ class BuildingReportDispatch(db.Model):
     error = db.Column(db.Text, default='')
     __table_args__ = (db.UniqueConstraint('session_date', 'batch_key'),)
 
+class GeneralEmailBlast(db.Model):
+    """A durable claim for each manually reviewed general email."""
+    id = db.Column(db.Integer, primary_key=True)
+    request_key = db.Column(db.String(64), unique=True, nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    recipients = db.Column(db.Text, nullable=False)
+    period = db.Column(db.String(10), nullable=False)
+    audience = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    error = db.Column(db.Text, default='')
+
 class VolunteerAvailability(db.Model):
     """A volunteer marking their status for a given Friday"""
     id = db.Column(db.Integer, primary_key=True)
@@ -1661,6 +1675,12 @@ def create_booking():
         confirmation_message += (
             f"\n\n---\nPlease note about {room.name} on this date:\n{room_note}\n"
         )
+    if room.room_type == 'slot':
+        confirmation_message += (
+            f'\n\nThis booking gives you access to {room.name} only. '
+            'If you would also like to join the social space, make a separate booking here:\n'
+            f"{request.host_url.rstrip('/')}/book?date={booking_date.isoformat()}\n"
+        )
 
     # Queue all emails in the background so the person sees their on-screen
     # confirmation immediately, even if Gmail is slow or briefly down.
@@ -2751,6 +2771,37 @@ def admin_resolve_building_report(dispatch_id):
     dispatch.error = '' if action == 'sent' else 'Admin checked: not delivered. A later batch can retry.'
     db.session.commit()
     return jsonify({'success': True})
+
+@app.route('/api/admin/general-email/draft')
+@admin_required
+def admin_general_email_draft():
+    from general_blasts import draft
+    try:
+        return jsonify(draft(request.args.get('period', 'all'),
+                             request.args.get('audience', 'bookings'),
+                             request.host_url.rstrip('/') + '/book'))
+    except ValueError as error:
+        return jsonify({'error': str(error)}), 400
+
+@app.route('/api/admin/general-email/send', methods=['POST'])
+@admin_required
+def admin_general_email_send():
+    from general_blasts import send
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid email request.'}), 400
+    result, status = send(data)
+    return jsonify(result), status
+
+@app.route('/api/admin/general-email/history')
+@admin_required
+def admin_general_email_history():
+    zone = ZoneInfo('Europe/London')
+    records = GeneralEmailBlast.query.order_by(GeneralEmailBlast.id.desc()).limit(30).all()
+    return jsonify([{'subject': r.subject, 'count': len(json.loads(r.recipients)),
+                     'status': r.status, 'error': r.error or '',
+                     'created_at': r.created_at.replace(tzinfo=ZoneInfo('UTC')).astimezone(zone).isoformat()}
+                    for r in records])
 
 @app.route('/api/admin/availability-email-draft/<date>')
 @admin_required

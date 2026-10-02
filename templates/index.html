@@ -6,6 +6,10 @@
     <h2>Room Bookings for Fridays @ Farringdon</h2>
     <p class="subtitle" id="booking-subtitle">Select a Friday to book your space. <strong>Time Slot</strong> rooms let you choose specific 30-minute slots (up to 3 hours). <strong>Open Booking</strong> rooms reserve the whole day — each room card shows its opening hours.</p>
 
+    <div class="notice-box info booking-ahead-note">
+        <p><strong>Please book by 8am on Thursday wherever possible.</strong> This helps us prepare the attendee list for the building team. Bookings remain open afterwards, and we send the building team updates about later bookings.</p>
+    </div>
+
     <div class="notice-box info space-expectations">
         <p><strong>ℹ️ Before you book — what to expect from this space</strong></p>
         <p>Fridays @ Farringdon is a relaxed, self-directed community space. Our volunteers are friendly hosts, not carers — they aren't able to provide personal care, one-to-one support, or supervision.</p>
@@ -271,5 +275,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=44"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=45"></script>
 {% endblock %}

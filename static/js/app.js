@@ -52,6 +52,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     mergeYogaDatesIntoFridays();
     renderDates();
 
+    // A meeting-room confirmation can link back to rooms on the same Friday.
+    const linkedDate = new URLSearchParams(window.location.search).get('date');
+    if (state.fridays.some(f => f.date === linkedDate)) {
+        state.selectedDate = linkedDate;
+        showStep('room');
+        await loadRooms(linkedDate);
+    }
+
     // Check for email in URL (coming from cancel page)
     checkUrlForEmail();
 });
@@ -243,6 +251,7 @@ function renderRooms() {
             <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
             ${noteHtml}
+            ${room.room_type === 'slot' ? '<p class="room-access-note">This booking is for this room only. Book the social space separately if you would also like to join it.</p>' : ''}
             ${occupancyHtml}
             ${typeHint}
         </div>
@@ -736,6 +745,12 @@ function showEmailStep() {
         <div class="summary-note">
             <strong>⚠️ Please note about this date</strong>
             <p>${escapeHtml(state.selectedRoom.note)}</p>
+        </div>` : ''}
+        ${state.selectedRoom.room_type === 'slot' ? `
+        <div class="summary-note room-access-note">
+            <p><strong>This booking gives you access to ${escapeHtml(state.selectedRoom.name)} only.</strong></p>
+            <p>If you would also like to join the social space, complete this booking and
+            <a href="/book?date=${encodeURIComponent(state.selectedDate)}" target="_blank" rel="noopener">book the social space separately (opens a new tab)</a>.</p>
         </div>` : ''}
     `;
 

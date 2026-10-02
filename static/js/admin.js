@@ -24,7 +24,7 @@ function showTab(tabName) {
     if (tabName === 'announcements') loadAnnouncements();
     if (tabName === 'volunteers') loadVolunteers();
     if (tabName === 'yoga') loadYogaBookings();
-    if (tabName === 'emailblast') { loadEmailBlastDates(); loadBuildingReports(); }
+    if (tabName === 'emailblast') { loadEmailBlastDates(); loadBuildingReports(); loadGeneralEmailHistory(); }
     if (tabName === 'archive') loadArchivedBookings();
 }
 
@@ -1319,6 +1319,46 @@ function toggleDateGroup(header) {
 let emailBlastRecipients = [];
 let emailBlastDate = null;
 let emailBlastMode = 'availability'; // 'availability' (room-booking blast) or 'yoga' (email attendees)
+let generalEmailDraft = null;
+
+async function loadGeneralEmailHistory() {
+    const container = document.getElementById('general-email-history');
+    try {
+        const response = await fetch('/api/admin/general-email/history');
+        if (!response.ok) throw new Error('Could not load general email history.');
+        const history = await response.json();
+        const statuses = {sent: 'Sent', sending: 'Sending or interrupted: check the mailbox', uncertain: 'Delivery unclear: check the mailbox before sending again', failed: 'Failed'};
+        container.innerHTML = history.map(r => `<div class="building-report-run"><strong>${escapeHtml(r.subject)}</strong><br>
+            ${escapeHtml(new Date(r.created_at).toLocaleString('en-GB', {timeZone: 'Europe/London'}))}: ${escapeHtml(statuses[r.status] || r.status)}, ${r.count} recipients
+            ${r.error ? `<p class="error-text">${escapeHtml(r.error)}</p>` : ''}</div>`).join('') || '<p>No general emails have been sent yet.</p>';
+    } catch (error) { container.textContent = error.message; }
+}
+
+async function openGeneralEmail() {
+    const period = document.getElementById('general-email-period').value;
+    const audience = document.getElementById('general-email-audience').value;
+    try {
+        const response = await fetch(`/api/admin/general-email/draft?period=${period}&audience=${audience}`);
+        const draft = await response.json();
+        if (!response.ok) throw new Error(draft.error || 'Could not prepare recipients.');
+        generalEmailDraft = draft;
+        emailBlastMode = 'general';
+        emailBlastDate = null;
+        emailBlastRecipients = draft.recipients;
+        document.getElementById('email-blast-title').textContent = 'Review general email';
+        document.getElementById('email-blast-date-label').textContent = `${draft.label}. Edit the message and check the recipients before sending.`;
+        document.getElementById('email-blast-subject').value = draft.subject;
+        document.getElementById('email-blast-body').value = draft.body;
+        const status = document.getElementById('email-blast-status');
+        status.className = 'form-status';
+        status.textContent = '';
+        document.getElementById('send-email-blast-btn').disabled = false;
+        renderRecipients();
+        document.getElementById('email-blast-modal').hidden = false;
+        document.body.style.overflow = 'hidden';
+        document.getElementById('email-blast-subject').focus();
+    } catch (error) { alert(error.message); }
+}
 
 async function loadBuildingReports() {
     try {
@@ -1458,6 +1498,7 @@ async function openEmailBlast(date) {
 
 function closeEmailBlast() {
     document.getElementById('email-blast-modal').hidden = true;
+    document.getElementById('send-email-blast-btn').disabled = false;
     document.body.style.overflow = '';
 }
 
@@ -1621,16 +1662,20 @@ async function sendEmailBlast() {
     // 'availability' hits the once-per-date blast endpoint; 'yoga' and
     // 'bookings' both use the generic notify endpoint (no date lock).
     const isAvailability = emailBlastMode === 'availability';
-    const endpoint = isAvailability ? '/api/admin/availability-email/send' : '/api/admin/notify-email/send';
-    const payload = isAvailability
+    const isGeneral = emailBlastMode === 'general';
+    const endpoint = isGeneral ? '/api/admin/general-email/send' : isAvailability ? '/api/admin/availability-email/send' : '/api/admin/notify-email/send';
+    const payload = isGeneral ? {subject, body, recipients: emailBlastRecipients,
+        request_key: generalEmailDraft.request_key, period: generalEmailDraft.period, audience: generalEmailDraft.audience} : isAvailability
         ? { subject, body, recipients: emailBlastRecipients, date: emailBlastDate }
         : { subject, body, recipients: emailBlastRecipients };
     const refresh = () => {
         if (emailBlastMode === 'yoga') loadYogaBookings();
         else if (emailBlastMode === 'bookings') loadAllBookings();
+        else if (emailBlastMode === 'general') loadGeneralEmailHistory();
         else loadEmailBlastDates();
     };
 
+    let retryBlocked = false;
     try {
         const response = await fetch(endpoint, {
             method: 'POST',
@@ -1639,6 +1684,8 @@ async function sendEmailBlast() {
         });
 
         const result = await response.json();
+        retryBlocked = result.retry_blocked === true;
+        if (isGeneral) loadGeneralEmailHistory();
 
         if (response.ok) {
             statusEl.className = 'form-status success';
@@ -1656,7 +1703,7 @@ async function sendEmailBlast() {
         statusEl.className = 'form-status error';
         statusEl.textContent = 'Network error. Please try again.';
     } finally {
-        sendBtn.disabled = false;
+        sendBtn.disabled = retryBlocked;
         sendBtn.textContent = 'Send Email';
     }
 }

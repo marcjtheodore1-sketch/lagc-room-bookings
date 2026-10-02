@@ -211,6 +211,29 @@
 
     <!-- Email Blast Tab -->
     <div class="tab-content" id="tab-emailblast">
+        <section class="building-reports-panel" aria-labelledby="general-email-title">
+            <h2 id="general-email-title">Email people from past Fridays</h2>
+            <p>Write a general message without choosing an upcoming Friday. Choose all past dates or the past 3, 6 or 12 months, then review the message and recipients before sending.</p>
+            <div class="building-report-controls">
+                <label for="general-email-period">Period
+                    <select id="general-email-period">
+                        <option value="all">All past dates</option>
+                        <option value="3">Past 3 months</option>
+                        <option value="6">Past 6 months</option>
+                        <option value="12">Past 12 months</option>
+                    </select>
+                </label>
+                <label for="general-email-audience">Recipients
+                    <select id="general-email-audience">
+                        <option value="bookings">Past bookings</option>
+                        <option value="attended">Recorded attendance only</option>
+                    </select>
+                </label>
+                <button type="button" class="btn btn-primary" onclick="openGeneralEmail()">Draft general email</button>
+            </div>
+            <p class="hint">Includes past room and yoga bookings, with duplicate addresses removed. Cancelled bookings and recorded no-shows are excluded. Attendance was not recorded for every session, so “Recorded attendance only” gives a smaller list. Carers and companions have no separate email address on file.</p>
+            <details><summary>Recent general emails</summary><div id="general-email-history"></div></details>
+        </section>
         <section class="building-reports-panel" aria-labelledby="building-reports-title">
             <h2 id="building-reports-title">Pan Macmillan attendance emails</h2>
             <p>Full volunteer and attendee lists go to Emma Perez and Martha Fisher, with Florence Perdriel copied. Later emails group new bookings, cancellations and changes, and include the current full list.</p>
@@ -260,7 +283,7 @@
             <textarea id="email-blast-body" rows="14" class="code-editor"></textarea>
 
             <label><strong>Recipients</strong> <span class="recipient-count" id="recipient-count"></span></label>
-            <p class="hint">Recipients are everyone who has previously registered. Click × to remove someone, or add an email below. Recipients are emailed via BCC so they can't see each other's addresses.</p>
+            <p class="hint">Review the selected recipients below. Click × to remove someone, or add an email. Recipients are emailed via BCC so they cannot see each other's addresses.</p>
             <div class="recipient-chips" id="recipient-chips"></div>
             <div class="form-inline recipient-add-row">
                 <input type="email" id="new-recipient-email" placeholder="add@another-email.com">
@@ -278,5 +301,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=46"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=47"></script>
 {% endblock %}

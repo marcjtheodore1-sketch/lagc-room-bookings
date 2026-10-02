@@ -158,6 +158,29 @@ room_booking/
     └── cancel.html       # Cancellation page
 ```
 
+## General emails to past F@F registrants
+
+Admin → Email Blast → Email people from past Fridays provides a general
+message independent of the existing availability blast for a single Friday.
+Choose all past dates or the past 3, 6 or 12 calendar months. Room and yoga
+addresses are normalised and deduplicated; cancelled bookings, recorded
+no-shows, blocked addresses and future sessions are excluded. A separate
+"Recorded attendance only" filter uses explicit attendance records, since
+attendance was not recorded for every session.
+
+The review screen lets admins edit the subject, message and recipients.
+Nothing is sent when opening a draft. Sending uses private envelope
+recipients (BCC), with a durable unique claim for each draft to prevent
+duplicate submission. Recent sends and failed/uncertain outcomes appear in
+the general email history. Check an uncertain outcome in the mailbox before
+creating another draft; the system never automatically retries a general blast.
+
+The booking page asks people to book by Thursday at 8am wherever possible;
+this is an early-booking request, not a closure of bookings. Meeting-room
+cards, the review step and confirmation emails explain that a room booking
+only gives access to that room, and link back to book the social space on
+the same Friday separately.
+
 ## Database
 
 The application uses SQLite (via SQLAlchemy) with the following tables:

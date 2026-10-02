@@ -3683,4 +3683,6 @@ html {
 .building-report-run { padding: .75rem 0; border-bottom: 1px solid #d5dbea; overflow-wrap: anywhere; }
 #building-report-preview { margin: 1rem 0; }
 #building-report-body { width: 100%; box-sizing: border-box; min-height: 22rem; resize: vertical; padding: .75rem; }
+#email-blast-body { width: 100%; box-sizing: border-box; resize: vertical; padding: .75rem; }
+.room-access-note { font-size: .95rem; line-height: 1.5; }
 #building-report-recipients { overflow-wrap: anywhere; }
