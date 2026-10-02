@@ -87,23 +87,71 @@ a { color: var(--primary); text-underline-offset: .18em; }
 }
 .home-hero .subtitle { font-size: 1rem; color: var(--text-light); max-width: 30ch; }
 .home-hero-photo { margin: 0; position: relative; }
+.venue-photo-frame {
+    position: relative;
+    height: 460px;
+    overflow: hidden;
+    border-radius: 90px 20px 20px 20px;
+    background: #eee9e2;
+}
+.venue-photo-slide {
+    position: absolute;
+    inset: 0;
+    margin: 0;
+    opacity: 0;
+    transition: opacity .7s ease;
+    pointer-events: none;
+}
+.venue-photo-slide.is-active { opacity: 1; }
 .home-hero-photo img {
     display: block;
     width: 100%;
-    height: 460px;
+    height: 100%;
     object-fit: cover;
     object-position: center 48%;
-    border-radius: 90px 20px 20px 20px;
+    border-radius: 0;
 }
-.home-hero-photo figcaption {
-    margin-top: .65rem;
+.home-hero-photo .room-photo-slide img { object-fit: contain; }
+.venue-photo-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: .4rem .75rem;
+    margin-top: .7rem;
+}
+.venue-photo-caption {
+    margin: 0;
     font-size: .8rem;
     color: var(--text-light);
+}
+.venue-photo-caption span { display: block; color: var(--text); font-weight: 600; }
+.venue-photo-controls { display: flex; align-items: center; gap: .3rem; }
+.venue-photo-controls button {
+    min-height: 44px;
+    min-width: 44px;
+    padding: .35rem .55rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: #fffefa;
+    color: var(--primary-dark);
+    font: inherit;
+    font-size: .8rem;
+    cursor: pointer;
+}
+.venue-photo-controls button:hover { background: #eee6f4; }
+.venue-photo-status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
 }
 .scroll-hint { animation: none; font-size: .9rem; }
 .home-hero .scroll-hint { flex-direction: row; justify-content: flex-start; gap: .7rem; margin-top: 1.25rem; }
 .scroll-hint-arrow { animation: none; font-size: 1.2rem; }
 .intro-text { font-size: 1.15rem; margin: 0; }
+.landing-wide .intro-text { max-width: none; width: 100%; }
 
 /* Quiet panels with an even border, without coloured side stripes. */
 .initiative-description, .room-purpose-summary {
@@ -187,7 +235,7 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
     .nav-brand { width: 100%; }
     .nav-links { gap: .1rem .55rem; }
     .home-hero { gap: 1.5rem; }
-    .home-hero-photo img { height: 390px; }
+    .venue-photo-frame { height: 390px; }
 }
 @media (max-width: 600px) {
     html { font-size: 106.25%; }
@@ -204,8 +252,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
     .home-hero .lagc-logo { max-width: 115px; margin-bottom: 1rem; }
     .hero-description { font-size: 1.4rem; }
     .home-hero .subtitle { max-width: 34ch; }
-    .home-hero-photo img { height: 220px; border-radius: 50px 16px 16px 16px; object-position: center 45%; }
-    .home-hero-photo figcaption { margin-top: .4rem; }
+    .venue-photo-frame { height: 220px; border-radius: 50px 16px 16px 16px; }
+    .home-hero-photo img { object-position: center 45%; }
     .info-card, .form-step, .reminder-form { padding: 1.25rem; }
     .notice-box, .initiative-description { padding: 1.1rem; }
     .collapse-toggle, .quick-link-card { padding: 1.1rem; }

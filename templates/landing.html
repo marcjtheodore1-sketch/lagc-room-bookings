@@ -87,10 +87,40 @@
             <span class="scroll-hint-arrow" aria-hidden="true">↓</span>
         </p>
         </div>
-        <figure class="home-hero-photo">
-            <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Tables, chairs and flowers beside the windows at our Farringdon venue" width="1200" height="1600" fetchpriority="high">
-            <figcaption>Our space at Pan Macmillan</figcaption>
-        </figure>
+        <div class="home-hero-photo" id="venue-carousel" role="region" aria-roledescription="carousel" aria-label="Our indoor spaces at Pan Macmillan">
+            <div class="venue-photo-frame">
+                <figure class="venue-photo-slide is-active" role="group" aria-roledescription="slide" aria-label="1 of 7" data-caption="Cafeteria" aria-hidden="false">
+                    <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Tables, chairs and flowers beside the windows at our Farringdon venue" width="1200" height="1600" fetchpriority="high">
+                </figure>
+                <figure class="venue-photo-slide room-photo-slide" role="group" aria-roledescription="slide" aria-label="2 of 7" data-caption="The Loft" aria-hidden="true">
+                    <img src="https://drive.google.com/thumbnail?id=1tNkNIfCdPPyWiZQeV3ROF1YaQNwmo1fL&sz=w800" alt="Photos of the Loft, with lounge seating and indoor tables" decoding="async" fetchpriority="low">
+                </figure>
+                <figure class="venue-photo-slide room-photo-slide" role="group" aria-roledescription="slide" aria-label="3 of 7" data-caption="Clerkenwell" aria-hidden="true">
+                    <img src="https://drive.google.com/thumbnail?id=1K44nSq3Wc-kOW4yU0WLkubhqcJUcnjRp&sz=w800" alt="Photos of the Clerkenwell lounge" decoding="async" fetchpriority="low">
+                </figure>
+                <figure class="venue-photo-slide room-photo-slide" role="group" aria-roledescription="slide" aria-label="4 of 7" data-caption="Rose" aria-hidden="true">
+                    <img src="https://drive.google.com/thumbnail?id=1otwHG2nTYJk91a5wL02BSKQRO_nVYCA9&sz=w800" alt="Photos of the Rose room, with its table and chairs" decoding="async" fetchpriority="low">
+                </figure>
+                <figure class="venue-photo-slide" role="group" aria-roledescription="slide" aria-label="5 of 7" data-caption="Cafeteria seating" aria-hidden="true">
+                    <img src="{{ url_for('static', filename='images/cafeteria-3.jpg') }}" alt="Indoor cafeteria tables and green bench seating" width="1200" height="1600" decoding="async" fetchpriority="low">
+                </figure>
+                <figure class="venue-photo-slide" role="group" aria-roledescription="slide" aria-label="6 of 7" data-caption="Indoor booths" aria-hidden="true">
+                    <img src="{{ url_for('static', filename='images/cafeteria-2.jpg') }}" alt="Indoor booth seating with green cushions" width="1200" height="1600" decoding="async" fetchpriority="low">
+                </figure>
+                <figure class="venue-photo-slide" role="group" aria-roledescription="slide" aria-label="7 of 7" data-caption="Window seating" aria-hidden="true">
+                    <img src="{{ url_for('static', filename='images/cafeteria-4.jpg') }}" alt="Indoor high tables and chairs beside the windows" width="1200" height="1600" decoding="async" fetchpriority="low">
+                </figure>
+            </div>
+            <div class="venue-photo-meta">
+                <p class="venue-photo-caption">Our space at Pan Macmillan <span id="venue-photo-name">Cafeteria</span></p>
+                <div class="venue-photo-controls" hidden>
+                    <button type="button" id="venue-photo-prev" aria-label="Previous photo">←</button>
+                    <button type="button" id="venue-photo-pause" aria-label="Pause photo carousel">Pause</button>
+                    <button type="button" id="venue-photo-next" aria-label="Next photo">→</button>
+                </div>
+            </div>
+            <p class="venue-photo-status" id="venue-photo-status" aria-live="polite" aria-atomic="true"></p>
+        </div>
     </div>
 
     <div class="landing-content">
@@ -401,6 +431,7 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/venue-carousel.js') }}?v=1" defer></script>
 <script>
     // Reusable horizontal swipe detector (mobile). Calls onLeft/onRight on a
     // deliberate horizontal swipe; ignores vertical scrolls and taps so links
