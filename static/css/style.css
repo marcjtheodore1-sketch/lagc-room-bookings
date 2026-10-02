@@ -3688,12 +3688,16 @@ html {
 #building-report-recipients { overflow-wrap: anywhere; }
 
 /* Booking deadlines and the shared help sheet. */
-.date-grid button.date-card { font: inherit; color: inherit; width: 100%; }
+.date-grid button.date-card { font: inherit; color: inherit; width: 100%; background: #fffcf8; border-color: #9580ae; }
+.date-grid button.date-card:hover { background: #f5edf9; border-color: var(--primary); }
+.date-grid button.date-card.selected { background: #eee6f4; border-color: var(--primary); }
+.date-grid button.date-card:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 .date-card strong, .date-card small, .registration-status { display: block; }
 .date-card small { margin-top: .5rem; line-height: 1.45; }
-.date-card.registration-closed { cursor: default; background: #f1eef0; border-color: #c8c0c6; box-shadow: none; }
+.date-card.registration-closed { cursor: default; background: #eae5e2; border: 2px dashed #a89b94; box-shadow: none; }
 .date-card.registration-closed:hover { transform: none; box-shadow: none; }
-.registration-status { font-weight: 700; margin-top: .6rem; color: #5b3d52; }
+.registration-status { display: inline-block; font-size: .85rem; font-weight: 700; margin-top: .65rem; padding: .35rem .75rem; border-radius: 999px; line-height: 1.3; color: #fff; background: #62564f; }
+.registration-status.registration-open { background: #654383; }
 .booking-ahead-note h2 { font-size: 1.2rem; margin: 0 0 .6rem; }
 .help-sheet-page { max-width: 900px; margin: 0 auto; }
 .help-sheet-page h2 { margin-top: 2.5rem; }

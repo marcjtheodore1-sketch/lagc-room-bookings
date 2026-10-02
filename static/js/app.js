@@ -323,6 +323,7 @@ function renderDates() {
         return `
         <button type="button" class="date-card" onclick="selectDate('${friday.date}')">
             <strong>${escapeHtml(friday.display)}</strong>
+            <span class="registration-status registration-open">Open for booking</span>
             <small>Book before ${escapeHtml(friday.deadline_display || 'Thursday at 10am')} (London time)</small>
         </button>
     `}).join('');
