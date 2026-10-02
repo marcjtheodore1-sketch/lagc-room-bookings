@@ -24,7 +24,7 @@ function showTab(tabName) {
     if (tabName === 'announcements') loadAnnouncements();
     if (tabName === 'volunteers') loadVolunteers();
     if (tabName === 'yoga') loadYogaBookings();
-    if (tabName === 'emailblast') loadEmailBlastDates();
+    if (tabName === 'emailblast') { loadEmailBlastDates(); loadBuildingReports(); }
     if (tabName === 'archive') loadArchivedBookings();
 }
 
@@ -1319,6 +1319,59 @@ function toggleDateGroup(header) {
 let emailBlastRecipients = [];
 let emailBlastDate = null;
 let emailBlastMode = 'availability'; // 'availability' (room-booking blast) or 'yoga' (email attendees)
+
+async function loadBuildingReports() {
+    try {
+        const response = await fetch('/api/admin/building-reports');
+        if (!response.ok) throw new Error('Could not load attendance emails.');
+        const data = await response.json();
+        document.getElementById('building-reports-enabled').checked = data.enabled;
+        document.getElementById('building-report-schedule').textContent = data.schedule + ' Later batches send only if the list has changed.';
+        document.getElementById('building-report-dates').innerHTML = data.dates.map(d => `
+            <div class="email-date-row"><span>${escapeHtml(d.display)}</span>
+            <button class="btn btn-secondary btn-small" onclick="previewBuildingReport('${d.date}')">Preview attendance email</button></div>`).join('') || '<p>No confirmed Fridays are scheduled yet.</p>';
+        document.getElementById('building-report-history').innerHTML = data.history.map(r => `
+            <div class="building-report-run"><strong>${escapeHtml(r.batch.replace('T', ' at '))}</strong> for ${escapeHtml(r.date)}:
+            ${escapeHtml(({sent: 'Sent', skipped: 'No changes, no email', failed: 'Failed, next batch will retry', sending: 'Sending or interrupted: check the mailbox before retrying'})[r.status] || r.status)}
+            ${r.error ? `<p class="error-text">${escapeHtml(r.error)}</p>` : ''}
+            ${r.status === 'sending' ? `<button class="btn btn-secondary btn-small" onclick="resolveBuildingReport(${r.id}, 'sent')">Checked: delivered</button>
+            <button class="btn btn-secondary btn-small" onclick="resolveBuildingReport(${r.id}, 'not_sent')">Checked: not delivered</button>` : ''}</div>`).join('') || '<p>No automatic reports have run yet.</p>';
+    } catch (error) {
+        document.getElementById('building-report-status').textContent = error.message;
+    }
+}
+
+async function saveBuildingReports() {
+    const status = document.getElementById('building-report-status');
+    try {
+        const response = await fetch('/api/admin/building-reports', {method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled: document.getElementById('building-reports-enabled').checked})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not save setting.');
+        status.textContent = result.enabled ? 'Automatic attendance emails are on.' : 'Automatic attendance emails are off.';
+        loadBuildingReports();
+    } catch (error) { status.textContent = error.message; }
+}
+
+async function previewBuildingReport(date) {
+    try {
+        const response = await fetch(`/api/admin/building-reports/preview/${date}`);
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not load preview.');
+        document.getElementById('building-report-recipients').textContent = `To: ${result.to.join(', ')}. CC: ${result.cc.join(', ')}.`;
+        document.getElementById('building-report-body').value = `Subject: ${result.subject}\n\n${result.body}`;
+        document.getElementById('building-report-preview').hidden = false;
+    } catch (error) { document.getElementById('building-report-status').textContent = error.message; }
+}
+
+async function resolveBuildingReport(id, action) {
+    if (!confirm('Only continue after checking whether this attendance email reached the mailbox. Record the checked outcome?')) return;
+    const response = await fetch(`/api/admin/building-reports/resolve/${id}`, {method: 'POST',
+        headers: {'Content-Type': 'application/json'}, body: JSON.stringify({action})});
+    if (!response.ok) document.getElementById('building-report-status').textContent = 'Could not record the outcome.';
+    loadBuildingReports();
+}
 
 async function loadEmailBlastDates() {
     const container = document.getElementById('email-blast-dates');

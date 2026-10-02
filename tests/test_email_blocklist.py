@@ -48,6 +48,7 @@ class EmailBlocklistTest(unittest.TestCase):
     def test_bulk_email_removes_blocked_address_from_smtp_envelope(
             self, smtp_ssl):
         server = smtp_ssl.return_value.__enter__.return_value
+        server.send_message.return_value = {}
 
         success, error = app.send_bulk_email(
             ['allowed@example.com', BLOCKED, BLOCKED.upper()],
@@ -107,6 +108,23 @@ class EmailBlocklistTest(unittest.TestCase):
         self.assertIn('app password', error.lower())
         self.assertIn('expired or been revoked', error)
         smtp.assert_not_called()
+
+    @patch('app.smtplib.SMTP_SSL')
+    @patch('app.smtplib.SMTP')
+    def test_uncertain_submission_does_not_retry_on_another_port(self, smtp, smtp_ssl):
+        server = smtp_ssl.return_value.__enter__.return_value
+        server.send_message.side_effect = app.smtplib.SMTPServerDisconnected('Lost connection after DATA')
+        with self.assertRaises(app.EmailDeliveryUncertain):
+            app.send_smtp_message(None, ['allowed@example.com'])
+        server.send_message.assert_called_once()
+        smtp.assert_not_called()
+
+    @patch('app.smtplib.SMTP_SSL')
+    def test_partial_recipient_refusal_is_not_reported_as_success(self, smtp_ssl):
+        server = smtp_ssl.return_value.__enter__.return_value
+        server.send_message.return_value = {'other@example.com': (550, b'Rejected')}
+        with self.assertRaises(app.EmailDeliveryUncertain):
+            app.send_smtp_message(None, ['allowed@example.com', 'other@example.com'])
 
     def test_smtp_settings_load_from_untracked_env_file(self):
         with tempfile.TemporaryDirectory() as disk:

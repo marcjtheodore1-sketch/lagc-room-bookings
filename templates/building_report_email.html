@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="font-family:Arial,sans-serif;color:#202b3b;line-height:1.5;margin:20px">
+<p>Hello Emma and Martha,</p>
+<p>Here is the {% if changes %}updated {% endif %}attendance list for <strong>{{ date_display }}</strong>.</p>
+{% if changes %}
+<h2 style="font-size:18px">Changes since the previous email</h2>
+{% for field, label in [('bookings', 'Booking'), ('volunteers', 'Volunteer')] %}
+{% for category, action in [('added', 'Added'), ('changed', 'Updated'), ('removed', 'Cancelled / removed')] %}
+{% if changes[field][category] %}<ul>{% for row in changes[field][category] %}
+<li><strong>{{ action }} {{ label|lower }}: {{ row.name }}</strong>{% for person in row.get('others', []) %}; {{ person.role }}: {{ person.name }}{% endfor %}:
+{% if field == 'bookings' %}{{ row.room }}, {{ row.start }} to {{ row.end }}{% else %}{{ row.times }}{% endif %}</li>
+{% endfor %}</ul>{% endif %}
+{% endfor %}{% endfor %}{% endif %}
+{% if not snapshot.scheduled %}<p><strong>This Friday is no longer in the published room schedule.</strong></p>{% endif %}
+<h2 style="font-size:18px">Volunteers</h2>
+<ul>{% for volunteer in snapshot.volunteers %}<li><strong>{{ volunteer.name }}</strong>: {{ volunteer.times }}</li>{% else %}<li>No volunteers have marked themselves available on the rota.</li>{% endfor %}</ul>
+<h2 style="font-size:18px">Current room bookings</h2>
+{% for booking in snapshot.bookings %}
+<div style="padding:12px 0;border-bottom:1px solid #ddd">
+<strong>{{ booking.name }}</strong>
+{% for person in booking.others %}<div>{{ person.role }}: {{ person.name }}</div>{% endfor %}
+<div>{{ booking.room }}: {{ booking.start }} to {{ booking.end }}</div>
+{% if not booking.room_scheduled %}<div><strong>Room no longer in the published schedule; coordinator to check.</strong></div>{% endif %}
+{% for note in booking.mobility %}<div style="margin-top:6px"><strong>Reported mobility / physical access need:</strong> {{ note }}</div>{% endfor %}
+</div>
+{% else %}<p>No active room bookings.</p>{% endfor %}
+<p>{{ snapshot.bookings|length }} room bookings; {{ snapshot.places }} places across those bookings, including carers and companions.</p>
+<p>Open-room times are the room opening hours, rather than individual arrival times.</p>
+<p>Further changes are grouped into scheduled updates through Friday at 6pm.</p>
+<p>Many thanks,<br>London Autism Group Charity<br>Fridays @ Farringdon</p>
+</body></html>

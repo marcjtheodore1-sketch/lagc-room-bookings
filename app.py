@@ -167,6 +167,19 @@ class ReminderDelivery(db.Model):
     sent_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('subscription_id', 'kind', 'reference'),)
 
+class BuildingReportDispatch(db.Model):
+    """Durable batch claim and snapshot for the building attendance emails."""
+    id = db.Column(db.Integer, primary_key=True)
+    session_date = db.Column(db.Date, nullable=False, index=True)
+    batch_key = db.Column(db.String(40), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)
+    status = db.Column(db.String(20), nullable=False)
+    snapshot = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    error = db.Column(db.Text, default='')
+    __table_args__ = (db.UniqueConstraint('session_date', 'batch_key'),)
+
 class VolunteerAvailability(db.Model):
     """A volunteer marking their status for a given Friday"""
     id = db.Column(db.Integer, primary_key=True)
@@ -638,6 +651,10 @@ def friendly_smtp_error(error):
     return str(error)
 
 
+class EmailDeliveryUncertain(RuntimeError):
+    """SMTP submission may have succeeded; do not retry blindly."""
+
+
 def send_smtp_message(message, recipients=None):
     """Send a prepared MIME message, preferring SSL with STARTTLS fallback."""
     username = app.config['SMTP_USER']
@@ -645,21 +662,24 @@ def send_smtp_message(message, recipients=None):
     host = app.config['SMTP_HOST']
 
     try:
-        with smtplib.SMTP_SSL(host, 465, timeout=20) as server:
-            server.login(username, password)
-            server.send_message(message, to_addrs=recipients)
-            return
-    except smtplib.SMTPAuthenticationError:
-        # A different port cannot repair rejected credentials, so do not make
-        # a second failed login attempt or obscure the real cause.
-        raise
+        server = smtplib.SMTP_SSL(host, 465, timeout=20)
     except (smtplib.SMTPException, OSError) as ssl_error:
         print(f'[EMAIL] SSL connection failed; trying STARTTLS: {ssl_error}')
-
-    with smtplib.SMTP(host, app.config['SMTP_PORT'], timeout=20) as server:
+        server = smtplib.SMTP(host, app.config['SMTP_PORT'], timeout=20)
         server.starttls()
-        server.login(username, password)
-        server.send_message(message, to_addrs=recipients)
+
+    with server as connection:
+        connection.login(username, password)
+        try:
+            refused = connection.send_message(message, to_addrs=recipients)
+        except (smtplib.SMTPDataError, smtplib.SMTPRecipientsRefused):
+            raise  # server explicitly rejected submission
+        except (smtplib.SMTPException, OSError) as error:
+            # Fallback after submission could send a second copy. Surface the
+            # uncertain result so a building batch can wait for a mailbox check.
+            raise EmailDeliveryUncertain('Email delivery outcome is unclear; check the mailbox before retrying.') from error
+        if refused:
+            raise EmailDeliveryUncertain('Some recipients were rejected; check delivery before retrying.')
 
 
 def send_confirmation_email(to_email, subject, message):
@@ -1233,12 +1253,22 @@ def scheduled_reminder_trigger():
     supplied = request.headers.get('X-Reminder-Token', '')
     if not expected or not supplied or not secrets.compare_digest(supplied, expected):
         return jsonify({'error': 'Not found'}), 404
+    # The building report must not block the existing attendee reminders if
+    # its query/dispatch fails. Run it first while the due batch is current.
+    try:
+        from building_reports import run_building_report_job
+        building_counts = run_building_report_job()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Building report job unavailable')
+        building_counts = {'sent': 0, 'failed': 1, 'skipped': 0}
     try:
         counts = run_reminder_job()
     except RuntimeError:
         app.logger.exception('Reminder job unavailable')
         return jsonify({'error': 'Reminder job unavailable'}), 503
-    return jsonify(counts), (500 if counts['failed'] else 200)
+    counts['building_report'] = building_counts
+    return jsonify(counts), (500 if counts['failed'] or building_counts['failed'] else 200)
 
 @app.route('/admin')
 def admin():
@@ -2662,6 +2692,65 @@ def admin_availability_email_status():
         except (ValueError, TypeError):
             status[date_str] = {'sent_at_display': s.value, 'count': None}
     return jsonify(status)
+
+@app.route('/api/admin/building-reports')
+@admin_required
+def admin_building_reports():
+    from building_reports import ENABLED_KEY, TO, CC, SCHEDULE, LONDON
+    today = datetime.now(LONDON).date()
+    schedule = get_room_schedule_ids()
+    dates = sorted(ds for ds in schedule if ds >= today.isoformat())
+    records = BuildingReportDispatch.query.order_by(BuildingReportDispatch.id.desc()).limit(60).all()
+    return jsonify({
+        'enabled': get_setting(ENABLED_KEY, 'false') == 'true',
+        'to': list(TO), 'cc': list(CC), 'schedule': SCHEDULE,
+        'dates': [{'date': ds, 'display': reminder_date_display(datetime.strptime(ds, '%Y-%m-%d').date())} for ds in dates],
+        'history': [{'id': r.id, 'date': r.session_date.isoformat(), 'batch': r.batch_key,
+                     'kind': r.kind, 'status': r.status, 'error': r.error or '',
+                     'sent_at': r.sent_at.replace(tzinfo=ZoneInfo('UTC')).astimezone(LONDON).isoformat() if r.sent_at else None}
+                    for r in records],
+    })
+
+@app.route('/api/admin/building-reports', methods=['POST'])
+@admin_required
+def admin_set_building_reports():
+    from building_reports import ENABLED_KEY
+    data = request.get_json(silent=True) or {}
+    if type(data.get('enabled')) is not bool:
+        return jsonify({'error': 'Choose whether automatic reports are on or off.'}), 400
+    if data['enabled'] and not reminders_mail_ready():
+        return jsonify({'error': 'Email sending must be configured before enabling automatic reports.'}), 503
+    set_setting(ENABLED_KEY, 'true' if data['enabled'] else 'false')
+    return jsonify({'enabled': data['enabled']})
+
+@app.route('/api/admin/building-reports/preview/<date>')
+@admin_required
+def admin_preview_building_report(date):
+    from building_reports import build_snapshot, report_content
+    try:
+        day = datetime.strptime(date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date'}), 400
+    if day.weekday() != 4:
+        return jsonify({'error': 'Choose a Friday.'}), 400
+    return jsonify(report_content(day, build_snapshot(day)))
+
+@app.route('/api/admin/building-reports/resolve/<int:dispatch_id>', methods=['POST'])
+@admin_required
+def admin_resolve_building_report(dispatch_id):
+    """An interrupted send cannot be retried until its actual outcome is checked."""
+    dispatch = db.session.get(BuildingReportDispatch, dispatch_id)
+    if not dispatch or dispatch.status != 'sending':
+        return jsonify({'error': 'No interrupted send to resolve.'}), 400
+    action = (request.get_json(silent=True) or {}).get('action')
+    if action not in ('sent', 'not_sent'):
+        return jsonify({'error': 'Check the mailbox, then choose sent or not sent.'}), 400
+    dispatch.status = 'sent' if action == 'sent' else 'failed'
+    if action == 'sent':
+        dispatch.sent_at = datetime.utcnow()
+    dispatch.error = '' if action == 'sent' else 'Admin checked: not delivered. A later batch can retry.'
+    db.session.commit()
+    return jsonify({'success': True})
 
 @app.route('/api/admin/availability-email-draft/<date>')
 @admin_required

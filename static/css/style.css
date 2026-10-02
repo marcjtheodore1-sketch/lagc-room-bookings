@@ -3676,3 +3676,10 @@ html {
     .admin-wide .tab-btn { min-height: 44px; }
     .admin-wide .tab-content { padding: 1rem 0; }
 }
+.building-reports-panel { margin-bottom: 2rem; padding: 1.25rem; border: 1px solid #d5dbea; border-radius: 12px; }
+.building-report-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 1rem; }
+.building-report-controls label { display: flex; align-items: center; gap: .5rem; }
+.building-report-controls input { width: auto; }
+.building-report-run { padding: .75rem 0; border-bottom: 1px solid #d5dbea; overflow-wrap: anywhere; }
+#building-report-preview { margin: 1rem 0; }
+#building-report-recipients { overflow-wrap: anywhere; }

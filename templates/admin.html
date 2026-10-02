@@ -211,6 +211,24 @@
 
     <!-- Email Blast Tab -->
     <div class="tab-content" id="tab-emailblast">
+        <section class="building-reports-panel" aria-labelledby="building-reports-title">
+            <h2 id="building-reports-title">Pan Macmillan attendance emails</h2>
+            <p>Full volunteer and attendee lists go to Emma Perez and Martha Fisher, with Florence Perdriel copied. Later emails group new bookings, cancellations and changes, and include the current full list.</p>
+            <p id="building-report-schedule"></p>
+            <div class="building-report-controls">
+                <label><input type="checkbox" id="building-reports-enabled"> Send automatic attendance emails</label>
+                <button type="button" class="btn btn-secondary btn-small" onclick="saveBuildingReports()">Save setting</button>
+            </div>
+            <p class="form-status" id="building-report-status" role="status" aria-live="polite"></p>
+            <div id="building-report-dates"></div>
+            <div id="building-report-preview" hidden>
+                <p id="building-report-recipients"></p>
+                <label for="building-report-body"><strong>Email preview</strong></label>
+                <textarea id="building-report-body" rows="20" class="code-editor" readonly></textarea>
+                <p class="hint">Preview only. Includes companion and carer names and reported mobility needs. Contact details and unrelated private notes are left out.</p>
+            </div>
+            <details><summary>Recent automatic email runs</summary><div id="building-report-history"></div></details>
+        </section>
         <h2>📣 Availability Email Blast</h2>
         <p class="hint">Pick a Friday to draft an email to everyone who has previously registered, highlighting the rooms still available that day. You can edit the email and the recipient list before anything is sent.</p>
         <div class="email-blast-dates" id="email-blast-dates">

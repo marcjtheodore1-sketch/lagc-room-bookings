@@ -1,8 +1,9 @@
-"""Hourly task on the charity's paid PythonAnywhere account.
+"""Hourly reminder and building-report task on the paid PythonAnywhere account.
 
 The free bookings host cannot run its own scheduled tasks. Install this script
 on the charity account and put the matching trigger token in a mode-600 file
 at ~/.farringdon-reminder-token. It does not access booking data directly.
+The app selects the due attendee reminders and attendance-report batches.
 """
 from pathlib import Path
 from urllib.request import Request, urlopen
