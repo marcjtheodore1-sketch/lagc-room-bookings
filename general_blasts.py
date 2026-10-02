@@ -52,12 +52,17 @@ def draft(period, audience, booking_url):
             'subject': 'Booking ahead for Fridays @ Farringdon',
             'body': f'''Hello,
 
-If you are planning to join us at Fridays @ Farringdon, please book by 8am on Thursday wherever possible. This helps us prepare the attendee list for the building team. Bookings remain open afterwards, and we will send the building team updates about later bookings.
+If you are planning to join us at Fridays @ Farringdon, you must complete your booking before Thursday at 10am (London time) for the following Friday. Registration closes automatically at 10am so the building team can prepare for everyone, including anyone with mobility needs. Same-day and late bookings are not available.
+
+Closed dates stay visible on the website. The session is still going ahead and existing bookings remain valid.
 
 Book your space here:
 {booking_url}
 
 A meeting-room booking gives you access to that room only. If you would like to use any other rooms, please book each room separately.
+
+Before you visit, read Kirsty's help sheet for building guidance and emergency procedures:
+{booking_url.split('/book')[0]}/help-sheet
 
 We look forward to seeing you!
 

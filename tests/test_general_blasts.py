@@ -73,8 +73,9 @@ class GeneralBlastTest(unittest.TestCase):
         self.assertEqual(result['history'], [])
         self.assertEqual(result['bad'], 400)
         self.assertEqual(result['unauthorised'], 302)
-        self.assertIn('8am on Thursday', result['draft']['body'])
-        self.assertIn('Bookings remain open afterwards', result['draft']['body'])
+        self.assertIn('before Thursday at 10am', result['draft']['body'])
+        self.assertIn('Registration closes automatically', result['draft']['body'])
+        self.assertIn('/help-sheet', result['draft']['body'])
 
     def test_bcc_privacy_edited_content_html_escaping_and_duplicate_submission(self):
         result = run_case('''

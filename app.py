@@ -780,19 +780,33 @@ def send_emails_async(emails):
                 print(f"[ERROR] Async email to {to} failed: {e}")
     threading.Thread(target=_worker, args=(list(emails),), daemon=True).start()
 
+BOOKING_ZONE = ZoneInfo('Europe/London')
+BOOKING_DEADLINE_NOTICE = 'Bookings must be completed before Thursday at 10am (London time) for the following Friday.'
+
+def booking_deadline(day):
+    return datetime.combine(day - timedelta(days=1), datetime.min.time(), tzinfo=BOOKING_ZONE).replace(hour=10)
+
+def booking_registration_closed(day, now=None):
+    now = now or datetime.now(BOOKING_ZONE)
+    now = now.astimezone(BOOKING_ZONE) if now.tzinfo else now.replace(tzinfo=BOOKING_ZONE)
+    return now >= booking_deadline(day)
+
+def closed_booking_message(day):
+    return (f'Registration for {reminder_date_display(day)} is closed. '
+            'Bookings close on Thursday at 10am (London time). '
+            'The session is still going ahead and existing bookings remain valid.')
+
 def get_upcoming_fridays(count=8, room_id=None):
     """Get upcoming Friday dates, optionally filtered by room availability"""
     fridays = []
-    today = datetime.now().date()
+    today = datetime.now(BOOKING_ZONE).date()
     
     # Get current schedule with IDs
     room_schedule = get_room_schedule_ids()
     
     # Find next Friday
     days_until_friday = (4 - today.weekday()) % 7
-    if days_until_friday == 0 and datetime.now().hour >= END_HOUR:
-        # If it's Friday past booking hours, start from next Friday
-        days_until_friday = 7
+    # Keep this Friday visible for the whole day, even after registration closes.
     
     next_friday = today + timedelta(days=days_until_friday)
     
@@ -807,7 +821,10 @@ def get_upcoming_fridays(count=8, room_id=None):
             if room_id is None or room_id in room_schedule[date_str]:
                 fridays.append({
                     'date': date_str,
-                    'display': friday.strftime('%A, %B %d, %Y')
+                    'display': reminder_date_display(friday),
+                    'registration_closed': booking_registration_closed(friday),
+                    'booking_deadline': booking_deadline(friday).isoformat(),
+                    'deadline_display': reminder_date_display(friday - timedelta(days=1)) + ' at 10am',
                 })
         
         # Safety limit - don't search too far ahead
@@ -862,7 +879,8 @@ def run_reminder_job(now=None):
     next_friday = today + timedelta(days=(4 - today.weekday()) % 7)
     days_until = (next_friday - today).days
     bookable_this_week = (1 <= days_until <= 4 and now.hour >= 9
-                          and bool(schedule.get(next_friday.isoformat())))
+                          and bool(schedule.get(next_friday.isoformat()))
+                          and not booking_registration_closed(next_friday, now))
     tomorrow = today + timedelta(days=1)
     bookings = []
     if tomorrow.weekday() == 4 and schedule.get(tomorrow.isoformat()):
@@ -895,6 +913,7 @@ def run_reminder_job(now=None):
                     f'Hello,\n\nA reminder that bookings are open for Fridays @ Farringdon on {reminder_date_display(next_friday)}. '
                     'Please use the link below to see the rooms and times available and book your place:\n\n'
                     f'{reminder_base_url()}/book\n\n'
+                    f'{BOOKING_DEADLINE_NOTICE} Registration closes automatically at that time.\n\n'
                     'Dates are added only after our host confirms the rooms. If another Friday is not listed yet, it has not been released for booking.\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
                 )
@@ -916,6 +935,7 @@ def run_reminder_job(now=None):
                     f'Room: {booking.room.name}\nTime: {start} to {end}\n'
                     f'Location: {booking.room.building_location}\n\n'
                     f'View or cancel this booking: {reminder_base_url()}/cancel/{booking.cancel_token}\n\n'
+                    f'Before you visit, read Kirsty\'s help sheet, including the building guidance and emergency procedures:\n{reminder_base_url()}/help-sheet\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
                 )
                 if send_confirmation_email(subscription.email, subject, body):
@@ -1158,6 +1178,10 @@ def spaces():
     """Explore the space — photo gallery of the venue"""
     return render_template('spaces.html')
 
+@app.route('/help-sheet')
+def help_sheet():
+    return render_template('help_sheet.html')
+
 @app.route('/yoga')
 def yoga():
     """Gentle Yoga with Marlijn — info + registration page"""
@@ -1398,6 +1422,9 @@ def get_availability(date, room_id):
         booking_date = datetime.strptime(date, '%Y-%m-%d').date()
     except ValueError:
         return jsonify({'error': 'Invalid date format'}), 400
+
+    if booking_registration_closed(booking_date):
+        return jsonify({'error': closed_booking_message(booking_date), 'registration_closed': True}), 409
     
     # Get current schedule with IDs
     room_schedule = get_room_schedule_ids()
@@ -1561,6 +1588,9 @@ def create_booking():
     # Validate it's a Friday
     if booking_date.weekday() != 4:
         return jsonify({'error': 'Bookings are only available on Fridays'}), 400
+
+    if booking_registration_closed(booking_date):
+        return jsonify({'error': closed_booking_message(booking_date), 'registration_closed': True}), 409
     
     # Get room details
     room = Room.query.get(room_id)
@@ -1620,6 +1650,10 @@ def create_booking():
     if room.room_type == 'slot' and not check_availability(room_id, booking_date, start_slot, end_slot):
         return jsonify({'error': 'Selected time slots are no longer available'}), 409
     
+    # Recheck after validation in case someone kept the form open across 10am.
+    if booking_registration_closed(booking_date):
+        return jsonify({'error': closed_booking_message(booking_date), 'registration_closed': True}), 409
+
     # Create booking
     cancel_token = secrets.token_urlsafe(32)
     booking = Booking(
@@ -1681,6 +1715,12 @@ def create_booking():
             'If you would like to use any other rooms, please book each room separately here:\n'
             f"{request.host_url.rstrip('/')}/book?date={booking_date.isoformat()}\n"
         )
+
+    confirmation_message += (
+        '\n\nBefore you visit, read Kirsty\'s help sheet for community members and volunteers, '
+        'including building guidance and emergency procedures:\n'
+        f"{request.host_url.rstrip('/')}/help-sheet\n"
+    )
 
     # Queue all emails in the background so the person sees their on-screen
     # confirmation immediately, even if Gmail is slow or briefly down.
@@ -2768,7 +2808,7 @@ def admin_resolve_building_report(dispatch_id):
     dispatch.status = 'sent' if action == 'sent' else 'failed'
     if action == 'sent':
         dispatch.sent_at = datetime.utcnow()
-    dispatch.error = '' if action == 'sent' else 'Admin checked: not delivered. A later batch can retry.'
+    dispatch.error = '' if action == 'sent' else 'Admin checked: not delivered. The final list can retry only during the Thursday 10am dispatch window.'
     db.session.commit()
     return jsonify({'success': True})
 

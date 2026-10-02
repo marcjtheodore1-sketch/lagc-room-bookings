@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Help sheet | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<article class="help-sheet-page">
+<h1>Fridays @ Farringdon help sheet</h1>
+<p class="subtitle">Kirsty's guide for community members and volunteers, covering the building, rooms, shared expectations and emergency procedures.</p>
+<div class="notice-box info"><p><strong>Book before Thursday at 10am (London time)</strong> for the following Friday. Registration closes automatically at that time. Existing bookings remain valid.</p><p>Rooms vary by date. <a href="{{ url_for('index') }}">Check the rooms available when booking</a>.</p></div>
+<div class="help-sheet-downloads"><a class="btn btn-secondary" href="{{ url_for('static', filename='guides/farringdon-help-sheet.pdf') }}">Download PDF</a><a class="btn btn-secondary" href="{{ url_for('static', filename='guides/farringdon-help-sheet.docx') }}">Download Word document</a></div>
+<nav class="help-sheet-jump-links" aria-label="Help sheet sections"><a href="#emergency">Emergency procedures</a><a href="#rooms">Our rooms</a><a href="#community">Community guidance</a><a href="#volunteers">Volunteer guidance</a></nav>
+<h2 id="emergency">Emergency evacuation procedure</h2>
+<h3>On discovering a fire</h3>
+<p>Inform reception on 020 7038 5000.</p>
+<p>Sound the fire alarm by operating the nearest call point.</p>
+<p>Raise the alarm by verbal notification.</p>
+<figure class="help-sheet-photo"><img src="{{ url_for('static', filename='guides/help-sheet-image-1.jpg') }}" alt="Fire alarm call point and emergency procedure notice" loading="lazy"></figure>
+<h3>Fire extinguishers</h3>
+<p>Only attempt to fight the fire if it is safe to do so, using the fire extinguisher equipment provided.</p>
+<p>DO NOT use Hydrospray WATER extinguishers on electrical or FLAMMABLE LIQUID fires.</p>
+<h3>On hearing the fire alarm</h3>
+<ul>
+<li>Leave the building by the nearest available SAFE fire exit.</li>
+<li>DO NOT stop to collect belongings.</li>
+<li>DO NOT use the lifts.</li>
+<li>DO NOT re-enter the building until instructed to do so by the Macmillan Fire Coordinator, fire brigade or police.</li>
+</ul>
+<h3>Fire assembly point</h3>
+<p>When clear of the building, proceed to your designated fire assembly point:</p>
+<p>St John&#x27;s Square</p>
+<p>Turn left when leaving the front doors on Briset Street, or</p>
+<p>Turn right when leaving the rear doors on St John&#x27;s Square.</p>
+<figure class="help-sheet-photo"><img src="{{ url_for('static', filename='guides/help-sheet-image-2.jpg') }}" alt="St John&#x27;s Square, the fire assembly point" loading="lazy"></figure>
+<h2 id="rooms">Our rooms</h2>
+<ul><li>Clerkenwell – max capacity 12 at a time in the room</li><li>Rose – max capacity 4 at one time in the room (we are using this room as a individual workspace)</li><li>The loft – accessed on the 6th floor via stairs or lift</li><li>Indigo - max capacity 4 at one time in the room</li></ul>
+<h2 id="volunteers">Guidance for volunteers</h2>
+<p>Volunteers are expected to:</p>
+<h3>Respecting the Space</h3>
+<ul>
+<li>Be respectful of the building and the other charities and organisations using the space, particularly in communal areas such as the canteen/refectory.</li>
+<li>Keep shoes on in communal areas.</li>
+<li>Keep noise levels reasonable and be mindful of other people using the space.</li>
+<li>Avoid conversations that could disturb others.</li>
+<li>Be particularly mindful of confidentiality. Do not discuss personal or confidential information about community members where others may be able to hear. If a confidential conversation is needed, use an appropriate private space.</li>
+</ul>
+<h3>Emergency Procedures</h3>
+<ul>
+<li>Make sure you are familiar with the building&#x27;s emergency procedures.</li>
+<li>Know where the fire exits are and what to do in an emergency.</li>
+<li>When welcoming new community members, make sure they know where the fire exits are.</li>
+</ul>
+<h3>Showing Community Members Around</h3>
+<p>When someone is new to the space, help them feel comfortable by showing them around and making sure they know:</p>
+<ul>
+<li>Where the bathrooms are.</li>
+<li>Where the fire exits are.</li>
+<li>How to use the tap and coffee machine.  ( Tap = Push down  blue for cold water and pull up on blue side for sparkling ) Each coffee machine has a different plant based milk, the one closest to the window = oat milk and the other one is soya milk.</li>
+<li>Where to put used cups and plates.</li>
+<li>Any other information they may need to feel comfortable using the space.</li>
+</ul>
+<h3>F@F Rooms and Resources</h3>
+<ul>
+<li>Put the F@F sign on the door of the room being used that week.</li>
+<li>The first volunteer to arrive should collect the F@F bag from the cloakroom at Reception and set up the games and stim toys.</li>
+<li>Games and stim toys are available for community members to use.</li>
+<li>At the end of the session, the last volunteer leaving should make sure all games and stim toys are returned to the F@F bag.</li>
+<li>Return the bag to the cloakroom at Reception so everything is ready for the next session.</li>
+</ul>
+<h3>Accessibility</h3>
+<ul>
+<li>Respect community members&#x27; accessibility needs and requests.</li>
+<li>If someone says they need an accessibility adjustment, accept this without questioning or asking them to justify it.</li>
+<li>Do not suggest alternatives such as using the stairs instead, unless there is a genuine practical reason and this has been discussed with a member of staff.</li>
+<li>Remember that not all disabilities or access needs are visible.</li>
+<li>Do not make assumptions about what someone can or cannot do.</li>
+<li>If you are unsure how best to support someone, please ask a volunteer either in the space or via the whatsapp group. rather than asking the community member to justify their needs.</li>
+<li>When offering physical assistance, ask first rather than assuming someone needs help.</li>
+</ul>
+<p>The aim is to make sure everyone feels welcome, respected and able to access the space without having to explain or justify their needs.</p>
+<h3>If a Community Member Is Not Following the Expectations</h3>
+<p>Volunteers should:</p>
+<ul>
+<li>Start with a friendly reminder.</li>
+<li>Explain the expectation clearly and calmly.</li>
+<li>Give the person an opportunity to correct the issue.</li>
+<li>Avoid embarrassing or challenging someone in front of others where possible.</li>
+<li>Speak to Volenteer or Chris  if the situation is unclear or becomes difficult.</li>
+<li>Escalate any serious safety, safeguarding or behavioural concerns to Chris or to log them on the Volunteeria app.</li>
+</ul>
+<p>The general approach should be: be friendly, be respectful and ask for support if you&#x27;re unsure.</p>
+<h2 id="community">Guidance for community members</h2>
+<p>Volunteers should help community members understand and follow the expectations below. These are intended to ensure the building remains a comfortable, respectful and safe space for everyone.</p>
+<h3>Allowed / Expected</h3>
+<ul>
+<li>Respect the building and other charities and organisations using the space, particularly in communal areas such as the canteen/refectory.</li>
+<li>Keep shoes on in communal areas.</li>
+<li>Keep noise levels reasonable. Normal conversation is fine, but loud outbursts or excessive noise should be avoided.</li>
+<li>Be considerate of other people using the space.</li>
+<li>Use of the vending machines is permitted.</li>
+<li>Calls and video calls are permitted, but headphones should be used to minimise disruption.</li>
+<li>Where possible, use the Rose Room, if available, or the green booths in the refectory for calls.</li>
+<li>Calls can be taken in the open refectory area as long as they are kept at a respectful volume. Please feel free to also use headphones.</li>
+</ul>
+<h3>Not Allowed / Building Restrictions</h3>
+<ul>
+<li>Do not eat food that is on display in the refectory/canteen.</li>
+<li>Do not access floors or areas that you have not been given permission to use.</li>
+<li>When in Clerkenwell, only the 4th floor and Reception should be accessed.</li>
+<li>When using the Loft, people who are able to use the stairs may use the kitchen closest to the Loft on the 5th floor.</li>
+<li>For people with reduced mobility, a volunteer should offer support and, where needed, use their pass to provide access to the lift and help them get to the refectory.  and toilets. The toilets on 6th floor are accessible with a pass only</li>
+<li>The bathroom on the 6th floor (Loft) is available for people using the Loft.</li>
+</ul>
+<h3>Shared Responsibilities</h3>
+<p>Both volunteers and community members should:</p>
+<ul>
+<li>Put used cups, plates, glasses and cutlery in the washing-up room and place them on the trolley.</li>
+<li>Dispose of rubbish in the recycling bins provided.</li>
+<li>Leave shared spaces clean and tidy for the next person or organisation using them.</li>
+<li>Treat other people, staff, volunteers and the building with respect.</li>
+<li>Follow reasonable instructions from building staff and volunteers.</li>
+</ul>
+<p><a href="{{ url_for('index') }}" class="btn btn-primary">Book a Friday</a></p>
+</article>
+{% endblock %}

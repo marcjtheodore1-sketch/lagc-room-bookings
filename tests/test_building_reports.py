@@ -51,83 +51,72 @@ class BuildingReportTest(unittest.TestCase):
     print(json.dumps({'body': content['body'], 'html': content['html'],
         'to': message['To'], 'cc': message['Cc'], 'envelope': envelope}))
 ''')
-        for value in ('Avery Jones', 'Taylor Smith', 'Sam Volunteer', 'Uses a wheelchair',
-                      '10.30am to 4.30pm', '10.45am to 4pm'):
+        for value in ('Avery Jones', 'Taylor Smith', 'Sam Volunteer', 'Mobility needs reported: Yes', 'Total names: 3'):
             self.assertIn(value, result['body'])
-        for value in ('Cannot Attend', 'private@example.test', 'Private counselling', 'secret-cancel-link'):
+        for value in ('Cannot Attend', 'private@example.test', 'Private counselling', 'secret-cancel-link',
+                      'Uses a wheelchair', '10.30am', '10.45am', 'The Loft'):
             self.assertNotIn(value, result['body'] + result['html'])
         self.assertIn('emma.perez@macmillan.com', result['to'])
         self.assertIn('martha.fisher@macmillan.com', result['to'])
         self.assertIn('florence.perdriel@gmail.com', result['cc'])
         self.assertEqual(len(result['envelope']), 3)
 
-    def test_batches_include_additions_cancellations_and_rota_changes_once(self):
+    def test_one_final_list_no_later_updates_and_names_deduplicated(self):
         result = run_case('''
+    db.session.add(Booking(room_id=room.id, user_name='  AVERY  Jones  ',
+        user_email='second@example.test', booking_date=day, start_slot=1, end_slot=2,
+        carer_attending=True, bringing_others=True, carer_first_name='Taylor',
+        carer_last_name='Smith', companion_names='Taylor Smith (carer); Sam Volunteer',
+        cancel_token='duplicate-names'))
+    db.session.commit()
     sent = []
     with patch('building_reports.send_report_email', side_effect=lambda content: sent.append(content)):
         initial = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
         repeat = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
-        unchanged = run_building_report_job(datetime(2026, 10, 8, 12, tzinfo=zone))
-        db.session.add(Booking(room_id=room.id, user_name='Late Booking',
-            user_email='late@example.test', booking_date=day, start_slot=0, end_slot=15,
-            carer_attending=True, bringing_others=True, carer_first_name='Robin', carer_last_name='Brown',
-            companion_names='Robin Brown', additional_attendees=1, cancel_token='late-token'))
+        first.cancelled_at = datetime(2026, 10, 8, 11)
         db.session.commit()
-        # No per-booking sends between batches, even after a no-change check.
-        odd_hour = run_building_report_job(datetime(2026, 10, 8, 13, tzinfo=zone))
-        added = run_building_report_job(datetime(2026, 10, 8, 14, tzinfo=zone))
-        first.cancelled_at = datetime(2026, 10, 8, 14, 30)
-        volunteer = VolunteerAvailability.query.filter_by(name='Sam Volunteer').one()
-        volunteer.end_time = '15:00'
-        db.session.commit()
-        changed = run_building_report_job(datetime(2026, 10, 8, 16, tzinfo=zone))
-        overnight = run_building_report_job(datetime(2026, 10, 8, 20, tzinfo=zone))
-        friday_unchanged = run_building_report_job(datetime(2026, 10, 9, 8, tzinfo=zone))
-        db.session.add(Booking(room_id=room.id, user_name='Friday Afternoon',
-            user_email='afternoon@example.test', booking_date=day, start_slot=0, end_slot=15, cancel_token='afternoon'))
-        db.session.commit()
-        afternoon = run_building_report_job(datetime(2026, 10, 9, 16, tzinfo=zone))
-        final = run_building_report_job(datetime(2026, 10, 9, 18, tzinfo=zone))
-        closed = run_building_report_job(datetime(2026, 10, 9, 20, tzinfo=zone))
-    print(json.dumps({'sent': sent, 'counts': [initial, repeat, unchanged, odd_hour, added,
-        changed, overnight, friday_unchanged, afternoon, final, closed]}))
+        later = run_building_report_job(datetime(2026, 10, 8, 12, tzinfo=zone))
+        friday = run_building_report_job(datetime(2026, 10, 9, 10, tzinfo=zone))
+    snapshot = json.loads(BuildingReportDispatch.query.one().snapshot)
+    print(json.dumps({'sent': sent, 'counts': [initial, repeat, later, friday], 'snapshot': snapshot}))
 ''')
-        self.assertEqual([c['sent'] for c in result['counts']], [1, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0])
-        self.assertIn('Added booking: Late Booking; Carer: Robin Brown', result['sent'][1]['body'])
-        self.assertEqual(result['sent'][1]['body'].count('Companion: Robin Brown'), 0)
-        self.assertIn('Cancelled / removed booking: Avery Jones', result['sent'][2]['body'])
-        self.assertIn('Updated volunteer: Sam Volunteer', result['sent'][2]['body'])
-        self.assertIn('Added booking: Friday Afternoon', result['sent'][3]['body'])
+        self.assertEqual([c['sent'] for c in result['counts']], [1, 0, 0, 0])
+        self.assertEqual(len(result['sent']), 1)
+        for name in ('Avery Jones', 'Taylor Smith', 'Sam Volunteer'):
+            self.assertEqual(result['sent'][0]['body'].count(name), 1)
+        self.assertEqual(result['snapshot']['total'], 3)
+        self.assertNotIn('Uses a wheelchair', json.dumps(result['snapshot']))
 
-    def test_failures_retry_later_and_uncertain_delivery_waits_for_check(self):
+    def test_failure_retry_within_10am_window_and_uncertain_delivery_waits(self):
         result = run_case('''
     with patch('building_reports.send_report_email', side_effect=RuntimeError('SMTP login rejected')):
         failed = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
-    with patch('building_reports.send_report_email') as send:
-        repeat = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
-        later = run_building_report_job(datetime(2026, 10, 8, 12, tzinfo=zone))
-        calls = send.call_count
-    first.mobility_details = 'Walking stick needed'
+    first.user_name = 'Changed after deadline'
     db.session.commit()
     with patch('building_reports.send_report_email', side_effect=EmailDeliveryUncertain('Check delivery')):
-        uncertain = run_building_report_job(datetime(2026, 10, 8, 14, tzinfo=zone))
+        uncertain = run_building_report_job(datetime(2026, 10, 8, 10, 1, tzinfo=zone))
     with patch('building_reports.send_report_email') as send:
-        blocked = run_building_report_job(datetime(2026, 10, 8, 16, tzinfo=zone))
+        blocked = run_building_report_job(datetime(2026, 10, 8, 10, 2, tzinfo=zone))
         blocked_calls = send.call_count
     client = app.test_client()
     with client.session_transaction() as session:
         session['admin_logged_in'] = True
     row = BuildingReportDispatch.query.filter_by(status='sending').one()
     resolved = client.post('/api/admin/building-reports/resolve/' + str(row.id), json={'action': 'not_sent'})
-    with patch('building_reports.send_report_email'):
-        recovered = run_building_report_job(datetime(2026, 10, 8, 18, tzinfo=zone))
-    print(json.dumps({'counts': [failed, repeat, later, uncertain, blocked, recovered],
-                     'calls': calls, 'blocked_calls': blocked_calls, 'resolved': resolved.status_code}))
+    with patch('building_reports.send_report_email') as send:
+        recovered = run_building_report_job(datetime(2026, 10, 8, 10, 3, tzinfo=zone))
+        body = send.call_args.args[0]['body']
+        repeat = run_building_report_job(datetime(2026, 10, 8, 10, 4, tzinfo=zone))
+    print(json.dumps({'counts': [failed, uncertain, blocked, recovered, repeat],
+                     'blocked_calls': blocked_calls, 'resolved': resolved.status_code, 'body': body,
+                     'rows': BuildingReportDispatch.query.count()}))
 ''')
-        self.assertEqual([c['sent'] for c in result['counts']], [0, 0, 1, 0, 0, 1])
-        self.assertEqual(result['calls'], 1)
+        self.assertEqual([c['sent'] for c in result['counts']], [0, 0, 0, 1, 0])
         self.assertEqual(result['blocked_calls'], 0)
         self.assertEqual(result['resolved'], 200)
+        self.assertEqual(result['rows'], 1)
+        self.assertIn('Avery Jones', result['body'])
+        self.assertNotIn('Changed after deadline', result['body'])
 
     def test_legacy_mobility_html_escaping_and_extra_attendees(self):
         result = run_case('''
@@ -144,12 +133,13 @@ class BuildingReportTest(unittest.TestCase):
     content = report_content(day, build_snapshot(day))
     print(json.dumps(content))
 ''')
-        self.assertIn('Uses crutches and needs the lift', result['body'])
+        self.assertIn('Mobility needs reported: Yes', result['body'])
+        self.assertNotIn('Uses crutches', result['body'] + result['html'])
         self.assertNotIn('Private sensory', result['body'])
         self.assertNotIn('<script>', result['html'])
         self.assertIn('&lt;script&gt;', result['html'])
-        self.assertIn('Carer: Jo Jones', result['body'])
-        self.assertIn('Companion: Taylor Smith', result['body'])
+        self.assertEqual(result['body'].count('Jo Jones'), 1)
+        self.assertIn('Taylor Smith', result['body'])
 
     def test_disabled_unpublished_and_outside_hours_never_send(self):
         result = run_case('''
@@ -157,8 +147,9 @@ class BuildingReportTest(unittest.TestCase):
         set_setting('building_reports_enabled', 'false')
         disabled = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
         set_setting('building_reports_enabled', 'true')
-        outside = [run_building_report_job(datetime(2026, 10, 8, hour, tzinfo=zone)) for hour in (8, 9, 11, 19, 20)]
+        outside = [run_building_report_job(datetime(2026, 10, 8, hour, tzinfo=zone)) for hour in (8, 9, 11, 12, 14, 16, 18, 19, 20)]
         unpublished = run_building_report_job(datetime(2026, 10, 29, 10, tzinfo=zone))
+        friday = [run_building_report_job(datetime(2026, 10, 9, hour, tzinfo=zone)) for hour in (8,10,12,14,16,18)]
         calls = send.call_count
     client = app.test_client()
     private_preview = client.get('/api/admin/building-reports/preview/2026-10-09')

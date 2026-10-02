@@ -3686,3 +3686,26 @@ html {
 #email-blast-body { width: 100%; box-sizing: border-box; resize: vertical; padding: .75rem; }
 .room-access-note { font-size: .95rem; line-height: 1.5; }
 #building-report-recipients { overflow-wrap: anywhere; }
+
+/* Booking deadlines and the shared help sheet. */
+.date-grid button.date-card { font: inherit; color: inherit; width: 100%; }
+.date-card strong, .date-card small, .registration-status { display: block; }
+.date-card small { margin-top: .5rem; line-height: 1.45; }
+.date-card.registration-closed { cursor: default; background: #f1eef0; border-color: #c8c0c6; box-shadow: none; }
+.date-card.registration-closed:hover { transform: none; box-shadow: none; }
+.registration-status { font-weight: 700; margin-top: .6rem; color: #5b3d52; }
+.booking-ahead-note h2 { font-size: 1.2rem; margin: 0 0 .6rem; }
+.help-sheet-page { max-width: 900px; margin: 0 auto; }
+.help-sheet-page h2 { margin-top: 2.5rem; }
+.help-sheet-page h2[id] { scroll-margin-top: 12rem; }
+.help-sheet-page h3 { margin-top: 1.75rem; }
+.help-sheet-page p, .help-sheet-page li { line-height: 1.7; }
+.help-sheet-page li { margin-bottom: .6rem; }
+.help-sheet-downloads, .help-sheet-jump-links { display: flex; flex-wrap: wrap; gap: .75rem 1.2rem; margin: 1.5rem 0; }
+.help-sheet-photo { margin: 1.5rem 0; }
+.help-sheet-photo img { max-width: min(100%, 540px); height: auto; border-radius: 12px; }
+.help-sheet-photo:first-of-type img { max-width: min(100%, 280px); }
+@media (max-width: 600px) {
+    .help-sheet-downloads .btn { width: 100%; text-align: center; }
+    .help-sheet-page h2[id] { scroll-margin-top: 10rem; }
+}

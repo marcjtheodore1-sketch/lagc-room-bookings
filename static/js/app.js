@@ -54,11 +54,17 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // A meeting-room confirmation can link back to rooms on the same Friday.
     const linkedDate = new URLSearchParams(window.location.search).get('date');
-    if (state.fridays.some(f => f.date === linkedDate)) {
+    if (state.fridays.some(f => f.date === linkedDate) && !registrationClosed(linkedDate)) {
         state.selectedDate = linkedDate;
         showStep('room');
         await loadRooms(linkedDate);
+    } else if (linkedDate && registrationClosed(linkedDate)) {
+        showRegistrationClosed();
     }
+
+    // A tab left open before the deadline must also stop offering registration.
+    setInterval(refreshRegistrationDeadlines, 15000);
+    window.addEventListener('focus', refreshRegistrationDeadlines);
 
     // Check for email in URL (coming from cancel page)
     checkUrlForEmail();
@@ -161,7 +167,19 @@ async function loadAvailability() {
     
     try {
         const response = await fetch(`/api/availability/${state.selectedDate}/${state.selectedRoom.id}`);
-        state.availability = await response.json();
+        const result = await response.json();
+        if (!response.ok) {
+            if (result.registration_closed) {
+                showRegistrationClosed(result.error);
+                showStep('date');
+                await loadFridays();
+                renderDates();
+            } else {
+                elements.timeSlots.textContent = result.error || 'Failed to load availability';
+            }
+            return;
+        }
+        state.availability = result;
         renderTimeSlots();
     } catch (error) {
         elements.timeSlots.innerHTML = '<p class="error-text">Failed to load availability</p>';
@@ -295,11 +313,42 @@ function renderDates() {
         return;
     }
     elements.dateGrid.innerHTML = state.fridays.map(friday => {
+        if (registrationClosed(friday.date)) {
+            return `<div class="date-card registration-closed">
+                <strong>${escapeHtml(friday.display)}</strong>
+                <span class="registration-status">Registration closed</span>
+                <small>The session is still going ahead. Existing bookings remain valid.</small>
+            </div>`;
+        }
         return `
-        <div class="date-card" onclick="selectDate('${friday.date}')">
-            ${escapeHtml(friday.display)}
-        </div>
+        <button type="button" class="date-card" onclick="selectDate('${friday.date}')">
+            <strong>${escapeHtml(friday.display)}</strong>
+            <small>Book before ${escapeHtml(friday.deadline_display || 'Thursday at 10am')} (London time)</small>
+        </button>
     `}).join('');
+}
+
+function registrationClosed(date) {
+    const friday = state.fridays.find(f => f.date === date);
+    return !!friday && (friday.registration_closed ||
+        (friday.booking_deadline && Date.now() >= Date.parse(friday.booking_deadline)));
+}
+
+function showRegistrationClosed(message) {
+    const notice = document.getElementById('registration-closed-message');
+    notice.textContent = message || 'Registration is closed. Bookings close on Thursday at 10am (London time). The session is still going ahead and existing bookings remain valid.';
+    notice.hidden = false;
+}
+
+function refreshRegistrationDeadlines() {
+    const newlyClosed = state.fridays.filter(f => !f.registration_closed && registrationClosed(f.date));
+    if (!newlyClosed.length) return;
+    newlyClosed.forEach(f => { f.registration_closed = true; });
+    renderDates();
+    if (registrationClosed(state.selectedDate) && steps.confirmation.classList.contains('hidden')) {
+        showRegistrationClosed();
+        showStep('date');
+    }
 }
 
 function renderTimeSlots() {
@@ -502,6 +551,12 @@ function selectPeerSupport() {
 }
 
 async function selectDate(date) {
+    if (registrationClosed(date)) {
+        showRegistrationClosed();
+        renderDates();
+        return;
+    }
+    document.getElementById('registration-closed-message').hidden = true;
     // Step 1: pick a Friday first
     state.selectedDate = date;
     state.selectedRoom = null;
@@ -974,6 +1029,12 @@ async function submitYogaBooking(name, email) {
 }
 
 async function submitBooking() {
+    if (registrationClosed(state.selectedDate)) {
+        showRegistrationClosed();
+        showStep('date');
+        renderDates();
+        return;
+    }
     const firstName = elements.firstNameInput.value.trim();
     const lastName = elements.lastNameInput.value.trim();
     const email = elements.emailInput.value.trim();
@@ -1111,6 +1172,13 @@ async function submitBooking() {
             elements.confirmationMessage.textContent = result.confirmation_message + emailStatus;
             showStep('confirmation');
         } else {
+            if (result.registration_closed) {
+                showRegistrationClosed(result.error);
+                showStep('date');
+                await loadFridays();
+                renderDates();
+                return;
+            }
             alert(result.error || 'Failed to create booking');
         }
     } catch (error) {

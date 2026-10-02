@@ -147,6 +147,11 @@
     <!-- Volunteer Rota Tab -->
     <div class="tab-content" id="tab-volunteers">
         <h2>🙋 Volunteer Rota</h2>
+        <div class="notice-box info">
+            <p><strong>Kirsty's help sheet</strong> covers welcoming people, using the building and emergency procedures.</p>
+            <p><a href="{{ url_for('help_sheet') }}#volunteers">Read the volunteer guidance</a> · <a href="{{ url_for('static', filename='guides/farringdon-help-sheet.pdf') }}">Download PDF</a> · <a href="{{ url_for('static', filename='guides/farringdon-help-sheet.docx') }}">Download Word document</a></p>
+            <p>Enter your availability before Thursday at 10am so your name is included in the weekly building list.</p>
+        </div>
         <p class="hint">Volunteers: enter your name and choose your availability for each Friday. When available, you must choose specific arrival and leaving times, including any setup or closing time. Everyone's availability is shown below.</p>
 
         <div class="notice-box info volunteer-guidance">
@@ -236,7 +241,7 @@
         </section>
         <section class="building-reports-panel" aria-labelledby="building-reports-title">
             <h2 id="building-reports-title">Pan Macmillan attendance emails</h2>
-            <p>Full volunteer and attendee lists go to Emma Perez and Martha Fisher, with Florence Perdriel copied. Later emails group new bookings, cancellations and changes, and include the current full list.</p>
+            <p>One weekly list goes to Emma Perez and Martha Fisher, with Florence Perdriel copied, when bookings close on Thursday at 10am. Names appear once, including volunteers, carers and companions. The email gives a general Yes/No mobility flag, without identifying who has mobility needs or sharing written details. Room names and times are left out.</p>
             <p id="building-report-schedule"></p>
             <div class="building-report-controls">
                 <label><input type="checkbox" id="building-reports-enabled"> Send automatic attendance emails</label>
@@ -248,7 +253,7 @@
                 <p id="building-report-recipients"></p>
                 <label for="building-report-body"><strong>Email preview</strong></label>
                 <textarea id="building-report-body" rows="20" class="code-editor" readonly></textarea>
-                <p class="hint">Preview only. Includes companion and carer names and reported mobility needs. Contact details and unrelated private notes are left out.</p>
+                <p class="hint">Preview only. Names are deduplicated and mobility needs are shown only as a general Yes/No flag.</p>
             </div>
             <details><summary>Recent automatic email runs</summary><div id="building-report-history"></div></details>
         </section>

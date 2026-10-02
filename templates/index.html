@@ -7,7 +7,9 @@
     <p class="subtitle" id="booking-subtitle">Select a Friday to book your space. <strong>Time Slot</strong> rooms let you choose specific 30-minute slots (up to 3 hours). <strong>Open Booking</strong> rooms reserve the whole day — each room card shows its opening hours.</p>
 
     <div class="notice-box info booking-ahead-note">
-        <p><strong>Please book by 8am on Thursday wherever possible.</strong> This helps us prepare the attendee list for the building team. Bookings remain open afterwards, and we send the building team updates about later bookings.</p>
+        <p><strong>Booking deadline: Thursday at 10am each week (London time).</strong> You must complete your booking before then to attend the following Friday. Registration closes automatically at 10am so the building team can prepare for everyone, including anyone with mobility needs.</p>
+        <p>Closed dates stay visible. The session is still going ahead and existing bookings remain valid.</p>
+        <p><a href="{{ url_for('help_sheet') }}">Read Kirsty's help sheet before you visit</a> for building guidance and emergency procedures.</p>
     </div>
 
     <div class="notice-box info space-expectations">
@@ -18,6 +20,7 @@
     </div>
 
     <div class="booking-form">
+        <p id="registration-closed-message" class="notice-box warning" role="alert" hidden></p>
         <!-- Step 1: Select Date -->
         <div class="form-step" id="step-date">
             <h2>Step 1: Select a Friday</h2>
@@ -75,7 +78,7 @@
             <div id="room-fields">
             <fieldset class="form-group mobility-question">
                 <legend>Do you or anyone coming with you have any mobility needs? <span class="required">*</span></legend>
-                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. We need to let Pan Macmillan's building team know so they can plan access and any assistance needed.</p>
+                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. We tell Pan Macmillan's building team whether mobility needs have been reported for the session, so they can plan ahead. Your written details stay with the LAGC team.</p>
                 <div class="yoga-radio-group">
                     <label class="radio-option"><input type="radio" name="mobility-needs" value="no" required> No</label>
                     <label class="radio-option"><input type="radio" name="mobility-needs" value="yes" required> Yes</label>
@@ -255,6 +258,7 @@
         <div class="form-step hidden" id="step-confirmation">
             <h2>✅ Booking Confirmed!</h2>
             <div class="confirmation-message" id="confirmation-message"></div>
+            <p><a href="{{ url_for('help_sheet') }}">Read Kirsty's help sheet before you visit</a>. It includes building guidance and emergency procedures.</p>
             <div class="step-actions">
                 <button class="btn btn-primary" onclick="resetBooking()">Make Another Booking</button>
             </div>
@@ -275,5 +279,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=47"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=48"></script>
 {% endblock %}
