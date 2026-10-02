@@ -178,7 +178,7 @@ creating another draft; the system never automatically retries a general blast.
 The booking page asks people to book by Thursday at 8am wherever possible;
 this is an early-booking request, not a closure of bookings. Meeting-room
 cards, the review step and confirmation emails explain that a room booking
-only gives access to that room, and link back to book the shared F@F room on
+only gives access to that room, and link back to book any other rooms on
 the same Friday separately.
 
 ## Database
