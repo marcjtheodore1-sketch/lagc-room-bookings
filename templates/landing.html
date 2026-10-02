@@ -74,16 +74,23 @@
 {% endif %}
 {% endmacro %}
 <div class="landing-page">
-    <div class="landing-header">
-        <a href="https://www.londonautismgroupcharity.org" target="_blank">
+    <div class="landing-header home-hero">
+        <div class="home-hero-copy">
+        <a href="https://www.londonautismgroupcharity.org" target="_blank" class="home-charity-link">
             <img src="{{ url_for('static', filename='images/lagc_logo.jpg') }}" alt="London Autism Group Charity Logo" class="lagc-logo">
         </a>
-        <h1>Socialise, Work or Study Together or Solo on Fridays in Farringdon</h1>
+        <h1>Fridays <span class="hero-at">@</span> Farringdon</h1>
+        <p class="hero-description">Socialise, work or study.<br>Together or solo.</p>
         <p class="subtitle">A weekly neuroaffirming space for autistic adults</p>
         <p class="scroll-hint">
             <span class="scroll-hint-text">Scroll down for more info &amp; to register</span>
             <span class="scroll-hint-arrow" aria-hidden="true">↓</span>
         </p>
+        </div>
+        <figure class="home-hero-photo">
+            <img src="{{ url_for('static', filename='images/cafeteria-1.jpg') }}" alt="Tables, chairs and flowers beside the windows at our Farringdon venue" width="1200" height="1600" fetchpriority="high">
+            <figcaption>Our space at Pan Macmillan</figcaption>
+        </figure>
     </div>
 
     <div class="landing-content">

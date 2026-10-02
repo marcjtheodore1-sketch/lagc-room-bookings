@@ -1,0 +1,218 @@
+/* Shared presentation layer. Booking controls and page behaviour remain in
+   style.css and the existing scripts. */
+:root {
+    --primary: #654485;
+    --primary-dark: #4d306a;
+    --secondary: #686074;
+    --bg: #faf8f4;
+    --card-bg: #fffefa;
+    --text: #302938;
+    --text-light: #686170;
+    --border: #ded9e1;
+    --radius: 12px;
+    --radius-lg: 20px;
+    --shadow: 0 3px 12px rgba(48, 41, 56, .04);
+    --shadow-lg: 0 8px 24px rgba(48, 41, 56, .07);
+}
+
+html { font-size: 112.5%; }
+body { line-height: 1.65; }
+h1, h2, h3 { letter-spacing: -.025em; line-height: 1.25; }
+h1 { font-size: clamp(1.8rem, 4vw, 2.5rem); }
+a { color: var(--primary); text-underline-offset: .18em; }
+:where(a, button, input, select, textarea, summary):focus-visible {
+    outline: 3px solid #654485;
+    outline-offset: 4px;
+}
+
+.navbar {
+    position: relative;
+    padding: .8rem 2rem;
+    flex-wrap: wrap;
+    gap: .5rem 1.5rem;
+    box-shadow: none;
+    background: #fffefa;
+}
+.nav-brand { display: flex; align-items: center; gap: .75rem; }
+.nav-brand a { font-size: 1.05rem; color: var(--text); }
+.nav-brand .nav-logo { height: 28px; }
+.nav-links { flex-wrap: wrap; gap: .2rem .7rem; }
+.nav-link { font-size: .8rem; padding: .4rem .2rem; }
+.nav-link[href="/book"] {
+    background: #eee6f4;
+    color: #4d306a;
+    padding: .4rem .7rem;
+    border-radius: 8px;
+}
+.charity-logo-link:hover .nav-logo,
+.landing-header a:hover .lagc-logo { transform: none; }
+.container { padding: 2.25rem 1.5rem; }
+.container.landing-wide { max-width: 1200px; }
+.footer { background: #f0ece8; border-top: 1px solid var(--border); }
+.footer-links { flex-wrap: wrap; }
+
+/* Plain headings and a real venue photo replace the animated gradient. */
+.landing-header {
+    padding: 1rem 0 2rem;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid var(--border);
+}
+.landing-header h1 {
+    background: none;
+    -webkit-text-fill-color: currentColor;
+    color: var(--text);
+    animation: none;
+    font-size: clamp(2rem, 4.3vw, 3rem);
+    line-height: 1.15;
+}
+.landing-header .lagc-logo { max-width: 150px; margin-bottom: 1.2rem; }
+.home-hero {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 3rem;
+    text-align: left;
+    border-bottom: 0;
+    padding: .5rem 0 1rem;
+    margin-bottom: 2rem;
+}
+.home-hero h1 { font-size: clamp(2.6rem, 4.8vw, 3.6rem); max-width: 10ch; }
+.hero-at { color: var(--primary); }
+.hero-description {
+    margin: 1rem 0 .8rem;
+    font-size: clamp(1.3rem, 2.5vw, 1.65rem);
+    line-height: 1.4;
+    font-weight: 500;
+    letter-spacing: -.025em;
+}
+.home-hero .subtitle { font-size: 1rem; color: var(--text-light); max-width: 30ch; }
+.home-hero-photo { margin: 0; position: relative; }
+.home-hero-photo img {
+    display: block;
+    width: 100%;
+    height: 460px;
+    object-fit: cover;
+    object-position: center 48%;
+    border-radius: 90px 20px 20px 20px;
+}
+.home-hero-photo figcaption {
+    margin-top: .65rem;
+    font-size: .8rem;
+    color: var(--text-light);
+}
+.scroll-hint { animation: none; font-size: .9rem; }
+.home-hero .scroll-hint { flex-direction: row; justify-content: flex-start; gap: .7rem; margin-top: 1.25rem; }
+.scroll-hint-arrow { animation: none; font-size: 1.2rem; }
+.intro-text { font-size: 1.15rem; margin: 0; }
+
+/* Quiet panels with an even border, without coloured side stripes. */
+.initiative-description, .room-purpose-summary {
+    background: #f1ece6;
+    border: 1px solid #e5ddd2;
+    padding: 1.4rem;
+    border-radius: var(--radius);
+}
+.notice-box.info, .notice-box.limit {
+    background: #f0edf5;
+    border-color: #ddd4e8;
+}
+.notice-box { padding: 1.3rem 1.5rem; }
+.notice-box.warning { background: #fff0ed; border-color: #e7c8c0; }
+.space-expectations { font-size: .95rem; }
+.info-card, .form-step, .reminder-form, .booking-card {
+    box-shadow: none;
+    border: 1px solid var(--border);
+}
+.info-card { padding: 1.8rem; }
+.cafeteria-card { background: #f3efe6; }
+.notice-box.registration-notice { background: #faf1df; border-color: #e7d8b9; }
+.feature-item { background: transparent; border: 0; padding: 1rem .5rem; }
+.features-grid { gap: 1rem; }
+.cta-section { border: 1px solid #ddd4e8; background: #eee6f4; box-shadow: none; padding: 2.5rem 1.5rem; }
+.btn { font-weight: 600; border-radius: 10px; transition: background-color .15s, border-color .15s; }
+.btn-primary { background: var(--primary); }
+.btn-primary:hover { background: var(--primary-dark); transform: none; }
+.btn-secondary { background: #ede9ef; color: var(--text); }
+.btn-secondary:hover { background: #e2dce7; }
+.btn-large { font-size: 1.15rem; padding: 1rem 1.7rem; }
+.form-group input, .form-group select, .form-group textarea { background: #fff; border-color: #cdc5d4; }
+.form-group input:focus, .form-group select:focus, .form-group textarea:focus { box-shadow: 0 0 0 3px #eee6f4; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--primary); }
+.booking-page > h1 { margin-bottom: .4rem; }
+.booking-page > h2 { margin-bottom: 1rem; }
+.reminder-page { margin-top: .5rem; }
+.reminder-form { padding: 1.8rem; }
+.reminder-choice { padding: .8rem; background: #f5f2f7; border-radius: 10px; }
+
+.collapse-toggle, .quick-link-card {
+    border: 1px solid #d6cedd;
+    box-shadow: none;
+    background: #fffefa;
+    padding: 1.2rem 1.4rem;
+    transition: background-color .15s;
+}
+.collapse-toggle:hover, .quick-link-card:hover { background: #f2edf6; box-shadow: none; }
+.collapse-toggle:active, .quick-link-card:active { transform: none; }
+.collapse-toggle-title { font-size: 1.15rem; }
+.collapse-toggle-sub { font-size: .9rem; font-weight: 400; }
+.collapse-toggle-available { background: #eee6f4; border-color: #d8cbe3; }
+.collapse-toggle-available:hover { background: #e7ddef; }
+.collapse-toggle-available .collapse-chevron,
+.quick-link-yoga .quick-link-arrow,
+.quick-link-student .quick-link-arrow { color: var(--primary); }
+.quick-link-yoga { background: #f3eef7; }
+.quick-link-student { background: #f6eee7; }
+.room-info-card { border-width: 1px; padding: 1.5rem; }
+.room-info-card.peer-support-card, .room-card.peer-support-room { background: #fbf3e9; border-color: #decfbc; }
+.room-info-card:hover, .room-info-card.peer-support-card:hover,
+.room-card:hover, .room-card.peer-support-room:hover { transform: none; box-shadow: none; background: #f5f0f8; border-color: var(--primary); }
+.room-card:hover .room-card-image img { transform: none; }
+.room-card.selected, .date-card.selected { border-color: var(--primary); background: #eee6f4; }
+.room-card-image { border-radius: 10px; }
+.rooms-section-heading { font-size: 1.7rem; }
+.testimonial-card { background: #f4ede5; border: 0; box-shadow: none; }
+.testimonials-carousel { border: 1px solid #e4d9cc; background: #f4ede5; box-shadow: none; }
+.announcement-banner { background: #f8eee2; border-color: #e6d4ba; animation: none; }
+.announcement-badge { background: #725335; animation: none; }
+.announcement-text { color: var(--text); }
+.announcement-text a, .announcement-text a:hover { color: var(--primary-dark); }
+.announcement-dot { background: #d4c5b2; }
+.announcement-dot.is-active { background: #725335; }
+.announcement-pause { color: #725335; border-color: #d4c5b2; }
+.login-container { border: 1px solid var(--border); max-width: 460px; margin: 3rem auto; }
+.login-container h1 { font-size: 1.6rem; }
+
+@media (max-width: 900px) {
+    .navbar { padding: .6rem 1rem; }
+    .nav-brand { width: 100%; }
+    .nav-links { gap: .1rem .55rem; }
+    .home-hero { gap: 1.5rem; }
+    .home-hero-photo img { height: 390px; }
+}
+@media (max-width: 600px) {
+    html { font-size: 106.25%; }
+    .container { padding: 1.5rem 1rem; }
+    .navbar { padding: .5rem .75rem; gap: .2rem; }
+    .nav-brand { margin: 0; }
+    .nav-brand a { font-size: .9rem; }
+    .nav-links { justify-content: flex-start; gap: 0 .45rem; }
+    .nav-link { font-size: .72rem; min-height: 32px; padding: .35rem .15rem; }
+    .nav-link[href="/book"] { padding: .35rem .5rem; }
+    .landing-header { padding: .5rem 0 1.5rem; margin-bottom: 1.5rem; }
+    .home-hero { grid-template-columns: 1fr; gap: 1.3rem; padding: 0; }
+    .home-hero h1 { font-size: 2.8rem; max-width: none; }
+    .home-hero .lagc-logo { max-width: 115px; margin-bottom: 1rem; }
+    .hero-description { font-size: 1.4rem; }
+    .home-hero .subtitle { max-width: 34ch; }
+    .home-hero-photo img { height: 220px; border-radius: 50px 16px 16px 16px; object-position: center 45%; }
+    .home-hero-photo figcaption { margin-top: .4rem; }
+    .info-card, .form-step, .reminder-form { padding: 1.25rem; }
+    .notice-box, .initiative-description { padding: 1.1rem; }
+    .collapse-toggle, .quick-link-card { padding: 1.1rem; }
+    .collapse-toggle-title { font-size: 1.05rem; }
+    .room-info-card { padding: 1.25rem; }
+    .btn { min-height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
