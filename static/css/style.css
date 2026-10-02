@@ -3682,4 +3682,5 @@ html {
 .building-report-controls input { width: auto; }
 .building-report-run { padding: .75rem 0; border-bottom: 1px solid #d5dbea; overflow-wrap: anywhere; }
 #building-report-preview { margin: 1rem 0; }
+#building-report-body { width: 100%; box-sizing: border-box; min-height: 22rem; resize: vertical; padding: .75rem; }
 #building-report-recipients { overflow-wrap: anywhere; }
