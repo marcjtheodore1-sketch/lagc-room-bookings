@@ -251,7 +251,7 @@ function renderRooms() {
             <h3>${escapeHtml(room.name)} ${typeBadge}</h3>
             <p>${escapeHtml(room.building_location)}</p>
             ${noteHtml}
-            ${room.room_type === 'slot' ? '<p class="room-access-note">This booking is for this room only. Book the social space separately if you would also like to join it.</p>' : ''}
+            ${room.room_type === 'slot' ? '<p class="room-access-note">This booking is for this room only. To join people in the shared F@F room as well, book that room separately.</p>' : ''}
             ${occupancyHtml}
             ${typeHint}
         </div>
@@ -749,8 +749,8 @@ function showEmailStep() {
         ${state.selectedRoom.room_type === 'slot' ? `
         <div class="summary-note room-access-note">
             <p><strong>This booking gives you access to ${escapeHtml(state.selectedRoom.name)} only.</strong></p>
-            <p>If you would also like to join the social space, complete this booking and
-            <a href="/book?date=${encodeURIComponent(state.selectedDate)}" target="_blank" rel="noopener">book the social space separately (opens a new tab)</a>.</p>
+            <p>If you would also like to join people in the shared F@F room (Clerkenwell or the Loft, depending on the Friday), complete this booking and
+            <a href="/book?date=${encodeURIComponent(state.selectedDate)}" target="_blank" rel="noopener">book the shared F@F room separately (opens a new tab)</a>.</p>
         </div>` : ''}
     `;
 

@@ -1678,7 +1678,8 @@ def create_booking():
     if room.room_type == 'slot':
         confirmation_message += (
             f'\n\nThis booking gives you access to {room.name} only. '
-            'If you would also like to join the social space, make a separate booking here:\n'
+            'If you would also like to join people in the shared F@F room '
+            '(Clerkenwell or the Loft, depending on the Friday), make a separate booking here:\n'
             f"{request.host_url.rstrip('/')}/book?date={booking_date.isoformat()}\n"
         )
 

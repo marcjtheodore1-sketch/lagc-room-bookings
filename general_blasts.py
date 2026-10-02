@@ -57,7 +57,7 @@ If you are planning to join us at Fridays @ Farringdon, please book by 8am on Th
 Book your space here:
 {booking_url}
 
-A meeting-room booking gives you access to that room only. If you would also like to join the social space, you will need to book that space separately.
+A meeting-room booking gives you access to that room only. If you would also like to join people in the shared F@F room (Clerkenwell or the Loft, depending on the Friday), you will need to book that room separately.
 
 We look forward to seeing you!
 
