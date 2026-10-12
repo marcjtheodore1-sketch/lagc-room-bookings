@@ -3713,3 +3713,43 @@ html {
     .help-sheet-downloads .btn { width: 100%; text-align: center; }
     .help-sheet-page h2[id] { scroll-margin-top: 10rem; }
 }
+
+/* Returning room bookers can reuse answers without an email verification step. */
+.mobility-question .yoga-radio-group {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+.mobility-question .radio-option {
+    white-space: normal;
+    align-items: flex-start;
+}
+.mobility-question input[type="radio"], .mobility-question input[type="checkbox"] {
+    flex-shrink: 0;
+    margin-top: 0.25rem;
+}
+.mobility-history, .mobility-review-note {
+    padding: 0.85rem;
+    margin: 0.85rem 0;
+    border-left: 4px solid #a07018;
+    background: #fff9eb;
+    border-radius: 5px;
+    overflow-wrap: anywhere;
+}
+.mobility-history p, .mobility-review-note p { margin: 0.35rem 0; }
+.mobility-history label {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.6rem;
+    font-weight: 400;
+}
+.mobility-history input[type="checkbox"] { width: auto; }
+.mobility-question textarea { font: inherit; }
+.mobility-history blockquote {
+    margin: 0.5rem 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.mobility-link-options { margin-top: 1rem; }
+.mobility-link-options summary, .mobility-review-note summary { cursor: pointer; }
+.mobility-link-options button { margin-top: 0.5rem; }

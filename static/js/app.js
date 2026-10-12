@@ -920,8 +920,25 @@ function updateAttendeeFields() {
     }
 }
 
+let mobilityAccess = null;
+let mobilityDisplayedEmail = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => radio.addEventListener('change', updateMobilityFields));
+    elements.emailInput.addEventListener('input', renderMobilityHistory);
+    document.getElementById('mobility-request-link').addEventListener('click', requestMobilityLink);
+    document.getElementById('mobility-hide-history').addEventListener('click', async () => {
+        try {
+            const response = await fetch('/api/mobility/forget', {method: 'POST'});
+            if (!response.ok) throw new Error('Unable to end private access');
+            mobilityAccess = null;
+            renderMobilityHistory();
+        } catch (_) {
+            alert('Private access could not be ended. Close this browser window if you are using a shared device.');
+        }
+    });
+    loadMobilityHistory();
+    setInterval(renderMobilityHistory, 30000);
     document.querySelectorAll('input[name="bringing-others"], input[name="carer-attending"]')
         .forEach(radio => radio.addEventListener('change', updateAttendeeFields));
     document.getElementById('add-companion').addEventListener('click', addCompanion);
@@ -929,16 +946,86 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function updateMobilityFields() {
-    const yes = document.querySelector('input[name="mobility-needs"]:checked')?.value === 'yes';
+    const choice = document.querySelector('input[name="mobility-needs"]:checked')?.value;
+    const yes = choice === 'yes';
     document.getElementById('mobility-details-field').hidden = !yes;
+    document.getElementById('mobility-reuse-hint').hidden = choice !== 'reuse';
     const details = document.getElementById('mobility-details');
     details.required = yes;
     details.disabled = !yes;
     if (!yes) details.value = '';
+    renderMobilityHistory();
+    if (yes && !details.value && currentMobilityHistory()?.previous) {
+        details.value = currentMobilityHistory().previous.details;
+    }
+    const check = document.getElementById('mobility-change-confirmed');
+    const changed = choice === 'no' && !!currentMobilityHistory()?.previous;
+    document.getElementById('mobility-change-check').hidden = !changed;
+    check.required = changed;
+    if (!changed) check.checked = false;
+}
+
+function currentMobilityHistory() {
+    return mobilityAccess?.verified && mobilityAccess.expires_at * 1000 > Date.now()
+        && mobilityAccess.email === elements.emailInput.value.trim().toLowerCase() ? mobilityAccess : null;
+}
+
+function renderMobilityHistory() {
+    const history = currentMobilityHistory();
+    if (mobilityDisplayedEmail && mobilityDisplayedEmail !== history?.email) {
+        // Do not leave one person's earlier wording in another person's form.
+        document.getElementById('mobility-details').value = '';
+        document.getElementById('mobility-change-confirmed').checked = false;
+    }
+    mobilityDisplayedEmail = history?.email || null;
+    document.getElementById('mobility-history').hidden = !history;
+    document.getElementById('mobility-history-heading').textContent = history
+        ? history.previous ? `You reported mobility support for ${history.previous.date_display}:`
+            : 'No earlier written mobility details were found for this email address. You can enter what would help below.' : '';
+    document.getElementById('mobility-history-details').textContent = history?.previous?.details || '';
+    document.getElementById('mobility-history-details').hidden = !history?.previous;
+    document.getElementById('mobility-link-options').hidden = !!history;
+    const no = document.querySelector('input[name="mobility-needs"]:checked')?.value === 'no';
+    const changed = no && !!history?.previous;
+    document.getElementById('mobility-change-check').hidden = !changed;
+    document.getElementById('mobility-change-confirmed').required = changed;
+}
+
+async function loadMobilityHistory() {
+    try {
+        const response = await fetch('/api/mobility/history', {cache: 'no-store'});
+        if (!response.ok) return;
+        mobilityAccess = await response.json();
+        if (mobilityAccess.verified && !elements.emailInput.value) elements.emailInput.value = mobilityAccess.email;
+        renderMobilityHistory();
+    } catch (_) { /* Optional history never prevents an ordinary booking. */ }
+}
+
+async function requestMobilityLink() {
+    const email = elements.emailInput.value.trim();
+    const status = document.getElementById('mobility-link-status');
+    if (!elements.emailInput.checkValidity() || !email) {
+        status.textContent = 'Enter your email address above first.';
+        elements.emailInput.focus();
+        return;
+    }
+    const button = document.getElementById('mobility-request-link');
+    button.disabled = true;
+    status.textContent = 'Requesting your private link…';
+    try {
+        const response = await fetch('/api/mobility/request-link', {
+            method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({email})
+        });
+        const result = await response.json();
+        status.textContent = result.message || result.error || 'The link could not be requested. You can still book without it.';
+    } catch (_) {
+        status.textContent = 'The link could not be requested. You can still book without it.';
+    } finally { button.disabled = false; }
 }
 
 function resetAttendeeFields() {
     document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => { radio.checked = false; });
+    document.getElementById('mobility-change-confirmed').checked = false;
     updateMobilityFields();
     const justMe = document.querySelector('input[name="bringing-others"][value="no"]');
     if (justMe) justMe.checked = true;
@@ -1079,6 +1166,12 @@ async function submitBooking() {
         (!mobilityAnswer ? document.querySelector('input[name="mobility-needs"]') : document.getElementById('mobility-details')).focus();
         return;
     }
+    if (mobilityAnswer.value === 'no' && currentMobilityHistory()?.previous
+            && !document.getElementById('mobility-change-confirmed').checked) {
+        alert('Tick the box to confirm that no mobility support is needed for this visit.');
+        document.getElementById('mobility-change-confirmed').focus();
+        return;
+    }
     const carerOrganisation = document.getElementById('carer-organisation').value.trim();
     const carerPhone = document.getElementById('carer-phone').value.trim();
     const carerAgreed = document.getElementById('carer-supervision-agreed').checked;
@@ -1129,7 +1222,9 @@ async function submitBooking() {
         attendee_type: bringingOthers ? (carerAttending ? 'carer' : 'companion') : 'solo',
         carer_first_name: carerFirstName,
         carer_last_name: carerLastName,
-        mobility_needs: mobilityAnswer.value === 'yes',
+        mobility_needs: mobilityAnswer.value !== 'no',
+        mobility_reuse: mobilityAnswer.value === 'reuse',
+        mobility_change_confirmed: document.getElementById('mobility-change-confirmed').checked,
         mobility_details: mobilityAnswer.value === 'yes' ? mobilityDetails : '',
         carer_organisation: carerOrganisation,
         carer_phone: carerPhone,

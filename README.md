@@ -209,3 +209,40 @@ On first run, the system creates:
   - User authentication
   - HTTPS
   - Rate limiting
+
+## Returning bookers and mobility details
+
+The room form offers a normal No, new/updated details, or explicit reuse of the
+last positive written mobility answer for the same email address. Reuse happens
+on the server and does not return the written answer to an unverified browser.
+Later No answers do not erase earlier support information. A cancelled visit's
+answer remains eligible, because cancelling attendance does not retract a
+support need. The booker must decide whether it applies to this visit and its
+companions. If no reusable answer exists, the form asks them to enter details.
+
+A No after a positive answer keeps the current No and shows an admin-only flag,
+earlier session date and details in upcoming/archived bookings, the CSV and new
+booking notification. Existing No bookings are flagged retrospectively in the
+admin views too. Written history is not added to the building attendance report
+or public My Bookings responses.
+
+Viewing earlier wording is optional. The form's email-link request sends an
+opaque private link valid for 30 minutes. Requests have a ten-minute per-address
+cooldown and a ten-request-per-hour IP limit, stored in `MobilityAccessLink` so
+the limits survive worker restarts. Responses do not reveal whether an address
+has a booking. If email is unavailable, normal booking/reuse still works.
+
+Future room confirmation emails include a private Book again link valid for
+90 days. It is generated separately from cancellation tokens and is never
+included in the public booking response. Only hashes of these random link
+tokens are stored. Opening either link enables viewing for 30 minutes in the
+HttpOnly browser cookie backed by a server-side expiry. Private responses cannot be cached, and access pages
+suppress referrers. The form hides history and clears copied wording if the
+email address changes; Hide previous details ends the private session. Private
+links should not be forwarded. No new account or mandatory verification is
+introduced. A verified reader choosing No explicitly confirms that support is
+not needed for this visit.
+
+Run `venv/bin/python -m unittest discover -s tests -q` for the isolated database
+suite, including mobility reuse, historical No flags, token separation, expiry,
+rate limits and public-response privacy. Tests disable/mock outbound mail.

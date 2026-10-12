@@ -1229,6 +1229,14 @@ function mobilitySummary(b) {
     return 'Not yet asked';
 }
 
+function mobilityHistoryNotice(b) {
+    if (!b.mobility_review_needed) return '';
+    return `<div class="mobility-review-note"><strong>Check: earlier mobility support reported</strong>
+        <span class="booking-cell-line">Current answer: No. Needs or companions may have changed.</span>
+        <details><summary>Earlier details (${escapeHtml(b.mobility_previous_date)})</summary>
+        <p>${escapeHtml(b.mobility_previous_details)}</p></details></div>`;
+}
+
 function bookingTable(bookings, archived = false) {
     return `<div class="booking-table-wrap"><table class="booking-table">
         <thead><tr><th scope="col">Attendee</th><th scope="col">Room &amp; time</th>
@@ -1239,7 +1247,7 @@ function bookingTable(bookings, archived = false) {
             <td data-label="Attendee"><strong>${escapeHtml(b.user_name)}</strong><span class="booking-cell-line">${escapeHtml(b.user_email)}</span></td>
             <td data-label="Room &amp; time"><strong>${escapeHtml(b.room_name)}</strong><span class="booking-cell-line">${escapeHtml(b.start_time)} to ${escapeHtml(b.end_time)}</span></td>
             <td data-label="Accessibility" class="booking-answer">${escapeHtml(b.accessibility_needs || 'None given')}</td>
-            <td data-label="Mobility" class="booking-answer">${escapeHtml(mobilitySummary(b))}</td>
+            <td data-label="Mobility" class="booking-answer">${escapeHtml(mobilitySummary(b))}${mobilityHistoryNotice(b)}</td>
             <td data-label="Companions &amp; carer">
                 ${b.bringing_others ? escapeHtml(b.companion_names || 'Names not given') : 'Attending alone'}
                 ${b.carer_attending ? `<div class="booking-carer"><strong>Carer / support worker</strong>
