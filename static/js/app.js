@@ -921,21 +921,41 @@ function updateAttendeeFields() {
 }
 
 let mobilityAccess = null;
-let mobilityDisplayedEmail = null;
+let mobilitySession = null;
+let mobilityCopiedIdentity = null;
+let mobilityRequestVersion = 0;
+let mobilitySessionVersion = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => radio.addEventListener('change', updateMobilityFields));
-    elements.emailInput.addEventListener('input', renderMobilityHistory);
-    document.getElementById('mobility-request-link').addEventListener('click', requestMobilityLink);
-    document.getElementById('mobility-hide-history').addEventListener('click', async () => {
-        try {
-            const response = await fetch('/api/mobility/forget', {method: 'POST'});
-            if (!response.ok) throw new Error('Unable to end private access');
-            mobilityAccess = null;
+    [elements.emailInput, elements.firstNameInput, elements.lastNameInput].forEach(input => {
+        input.addEventListener('input', () => {
+            mobilityRequestVersion++;
+            // Do not restore private details automatically if someone changes
+            // the identity and then changes it back on a shared device.
+            if (mobilityAccess && mobilityAccess.identity !== mobilityIdentity()) mobilityAccess = null;
             renderMobilityHistory();
-        } catch (_) {
-            alert('Private access could not be ended. Close this browser window if you are using a shared device.');
-        }
+        });
+    });
+    document.getElementById('mobility-details').addEventListener('input', () => {
+        // Once edited, this is the person's own draft and must be preserved.
+        mobilityCopiedIdentity = null;
+    });
+    document.getElementById('mobility-request-link').addEventListener('click', requestMobilityLink);
+    document.getElementById('mobility-show-history').addEventListener('click', showMobilityHistory);
+    document.getElementById('mobility-hide-history').addEventListener('click', endMobilityAccess);
+    document.getElementById('mobility-end-access').addEventListener('click', endMobilityAccess);
+    document.getElementById('mobility-edit-history').addEventListener('click', () => {
+        const history = currentMobilityHistory();
+        if (!history?.previous) return;
+        const details = document.getElementById('mobility-details');
+        if (details.value && details.value !== history.previous.details
+                && !confirm('Replace the details you have typed with your earlier answer?')) return;
+        document.querySelector('input[name="mobility-needs"][value="yes"]').checked = true;
+        details.value = history.previous.details;
+        mobilityCopiedIdentity = mobilityIdentity();
+        updateMobilityFields();
+        details.focus();
     });
     loadMobilityHistory();
     setInterval(renderMobilityHistory, 30000);
@@ -945,6 +965,45 @@ document.addEventListener('DOMContentLoaded', () => {
     updateAttendeeFields();
 });
 
+window.addEventListener('pagehide', () => {
+    mobilityRequestVersion++;
+    mobilitySessionVersion++;
+    mobilityAccess = null;
+    mobilitySession = null;
+    if (mobilityCopiedIdentity) {
+        document.getElementById('mobility-details').value = '';
+        mobilityCopiedIdentity = null;
+    }
+    renderMobilityHistory();
+});
+window.addEventListener('pageshow', event => {
+    if (event.persisted) loadMobilityHistory();
+});
+
+function mobilityIdentity() {
+    const name = `${elements.firstNameInput.value} ${elements.lastNameInput.value}`.trim().replace(/\s+/g, ' ').toLowerCase();
+    return `${elements.emailInput.value.trim().toLowerCase()}\n${name}`;
+}
+
+async function endMobilityAccess() {
+    mobilityRequestVersion++;
+    mobilitySessionVersion++;
+    mobilityAccess = null;
+    mobilitySession = null;
+    if (mobilityCopiedIdentity) {
+        document.getElementById('mobility-details').value = '';
+        mobilityCopiedIdentity = null;
+    }
+    renderMobilityHistory();
+    try {
+        const response = await fetch('/api/mobility/forget', {method: 'POST'});
+        if (!response.ok) throw new Error('Unable to end private access');
+        document.getElementById('mobility-link-status').textContent = 'Private access has ended and earlier private links have been cancelled. You can request a new link whenever you need one.';
+    } catch (_) {
+        alert('Private access could not be ended on the server. Close this browser window if you are using a shared device.');
+    }
+}
+
 function updateMobilityFields() {
     const choice = document.querySelector('input[name="mobility-needs"]:checked')?.value;
     const yes = choice === 'yes';
@@ -953,11 +1012,7 @@ function updateMobilityFields() {
     const details = document.getElementById('mobility-details');
     details.required = yes;
     details.disabled = !yes;
-    if (!yes) details.value = '';
     renderMobilityHistory();
-    if (yes && !details.value && currentMobilityHistory()?.previous) {
-        details.value = currentMobilityHistory().previous.details;
-    }
     const check = document.getElementById('mobility-change-confirmed');
     const changed = choice === 'no' && !!currentMobilityHistory()?.previous;
     document.getElementById('mobility-change-check').hidden = !changed;
@@ -967,38 +1022,96 @@ function updateMobilityFields() {
 
 function currentMobilityHistory() {
     return mobilityAccess?.verified && mobilityAccess.expires_at * 1000 > Date.now()
-        && mobilityAccess.email === elements.emailInput.value.trim().toLowerCase() ? mobilityAccess : null;
+        && mobilityAccess.identity === mobilityIdentity() ? mobilityAccess : null;
 }
 
 function renderMobilityHistory() {
     const history = currentMobilityHistory();
-    if (mobilityDisplayedEmail && mobilityDisplayedEmail !== history?.email) {
-        // Do not leave one person's earlier wording in another person's form.
+    if (mobilityCopiedIdentity && mobilityCopiedIdentity !== mobilityIdentity()) {
+        // Clear only an unedited copy when changing person, never a typed draft
+        // or a copy whose private session simply expired while filling out.
         document.getElementById('mobility-details').value = '';
-        document.getElementById('mobility-change-confirmed').checked = false;
+        mobilityCopiedIdentity = null;
     }
-    mobilityDisplayedEmail = history?.email || null;
+    const ready = mobilitySession?.verified && mobilitySession.expires_at * 1000 > Date.now();
+    if (mobilitySession?.verified && !ready) {
+        mobilitySession = null;
+        mobilityAccess = null;
+        mobilityRequestVersion++;
+        document.getElementById('mobility-link-status').textContent = 'Private access has expired. Anything you typed is still here. Enter your details or request a new link.';
+    }
     document.getElementById('mobility-history').hidden = !history;
     document.getElementById('mobility-history-heading').textContent = history
         ? history.previous ? `You reported mobility support for ${history.previous.date_display}:`
-            : 'No earlier written mobility details were found for this email address. You can enter what would help below.' : '';
+            : 'No earlier written mobility details were found for this name and email address. You can enter what would help below.' : '';
     document.getElementById('mobility-history-details').textContent = history?.previous?.details || '';
     document.getElementById('mobility-history-details').hidden = !history?.previous;
+    document.getElementById('mobility-edit-history').hidden = !history?.previous;
     document.getElementById('mobility-link-options').hidden = !!history;
+    document.getElementById('mobility-private-ready').hidden = !ready;
+    document.getElementById('mobility-request-link').hidden = !!ready;
+    document.getElementById('mobility-reuse-option').hidden = !history?.previous;
+    const reuse = document.querySelector('input[name="mobility-needs"][value="reuse"]');
+    reuse.disabled = !history?.previous;
+    if (reuse.disabled && reuse.checked) reuse.checked = false;
+    document.getElementById('mobility-reuse-hint').hidden = !reuse.checked;
     const no = document.querySelector('input[name="mobility-needs"]:checked')?.value === 'no';
     const changed = no && !!history?.previous;
     document.getElementById('mobility-change-check').hidden = !changed;
     document.getElementById('mobility-change-confirmed').required = changed;
+    if (!changed) document.getElementById('mobility-change-confirmed').checked = false;
 }
 
 async function loadMobilityHistory() {
+    const version = mobilitySessionVersion;
     try {
         const response = await fetch('/api/mobility/history', {cache: 'no-store'});
         if (!response.ok) return;
-        mobilityAccess = await response.json();
-        if (mobilityAccess.verified && !elements.emailInput.value) elements.emailInput.value = mobilityAccess.email;
+        const result = await response.json();
+        if (version !== mobilitySessionVersion) return;
+        mobilitySession = result;
+        if (mobilitySession.verified) document.getElementById('mobility-link-options').open = true;
         renderMobilityHistory();
     } catch (_) { /* Optional history never prevents an ordinary booking. */ }
+}
+
+async function showMobilityHistory() {
+    const email = elements.emailInput.value.trim();
+    const name = `${elements.firstNameInput.value.trim()} ${elements.lastNameInput.value.trim()}`;
+    const status = document.getElementById('mobility-link-status');
+    if (!elements.emailInput.checkValidity() || !email
+            || !elements.firstNameInput.value.trim() || !elements.lastNameInput.value.trim()) {
+        status.textContent = 'Enter your first name, last name and email address above first.';
+        return;
+    }
+    const identity = mobilityIdentity();
+    const version = ++mobilityRequestVersion;
+    const button = document.getElementById('mobility-show-history');
+    button.disabled = true;
+    status.textContent = 'Looking for your earlier answer…';
+    try {
+        const response = await fetch('/api/mobility/history', {
+            method: 'POST', cache: 'no-store', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({email, name})
+        });
+        if (!response.ok) throw new Error('History unavailable');
+        const result = await response.json();
+        if (version !== mobilityRequestVersion || identity !== mobilityIdentity()) return;
+        if (!result.verified) {
+            mobilityAccess = null;
+            mobilitySession = null;
+            status.textContent = 'The private link does not match this email address, or has expired. Request a new link, or enter your details yourself.';
+        } else {
+            mobilityAccess = {...result, identity};
+            mobilitySession = {verified: true, expires_at: result.expires_at};
+            status.textContent = '';
+        }
+        renderMobilityHistory();
+    } catch (_) {
+        if (version === mobilityRequestVersion) status.textContent = 'Your earlier answer could not be loaded. You can still enter your details and book normally.';
+    } finally {
+        button.disabled = false;
+    }
 }
 
 async function requestMobilityLink() {
@@ -1024,6 +1137,10 @@ async function requestMobilityLink() {
 }
 
 function resetAttendeeFields() {
+    mobilityAccess = null;
+    mobilityCopiedIdentity = null;
+    mobilityRequestVersion++;
+    document.getElementById('mobility-details').value = '';
     document.querySelectorAll('input[name="mobility-needs"]').forEach(radio => { radio.checked = false; });
     document.getElementById('mobility-change-confirmed').checked = false;
     updateMobilityFields();
@@ -1166,6 +1283,11 @@ async function submitBooking() {
         (!mobilityAnswer ? document.querySelector('input[name="mobility-needs"]') : document.getElementById('mobility-details')).focus();
         return;
     }
+    if (mobilityAnswer.value === 'reuse' && !currentMobilityHistory()?.previous) {
+        renderMobilityHistory();
+        alert('Private access has expired. Enter your mobility details or request a new private link.');
+        return;
+    }
     if (mobilityAnswer.value === 'no' && currentMobilityHistory()?.previous
             && !document.getElementById('mobility-change-confirmed').checked) {
         alert('Tick the box to confirm that no mobility support is needed for this visit.');
@@ -1225,6 +1347,7 @@ async function submitBooking() {
         mobility_needs: mobilityAnswer.value !== 'no',
         mobility_reuse: mobilityAnswer.value === 'reuse',
         mobility_change_confirmed: document.getElementById('mobility-change-confirmed').checked,
+        mobility_history_reviewed: !!currentMobilityHistory()?.previous,
         mobility_details: mobilityAnswer.value === 'yes' ? mobilityDetails : '',
         carer_organisation: carerOrganisation,
         carer_phone: carerPhone,

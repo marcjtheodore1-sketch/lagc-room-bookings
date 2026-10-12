@@ -213,8 +213,9 @@ On first run, the system creates:
 ## Returning bookers and mobility details
 
 The room form offers a normal No, new/updated details, or explicit reuse of the
-last positive written mobility answer for the same email address. Reuse happens
-on the server and does not return the written answer to an unverified browser.
+last positive written mobility answer for the same name and email address.
+Viewing or reusing history requires a private email link, checked on the server
+before looking up an answer for reuse. Ordinary bookings require no verification.
 Later No answers do not erase earlier support information. A cancelled visit's
 answer remains eligible, because cancelling attendance does not retract a
 support need. The booker must decide whether it applies to this visit and its
@@ -230,19 +231,32 @@ Viewing earlier wording is optional. The form's email-link request sends an
 opaque private link valid for 30 minutes. Requests have a ten-minute per-address
 cooldown and a ten-request-per-hour IP limit, stored in `MobilityAccessLink` so
 the limits survive worker restarts. Responses do not reveal whether an address
-has a booking. If email is unavailable, normal booking/reuse still works.
+has a booking. If email is unavailable, people can still enter details and book.
 
-Future room confirmation emails include a private Book again link valid for
-90 days. It is generated separately from cancellation tokens and is never
-included in the public booking response. Only hashes of these random link
-tokens are stored. Opening either link enables viewing for 30 minutes in the
-HttpOnly browser cookie backed by a server-side expiry. Private responses cannot be cached, and access pages
-suppress referrers. The form hides history and clears copied wording if the
-email address changes; Hide previous details ends the private session. Private
-links should not be forwarded. No new account or mandatory verification is
-introduced. A verified reader choosing No explicitly confirms that support is
-not needed for this visit.
+Room confirmation emails contain an ordinary Book again URL, with no history
+credential, so forwarding a confirmation does not share private access. Legacy
+90-day book-again credentials are rejected and expired during migration.
+Requested private links last 30 minutes and create a 15-minute HttpOnly,
+SameSite=Lax, Secure cookie backed by a server-side expiry. HTTPS is required;
+only an explicitly configured HTTP localhost preview should set
+`MOBILITY_COOKIE_SECURE=false`. Only hashes of random link tokens are stored.
+Expired credentials older than a day are pruned when issuing a new token.
+
+Page loading returns session metadata only, without an email or written answer.
+The person enters their name and email and explicitly clicks Show my previous
+answer. Changing either field hides history and clears only an unedited copy;
+typed or edited drafts survive corrections, radio changes and session expiry.
+Leaving the page clears private history before back navigation. End private
+access revokes the email's outstanding links and sessions, including other tabs.
+Private responses cannot be cached and access pages suppress referrers. Private
+links must not be forwarded. A reader who has displayed a positive answer and
+chooses No confirms that support is not needed for this visit. An existing
+cookie alone adds no hidden requirement to an ordinary booking.
 
 Run `venv/bin/python -m unittest discover -s tests -q` for the isolated database
 suite, including mobility reuse, historical No flags, token separation, expiry,
-rate limits and public-response privacy. Tests disable/mock outbound mail.
+rate limits, shared inboxes and public-response privacy. Client-state regression
+checks cover draft preservation, expiry, delayed replies and back navigation.
+Tests disable/mock outbound mail and use temporary databases. To run the full
+suite, also point the outer process at a temporary `RENDER_DISK_PATH` with
+`RENDER=1`, `APP_ENV_FILE` set to a nonexistent file, and `ENABLE_EMAIL=false`.

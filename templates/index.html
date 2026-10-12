@@ -79,16 +79,17 @@
             <fieldset class="form-group mobility-question">
                 <legend>Do you or anyone coming with you have any mobility needs? <span class="required">*</span></legend>
                 <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. We tell Pan Macmillan's building team whether mobility needs have been reported for the session, so they can plan ahead. Your written details stay with the LAGC team.</p>
-                <p class="hint">Booked before? You can reuse the last mobility details you supplied without retyping them. Choose what applies to you and anyone coming with you <strong>for this visit</strong>.</p>
+                <p class="hint">Choose what applies to you and anyone coming with you <strong>for this visit</strong>. If you want to see or reuse an earlier answer, you can request a private email link below. This is optional.</p>
                 <div id="mobility-history" class="mobility-history" hidden>
                     <p id="mobility-history-heading"></p>
                     <blockquote id="mobility-history-details"></blockquote>
-                    <button type="button" class="btn btn-secondary btn-small" id="mobility-hide-history">Hide previous details</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="mobility-edit-history" hidden>Use this as a starting point</button>
+                    <button type="button" class="btn btn-secondary btn-small" id="mobility-hide-history">End private access</button>
                 </div>
                 <div class="yoga-radio-group">
                     <label class="radio-option"><input type="radio" name="mobility-needs" value="no" required> No mobility support is needed for this visit</label>
                     <label class="radio-option"><input type="radio" name="mobility-needs" value="yes" required> Yes, I will enter or update the details</label>
-                    <label class="radio-option"><input type="radio" name="mobility-needs" value="reuse" required> Yes, use the mobility details I previously supplied</label>
+                    <label class="radio-option" id="mobility-reuse-option" hidden><input type="radio" name="mobility-needs" value="reuse" disabled> Yes, use the mobility details I previously supplied</label>
                 </div>
                 <p id="mobility-reuse-hint" class="hint" hidden>Your last reported mobility needs will be copied for this booking, even if a later booking said No. Choose this only if those details still apply to everyone coming this time.</p>
                 <div id="mobility-change-check" class="mobility-history" hidden>
@@ -101,9 +102,14 @@
                     <textarea id="mobility-details" rows="3" maxlength="4000" disabled></textarea>
                 </div>
                 <details id="mobility-link-options" class="mobility-link-options">
-                    <summary>Want to see what you wrote before? (optional)</summary>
-                    <p class="hint">We can email a private link to the address above. There is no password to remember, and you can keep booking without it. Opening it takes you to a fresh booking form.</p>
+                    <summary>See or reuse an earlier answer (optional)</summary>
+                    <p class="hint">We can email a private link to the address above. There is no password to remember, and you can keep booking without it. Opening it takes you to a fresh booking form. We match your name and email address, so people sharing an inbox have separate answers. Check that the earlier answer still applies to everyone coming this time.</p>
                     <button type="button" class="btn btn-secondary btn-small" id="mobility-request-link">Email me a private link</button>
+                    <div id="mobility-private-ready" hidden>
+                        <p class="hint">Your private link is ready. Enter your name and email address above, then choose the button below. On a shared device, choose End private access when you finish.</p>
+                        <button type="button" class="btn btn-secondary btn-small" id="mobility-show-history">Show my previous answer</button>
+                        <button type="button" class="btn btn-secondary btn-small" id="mobility-end-access">End private access</button>
+                    </div>
                     <p id="mobility-link-status" class="hint" role="status" aria-live="polite"></p>
                 </details>
             </fieldset>
@@ -297,5 +303,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=50"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=51"></script>
 {% endblock %}

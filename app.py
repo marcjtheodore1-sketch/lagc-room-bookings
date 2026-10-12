@@ -78,6 +78,9 @@ app.config['SMTP_FROM'] = os.environ.get(
     'SMTP_FROM', app.config['SMTP_USER']
 ).strip()
 app.config['ENABLE_EMAIL'] = os.environ.get('ENABLE_EMAIL', 'true').lower() not in ('false', '0', 'no')
+# HTTPS is required for private history, including behind a TLS proxy. Only
+# an explicitly configured local preview may use a non-Secure cookie.
+app.config['MOBILITY_COOKIE_SECURE'] = os.environ.get('MOBILITY_COOKIE_SECURE', 'true').lower() not in ('false', '0', 'no')
 
 # Addresses in this set must never receive email from the booking system,
 # even when they remain in historical booking records or are manually added
@@ -158,6 +161,7 @@ class MobilityAccessLink(db.Model):
     ip_hash = db.Column(db.String(64), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     expires_at = db.Column(db.DateTime, nullable=False)
+    revealed_name = db.Column(db.String(100), nullable=True)
 
 class ReminderSubscription(db.Model):
     """Email-verified, self-managed reminder preferences."""
@@ -1221,7 +1225,11 @@ def index():
     return render_template('index.html')
 
 
-def previous_mobility_booking(email, before=None):
+def mobility_name(name):
+    return ' '.join(name.split()).casefold()
+
+
+def previous_mobility_booking(email, name, before=None):
     """Last positive answer by submission order, even after a later No.
 
     A cancelled visit can still contain useful support information. Reusing it
@@ -1234,10 +1242,19 @@ def previous_mobility_booking(email, before=None):
     )
     if before is not None:
         query = query.filter(Booking.id < before)
-    return query.order_by(Booking.id.desc()).first()
+    # Families may share an inbox. Match the named booker too, allowing case
+    # and spacing differences but never guessing that two names are one person.
+    wanted_name = mobility_name(name)
+    return next((booking for booking in query.order_by(Booking.id.desc())
+                 if mobility_name(booking.user_name) == wanted_name), None)
 
 
 def new_mobility_token(email, kind, lifetime, ip_hash=None):
+    # Keep the recent rows used for rate limits, without retaining expired
+    # credentials indefinitely. Expiry is also checked on every access.
+    MobilityAccessLink.query.filter(
+        MobilityAccessLink.expires_at < datetime.utcnow() - timedelta(days=1)
+    ).delete(synchronize_session=False)
     token = secrets.token_urlsafe(32)
     db.session.add(MobilityAccessLink(
         token_hash=hashlib.sha256(token.encode()).hexdigest(),
@@ -1263,11 +1280,6 @@ def mobility_verified_access():
     ).first()
 
 
-def mobility_verified_email():
-    access = mobility_verified_access()
-    return access.email if access else None
-
-
 @app.after_request
 def protect_mobility_responses(response):
     if request.path == '/book' or request.path.startswith(('/mobility/', '/api/mobility')):
@@ -1280,6 +1292,8 @@ def protect_mobility_responses(response):
 @app.route('/api/mobility/request-link', methods=['POST'])
 def request_mobility_link():
     data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Enter a valid email address.'}), 400
     email = data.get('email', '')
     if not isinstance(email, str):
         return jsonify({'error': 'Enter a valid email address.'}), 400
@@ -1302,7 +1316,7 @@ def request_mobility_link():
     if recent_email or recent_ip_count >= 10 or is_blocked_email_recipient(email):
         return jsonify({'message': message})
     if not reminders_mail_ready():
-        return jsonify({'error': 'Email links are unavailable just now. You can still book by entering your mobility details or choosing to reuse them.'}), 503
+        return jsonify({'error': 'Email links are unavailable just now. You can still book by entering your mobility details.'}), 503
     link = new_mobility_link(email, 'request', timedelta(minutes=30), ip_hash)
     db.session.commit()
     send_emails_async([(email, 'Your private mobility details link: Fridays @ Farringdon',
@@ -1318,28 +1332,41 @@ def request_mobility_link():
 def access_mobility(token):
     access = MobilityAccessLink.query.filter_by(
         token_hash=hashlib.sha256(token.encode()).hexdigest()).first()
-    if not access or access.kind not in ('request', 'book_again') or access.expires_at <= datetime.utcnow():
+    if not access or access.kind != 'request' or access.expires_at <= datetime.utcnow():
         return render_template('mobility_link_expired.html'), 410
     # A short-lived opaque cookie works across WSGI workers even if the older
     # app's Flask signing key was randomly generated at worker startup.
-    private_token = new_mobility_token(access.email, 'session', timedelta(minutes=30))
+    private_token = new_mobility_token(access.email, 'session', timedelta(minutes=15))
     db.session.commit()
     response = redirect(url_for('index'))
-    response.set_cookie('mobility_access', private_token, max_age=1800,
-                        httponly=True, secure=request.is_secure, samesite='Lax')
+    response.set_cookie('mobility_access', private_token, max_age=900,
+                        httponly=True, secure=app.config['MOBILITY_COOKIE_SECURE'], samesite='Lax')
     return response
 
 
-@app.route('/api/mobility/history')
+@app.route('/api/mobility/history', methods=['GET', 'POST'])
 def mobility_history():
     access = mobility_verified_access()
     if not access:
         return jsonify({'verified': False})
-    email = access.email
-    previous = previous_mobility_booking(email)
+    expiry = access.expires_at.replace(tzinfo=ZoneInfo('UTC')).timestamp()
+    # Loading a page on a shared computer must not disclose the last person's
+    # email or answers. Reading history requires an explicit form action.
+    if request.method == 'GET':
+        return jsonify({'verified': True, 'expires_at': expiry})
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'verified': False})
+    email, name = data.get('email'), data.get('name')
+    if (not isinstance(email, str) or not isinstance(name, str)
+            or email.strip().lower() != access.email or not name.strip() or len(name) > 100):
+        return jsonify({'verified': False})
+    previous = previous_mobility_booking(access.email, name)
+    access.revealed_name = mobility_name(name)
+    db.session.commit()
     return jsonify({
-        'verified': True, 'email': email,
-        'expires_at': access.expires_at.replace(tzinfo=ZoneInfo('UTC')).timestamp(),
+        'verified': True, 'email': access.email, 'name': mobility_name(name),
+        'expires_at': expiry,
         'previous': ({'details': previous.mobility_details,
                       'date_display': reminder_date_display(previous.booking_date)}
                      if previous else None),
@@ -1350,16 +1377,19 @@ def mobility_history():
 def forget_mobility_access():
     access = mobility_verified_access()
     if access:
-        access.expires_at = datetime.utcnow()
+        # End access on other tabs and invalidate emailed links as well.
+        MobilityAccessLink.query.filter_by(email=access.email).update(
+            {'expires_at': datetime.utcnow()}, synchronize_session=False)
         db.session.commit()
     response = jsonify({'success': True})
-    response.delete_cookie('mobility_access', httponly=True, samesite='Lax')
+    response.delete_cookie('mobility_access', httponly=True,
+                           secure=app.config['MOBILITY_COOKIE_SECURE'], samesite='Lax')
     return response
 
 
 def admin_mobility_history(booking):
     """Admin-only context, including changes in records predating this feature."""
-    previous = previous_mobility_booking(booking.user_email, before=booking.id)
+    previous = previous_mobility_booking(booking.user_email, booking.user_name, before=booking.id)
     changed = booking.mobility_needs is False and previous is not None
     return {
         'mobility_review_needed': changed,
@@ -1695,7 +1725,12 @@ def create_booking():
     reuse_mobility = data.get('mobility_reuse', False)
     if type(reuse_mobility) is not bool or (reuse_mobility and not mobility_needs):
         return jsonify({'error': 'Choose whether to reuse your mobility details or enter a new answer.'}), 400
-    previous_mobility = previous_mobility_booking(email)
+    access = mobility_verified_access()
+    # Reject before inspecting history, with exactly the same error for every
+    # unverified address. Hiding a radio button alone cannot protect the API.
+    if reuse_mobility and (not access or access.email != email):
+        return jsonify({'error': 'To reuse an earlier answer, open a private email link first. You can also enter the details yourself.'}), 400
+    previous_mobility = previous_mobility_booking(email, name)
     mobility_details = field('mobility_details', 4000) if mobility_needs else ''
     if reuse_mobility:
         if not previous_mobility:
@@ -1703,7 +1738,9 @@ def create_booking():
         mobility_details = previous_mobility.mobility_details
     if mobility_needs and not mobility_details:
         return jsonify({'error': 'Please tell us about the mobility support needed.'}), 400
-    if (not mobility_needs and previous_mobility and mobility_verified_email() == email
+    if (not mobility_needs and data.get('mobility_history_reviewed') is True
+            and previous_mobility and access and access.email == email
+            and access.revealed_name == mobility_name(name)
             and data.get('mobility_change_confirmed') is not True):
         return jsonify({'error': 'Your earlier answer mentioned mobility support. Tick the box to confirm that no support is needed for this visit.'}), 400
     bringing_others = bool(data.get('bringing_others'))
@@ -1855,7 +1892,6 @@ def create_booking():
     )
 
     db.session.add(booking)
-    book_again_url = new_mobility_link(email, 'book_again', timedelta(days=90))
     db.session.commit()
     
     # Generate confirmation message
@@ -1937,10 +1973,10 @@ View all bookings at: {request.host_url.rstrip('/')}/admin
     # Private links and copied answers must never appear in the public booking
     # response, or in My Bookings where email ownership is not verified.
     email_confirmation = confirmation_message + (
-        '\n\nBook again and review your previous mobility details:\n'
-        f'{book_again_url}\n'
-        'This private link lasts 90 days. Keep it to yourself, as it lets you view '
-        'mobility details supplied using this email address. You can also book normally without it.\n'
+        '\n\nBook again:\n'
+        f'{reminder_base_url()}/book\n'
+        'To see or reuse an earlier mobility answer, request a short-lived private '
+        'link from the booking form. You can book normally without one.\n'
     )
     send_emails_async([
         (email, f"Booking Confirmed: {room.name} on {date_display}", email_confirmation),
@@ -3560,6 +3596,15 @@ def run_migrations():
     # Per-room default hours (Room Times tab: "set once, applies every week")
     _ensure_column('room', 'default_start', 'VARCHAR(5)')
     _ensure_column('room', 'default_end', 'VARCHAR(5)')
+    _ensure_column('mobility_access_link', 'revealed_name', 'VARCHAR(100)')
+    # Old confirmation emails must no longer grant long-lived history access.
+    MobilityAccessLink.query.filter_by(kind='book_again').filter(
+        MobilityAccessLink.expires_at > datetime.utcnow()
+    ).update({'expires_at': datetime.utcnow()}, synchronize_session=False)
+    db.session.execute(db.text(
+        'CREATE INDEX IF NOT EXISTS ix_booking_mobility_email '
+        'ON booking (lower(user_email), id)'))
+    db.session.commit()
 
     # Accessibility / who-is-attending details collected at booking
     for column, definition in (
