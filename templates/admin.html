@@ -312,18 +312,27 @@
         <button type="button" class="modal-close" onclick="closeBookingNameEditor()" aria-label="Close">&times;</button>
         <h2 id="booking-name-title">Edit attendee name</h2>
         <p>Correct the name used in the booking and future building attendee lists. This saves the name without sending an email. Lists already sent will not change.</p>
-        <form onsubmit="saveBookingName(event)">
+        <form id="booking-name-form" onsubmit="saveBookingName(event)">
             <div class="form-group">
                 <label for="booking-name-input">Full first and last names</label>
                 <input id="booking-name-input" type="text" maxlength="120" required>
             </div>
-            <p id="booking-name-status" role="status" aria-live="polite"></p>
             <div class="modal-actions">
                 <button type="button" class="btn btn-secondary" onclick="closeBookingNameEditor()">Cancel</button>
                 <button type="submit" id="booking-name-save" class="btn btn-primary">Save name</button>
             </div>
         </form>
+        <div id="booking-name-confirmation" hidden>
+            <p>Are you sure this name change is correct? Check both names before saving.</p>
+            <p><strong>Current name:</strong> <span id="booking-name-before"></span></p>
+            <p><strong>New name:</strong> <span id="booking-name-after"></span></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="returnToBookingNameEditor()">Go back</button>
+                <button type="button" id="booking-name-confirm-save" class="btn btn-primary" onclick="confirmBookingNameChange()">Yes, save change</button>
+            </div>
+        </div>
+        <p id="booking-name-status" role="status" aria-live="polite"></p>
     </div>
 </div>
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=49"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=50"></script>
 {% endblock %}

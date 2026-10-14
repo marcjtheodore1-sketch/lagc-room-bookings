@@ -1741,7 +1741,7 @@ function openBookingNameEditor(bookingId, button) {
     document.getElementById('booking-name-input').value = name;
     document.getElementById('booking-name-status').textContent = '';
     document.getElementById('booking-name-modal').hidden = false;
-    document.getElementById('booking-name-input').focus();
+    returnToBookingNameEditor();
 }
 
 function closeBookingNameEditor() {
@@ -1750,18 +1750,38 @@ function closeBookingNameEditor() {
     editingBookingName = null;
 }
 
-async function saveBookingName(event) {
+function returnToBookingNameEditor() {
+    document.getElementById('booking-name-form').hidden = false;
+    document.getElementById('booking-name-confirmation').hidden = true;
+    document.getElementById('booking-name-title').textContent = 'Edit attendee name';
+    document.getElementById('booking-name-input').focus();
+}
+
+function saveBookingName(event) {
     event.preventDefault();
     if (!editingBookingName) return;
+    const newName = document.getElementById('booking-name-input').value.trim().replace(/\s+/g, ' ');
+    editingBookingName.pendingName = newName;
+    document.getElementById('booking-name-before').textContent = editingBookingName.originalName;
+    document.getElementById('booking-name-after').textContent = newName;
+    document.getElementById('booking-name-form').hidden = true;
+    document.getElementById('booking-name-confirmation').hidden = false;
+    document.getElementById('booking-name-title').textContent = 'Confirm name change';
+    document.getElementById('booking-name-confirm-save').focus();
+}
+
+async function confirmBookingNameChange() {
+    if (!editingBookingName || !editingBookingName.pendingName) return;
     const editing = editingBookingName;
+    const newName = editing.pendingName;
     const status = document.getElementById('booking-name-status');
-    const save = document.getElementById('booking-name-save');
+    const save = document.getElementById('booking-name-confirm-save');
     save.disabled = true;
     try {
         const response = await fetch(`/api/admin/bookings/${editing.id}/name`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: document.getElementById('booking-name-input').value,
+            body: JSON.stringify({ name: newName,
                 original_name: editing.originalName })
         });
         const result = await response.json();
