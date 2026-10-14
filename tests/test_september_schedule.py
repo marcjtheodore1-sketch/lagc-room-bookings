@@ -33,7 +33,7 @@ class SeptemberScheduleTest(unittest.TestCase):
                         schedule = get_room_schedule_ids()
                         autumn_dates = [
                             day for day in schedule
-                            if day.startswith(('2026-09-', '2026-10-'))
+                            if day.startswith(('2026-09-', '2026-10-', '2026-11-'))
                         ]
                         rooms = {
                             day: [db.session.get(Room, room_id).name
@@ -69,6 +69,10 @@ class SeptemberScheduleTest(unittest.TestCase):
                 '2026-10-09': ['Room 4.4 "Rose"', 'The Loft'],
                 '2026-10-16': rose_and_clerkenwell,
                 '2026-10-23': ['Room 4.4 "Rose"', 'The Loft'],
+                '2026-10-30': rose_and_clerkenwell,
+                '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
+                '2026-11-13': rose_and_clerkenwell,
+                '2026-11-20': rose_and_clerkenwell,
             },
             'yoga': [
                 '2026-09-04', '2026-09-11',
