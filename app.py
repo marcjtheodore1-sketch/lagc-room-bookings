@@ -185,6 +185,19 @@ class ReminderDelivery(db.Model):
     sent_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('subscription_id', 'kind', 'reference'),)
 
+class DateBookingReminder(db.Model):
+    """An independently confirmed, one-off reminder to book a particular Friday."""
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(254), nullable=False)
+    session_date = db.Column(db.Date, nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=False)
+    ip_hash = db.Column(db.String(64), nullable=True)
+    requested_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    confirmed_at = db.Column(db.DateTime, nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    __table_args__ = (db.UniqueConstraint('email', 'session_date'),)
+
 class BuildingReportDispatch(db.Model):
     """Durable batch claim and snapshot for the building attendance emails."""
     id = db.Column(db.Integer, primary_key=True)
@@ -804,6 +817,23 @@ def send_emails_async(emails):
 
 BOOKING_ZONE = ZoneInfo('Europe/London')
 BOOKING_DEADLINE_NOTICE = 'Bookings must be completed before Thursday at 10am (London time) for the following Friday.'
+COMMUNITY_GUIDELINES_URL = 'https://www.londonautismgroupcharity.org/community-guidelines'
+COMMUNITY_GUIDELINES_NOTICE = (
+    'Read our community guidelines before attending:\n'
+    f'{COMMUNITY_GUIDELINES_URL}\n'
+    'Following them is a condition of attending Fridays @ Farringdon. '
+    'This includes treating other participants, staff and volunteers with kindness and respect.'
+)
+ACCESS_PLANNING_NOTICE = (
+    'Pan Macmillan needs at least 24 hours\' notice of mobility needs so the building team can plan '
+    'safe access and emergency evacuation. This can include arranging additional fire wardens.'
+)
+ATTENDANCE_NOTICE = (
+    'If you cannot attend, cancel your booking as soon as you can using your cancellation link. '
+    'We understand that illness and changing support needs can make plans unpredictable. '
+    'If bookings are repeatedly missed, the team may contact you privately to understand what happened '
+    'and discuss what would help with future visits.'
+)
 
 def booking_deadline(day):
     return datetime.combine(day - timedelta(days=1), datetime.min.time(), tzinfo=BOOKING_ZONE).replace(hour=10)
@@ -936,6 +966,8 @@ def run_reminder_job(now=None):
                     'Please use the link below to see the rooms and times available and book your place:\n\n'
                     f'{reminder_base_url()}/book\n\n'
                     f'{BOOKING_DEADLINE_NOTICE} Registration closes automatically at that time.\n\n'
+                    f'{ACCESS_PLANNING_NOTICE}\n\n'
+                    f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
                     'Dates are added only after our host confirms the rooms. If another Friday is not listed yet, it has not been released for booking.\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
                 )
@@ -958,6 +990,8 @@ def run_reminder_job(now=None):
                     f'Location: {booking.room.building_location}\n\n'
                     f'View or cancel this booking: {reminder_base_url()}/cancel/{booking.cancel_token}\n\n'
                     f'Before you visit, read Kirsty\'s help sheet, including the building guidance and emergency procedures:\n{reminder_base_url()}/help-sheet\n\n'
+                    f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
+                    f'{ATTENDANCE_NOTICE}\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
                 )
                 if send_confirmation_email(subscription.email, subject, body):
@@ -966,6 +1000,16 @@ def run_reminder_job(now=None):
                     counts['booking_day'] += 1
                 else:
                     counts['failed'] += 1
+    from date_reminders import run_date_reminders
+    try:
+        date_counts = run_date_reminders(now)
+        counts['date_booking'] = date_counts['sent']
+        counts['failed'] += date_counts['failed']
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Date-specific booking reminder job unavailable')
+        counts['date_booking'] = 0
+        counts['failed'] += 1
     return counts
 
 VOLUNTEER_ARCHIVED_KEY = 'volunteer_archived_dates'
@@ -1286,7 +1330,7 @@ def mobility_verified_access():
 
 @app.after_request
 def protect_mobility_responses(response):
-    if request.path == '/book' or request.path.startswith(('/mobility/', '/api/mobility')):
+    if request.path == '/book' or request.path.startswith(('/mobility/', '/api/mobility', '/reminders/date')):
         response.headers['Cache-Control'] = 'no-store'
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Robots-Tag'] = 'noindex, nofollow'
@@ -1502,6 +1546,10 @@ def scheduled_reminder_trigger():
         return jsonify({'error': 'Reminder job unavailable'}), 503
     counts['building_report'] = building_counts
     return jsonify(counts), (500 if counts['failed'] or building_counts['failed'] else 200)
+
+
+from date_reminders import register_routes as register_date_reminder_routes
+register_date_reminder_routes(app)
 
 @app.route('/admin')
 def admin():
@@ -1944,6 +1992,10 @@ def create_booking():
         '\n\nBefore you visit, read Kirsty\'s help sheet for community members and volunteers, '
         'including building guidance and emergency procedures:\n'
         f"{request.host_url.rstrip('/')}/help-sheet\n"
+    )
+    confirmation_message += (
+        f'\n\n{BOOKING_DEADLINE_NOTICE}\n{ACCESS_PLANNING_NOTICE}\n\n'
+        f'{COMMUNITY_GUIDELINES_NOTICE}\n\n{ATTENDANCE_NOTICE}\n'
     )
 
     # Queue all emails in the background so the person sees their on-screen

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Your one-off booking reminder | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<div class="reminder-page">
+    <h1>Your one-off booking reminder</h1>
+    <p>For {{ date_display }}.</p>
+    {% if stopping %}
+        {% if status == 'stopped' %}<p role="status">This reminder has been stopped.</p>
+        {% else %}<p>Stop this one-off reminder? This will not change any booking or your other reminder choices.</p>
+        <form method="post"><button class="btn btn-primary" type="submit">Stop this reminder</button></form>{% endif %}
+    {% elif closed %}<p>Booking is now closed or unavailable for this date. No booking reminder will be sent.</p>
+    {% elif status == 'stopped' %}<p>This reminder has been stopped.</p>
+    {% elif status == 'sent' %}<p>Your one-off reminder has already been sent. No further reminders will be sent for this request.</p>
+    {% elif status in ['booked', 'uncertain', 'sending'] %}<p>This request has been processed. No further reminders will be sent automatically for it.</p>
+    {% elif confirmed %}
+        <p role="status">Your request is confirmed. The reminder is due on Wednesday at 9am, London time. If that time has passed, it will run on the next scheduled check before the booking deadline. It is skipped if you already have a booking for this Friday using the same email address.</p>
+        <p><a href="/reminders/date/stop/{{ token }}">Stop this one-off reminder</a></p>
+    {% else %}
+        <p>Confirm that you want one email reminding you to book this Friday. This does not reserve a place or sign you up for ongoing emails.</p>
+        <form method="post"><button class="btn btn-primary" type="submit">Confirm my one-off reminder</button></form>
+    {% endif %}
+    <p><a href="/book">Go to the booking page</a></p>
+</div>
+{% endblock %}

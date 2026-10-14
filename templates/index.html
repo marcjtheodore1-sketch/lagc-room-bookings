@@ -7,9 +7,11 @@
     <p class="subtitle" id="booking-subtitle">Select a Friday to book your space. <strong>Time Slot</strong> rooms let you choose specific 30-minute slots (up to 3 hours). <strong>Open Booking</strong> rooms reserve the whole day — each room card shows its opening hours.</p>
 
     <div class="notice-box info booking-ahead-note">
-        <p><strong>Booking deadline: Thursday at 10am each week (London time).</strong> You must complete your booking before then to attend the following Friday. Registration closes automatically at 10am so the building team can prepare for everyone, including anyone with mobility needs.</p>
+        <p><strong>Booking deadline: Thursday at 10am each week (London time).</strong> You must complete your booking before then to attend the following Friday. Telling someone you plan to come or requesting a reminder does not reserve a place.</p>
+        <p>Pan Macmillan needs at least <strong>24 hours' notice of mobility needs</strong> so the building team can plan safe access and emergency evacuation. This can include arranging additional fire wardens. The Thursday deadline gives them time to prepare.</p>
         <p>Closed dates stay visible. The session is still going ahead and existing bookings remain valid.</p>
         <p><a href="{{ url_for('help_sheet') }}">Read Kirsty's help sheet before you visit</a> for building guidance and emergency procedures.</p>
+        <p><strong>Before attending, read our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a>.</strong> Following them is a condition of attending Fridays @ Farringdon. This includes treating other participants, staff and volunteers with kindness and respect.</p>
     </div>
 
     <div class="notice-box info space-expectations">
@@ -29,6 +31,7 @@
             </div>
             <p class="hint dates-note">📅 More Fridays are added as soon as our host confirms which rooms we have — usually a few weeks ahead. If the date you want isn't here yet, please check back nearer the time. We're still running as usual.</p>
             <p class="hint dates-note">Want help remembering? <a href="/reminders">Sign up for email reminders</a> when booking opens and the day before a room booking you have made.</p>
+            <p class="hint dates-note">Thinking about one particular Friday? <a href="/reminders/date">Request a one-off reminder to book that date</a>. It does not reserve a place.</p>
         </div>
 
         <!-- Step 2: Select Room -->
@@ -79,7 +82,7 @@
             <div id="room-fields">
             <fieldset class="form-group mobility-question">
                 <legend>Do you or anyone coming with you have any mobility needs? <span class="required">*</span></legend>
-                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. We tell Pan Macmillan's building team whether mobility needs have been reported for the session, so they can plan ahead. Your written details stay with the LAGC team.</p>
+                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. Pan Macmillan needs at least 24 hours' notice to plan safe access and emergency evacuation, including fire-warden arrangements where needed. We tell the building team whether mobility needs have been reported for the session. Your written details stay with the LAGC team.</p>
                 <p class="hint">Choose what applies to you and anyone coming with you <strong>for this visit</strong>. If you want to see or reuse an earlier answer, you can request a private email link below. This is optional.</p>
                 <div id="mobility-history" class="mobility-history" hidden>
                     <p id="mobility-history-heading"></p>
@@ -273,6 +276,8 @@
                 </div>
             </div>
 
+            <p><strong>Following our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a> is a condition of attending.</strong> By booking, you agree to follow them, including treating staff, volunteers and other participants with kindness and respect.</p>
+            <p class="hint">If you cannot attend, cancel as soon as you can using your cancellation link. We understand that illness and changing support needs can make plans unpredictable. If bookings are repeatedly missed, the team may contact you privately to understand what happened and discuss what would help with future visits.</p>
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
                 <button class="btn btn-primary" id="btn-confirm-booking" onclick="submitBooking()">Confirm Booking</button>

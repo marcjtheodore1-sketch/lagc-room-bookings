@@ -35,6 +35,29 @@ rooms. Successful sends are recorded so rerunning the job does not duplicate
 emails. An hourly task sends these within roughly 30 minutes of the 24-hour
 mark for the site's half-hour booking slots.
 
+## Optional reminder to book one Friday
+
+`/reminders/date` lets someone request one reminder for a confirmed, open Friday.
+They confirm their email request before it can run. This never creates a booking
+or changes their existing weekly/day-before reminder preferences. The reminder is
+due on Wednesday at 9am London time. A later confirmation is picked up on the next
+scheduled check before Thursday's 10am deadline. The existing paid-account hourly
+proxy runs this check too, so no new scheduled task or credentials are required.
+
+The check skips an existing, uncancelled booking under the same email and date.
+It also stops for cancelled reminder requests, withdrawn dates and closed
+registration. Request and confirmation pages explain that this does not reserve
+a place. Confirmation requests have an email/date cooldown and an IP rate limit;
+tokens are stored as hashes. Opening a confirmation or stop link alone does not
+change preferences. A database claim prevents overlapping runs sending twice;
+uncertain SMTP deliveries are never retried automatically.
+
+Participant pages and confirmation/reminder emails link to the charity's
+community guidelines and say that following them is a condition of attending.
+They explain Pan Macmillan's advance mobility notice and fire-warden planning.
+Repeated missed bookings may lead to private, considerate contact; there is no
+automatic strikes rule or exclusion action in the booking system.
+
 ## Pan Macmillan attendance reports
 
 Admin → Email Blast includes a preview and an on/off setting for attendance

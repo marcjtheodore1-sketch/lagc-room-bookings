@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Remind me to book one Friday | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<div class="reminder-page">
+    <h1>Remind me to book one Friday</h1>
+    <p>Thinking about coming, but not ready to book? Choose a date and request one email reminder.</p>
+    <p><strong>This does not reserve a place.</strong> You still need to complete the normal booking form before Thursday at 10am, London time.</p>
+    <p>The reminder is due on Wednesday at 9am, London time. If you confirm after that, it is sent on the next scheduled check while booking is still open. We skip it if you already have a booking for that Friday using the same email address.</p>
+    <p>This is optional. It does not sign you up for weekly reminders or a newsletter, and you can book without using it.</p>
+    {% if error %}<p class="reminder-message error-text" role="alert">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="reminder-message" role="status">{{ notice }}</p>{% endif %}
+    {% if dates %}
+    <form action="/reminders/date/request" method="post" class="reminder-form">
+        <div class="form-group"><label for="date-reminder-date">Which Friday?</label>
+            <select id="date-reminder-date" name="date" required>
+                <option value="">Choose a Friday</option>
+                {% for day in dates %}<option value="{{ day.date }}" {% if selected == day.date %}selected{% endif %}>{{ day.display }} (book before {{ day.deadline_display }})</option>{% endfor %}
+            </select>
+        </div>
+        <div class="form-group"><label for="date-reminder-email">Email address</label>
+            <input type="email" id="date-reminder-email" name="email" autocomplete="email" maxlength="254" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Request my one-off reminder</button>
+        <p class="hint">We will email a confirmation link first. Only confirm it if you requested the reminder.</p>
+    </form>
+    {% else %}<p>No dates are open for this reminder at the moment.</p>{% endif %}
+    <p><a href="/book">Book a place now</a> · <a href="/reminders">Choose ongoing weekly or day-before reminders</a></p>
+</div>
+{% endblock %}

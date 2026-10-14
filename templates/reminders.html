@@ -4,6 +4,7 @@
 <div class="reminder-page">
     <h1>Fridays @ Farringdon email reminders</h1>
     <p>Choose the reminders that would help you. You can change or stop them at any time using a link in each email.</p>
+    <p>Only thinking about one particular Friday? <a href="/reminders/date">Request a one-off reminder for that date instead</a>. It does not reserve a place or subscribe you to ongoing emails.</p>
     {% if error %}<p class="reminder-message error-text" role="alert">{{ error }}</p>{% endif %}
     {% if notice %}<p class="reminder-message" role="status">{{ notice }}</p>{% endif %}
     {% if manage_url %}<p><a href="{{ manage_url }}">Change or stop your reminders</a>. You can bookmark this private link.</p>{% endif %}
