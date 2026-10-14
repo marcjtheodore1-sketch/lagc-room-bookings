@@ -148,7 +148,7 @@ class BuildingReportTest(unittest.TestCase):
         disabled = run_building_report_job(datetime(2026, 10, 8, 10, tzinfo=zone))
         set_setting('building_reports_enabled', 'true')
         outside = [run_building_report_job(datetime(2026, 10, 8, hour, tzinfo=zone)) for hour in (8, 9, 11, 12, 14, 16, 18, 19, 20)]
-        unpublished = run_building_report_job(datetime(2026, 10, 29, 10, tzinfo=zone))
+        unpublished = run_building_report_job(datetime(2099, 1, 8, 10, tzinfo=zone))
         friday = [run_building_report_job(datetime(2026, 10, 9, hour, tzinfo=zone)) for hour in (8,10,12,14,16,18)]
         calls = send.call_count
     client = app.test_client()

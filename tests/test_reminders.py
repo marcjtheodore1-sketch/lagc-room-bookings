@@ -128,7 +128,7 @@ class ReminderTest(unittest.TestCase):
                 db.session.commit()
                 with patch('app.send_confirmation_email', return_value=True) as send:
                     thursday = run_reminder_job(datetime(2026, 10, 1, 9, tzinfo=ZoneInfo('Europe/London')))
-                    unreleased = run_reminder_job(datetime(2026, 10, 26, 9, tzinfo=ZoneInfo('Europe/London')))
+                    unreleased = run_reminder_job(datetime(2099, 1, 5, 9, tzinfo=ZoneInfo('Europe/London')))
                     repeat = run_reminder_job(datetime(2026, 10, 1, 9, tzinfo=ZoneInfo('Europe/London')))
                 print(json.dumps({'thursday': thursday, 'unreleased': unreleased,
                                   'repeat': repeat, 'sends': send.call_count}))
