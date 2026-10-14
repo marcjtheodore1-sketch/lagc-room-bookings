@@ -826,13 +826,18 @@ COMMUNITY_GUIDELINES_NOTICE = (
 )
 ACCESS_PLANNING_NOTICE = (
     'Pan Macmillan needs at least 24 hours\' notice of mobility needs so the building team can plan '
-    'safe access and emergency evacuation. This can include arranging additional fire wardens.'
+    'safe access and emergency evacuation. This can include arranging additional fire wardens '
+    'specifically for your visit. The Thursday 10am booking deadline gives them time to prepare.'
 )
 ATTENDANCE_NOTICE = (
-    'If you cannot attend, cancel your booking as soon as you can using your cancellation link. '
-    'We understand that illness and changing support needs can make plans unpredictable. '
-    'If bookings are repeatedly missed, the team may contact you privately to understand what happened '
-    'and discuss what would help with future visits.'
+    'If you book, you must attend or cancel as soon as you know you cannot come, using your cancellation link. '
+    'We understand that unexpected illness and changing circumstances can affect plans; cancel as soon as you can. '
+    'Cancelling is especially important if you have reported mobility needs, because Pan Macmillan may '
+    'have arranged additional fire wardens for your visit. Missing bookings without cancelling can mean '
+    'unnecessary staffing and preparation, and put our agreement and relationship with Pan Macmillan at risk. '
+    'Repeatedly missing bookings without cancelling, or repeatedly failing to follow the booking requirements '
+    'or community guidelines, may lead to suspension or a ban from Fridays @ Farringdon. '
+    'There is no automatic three-strikes rule.'
 )
 
 def booking_deadline(day):
@@ -968,6 +973,7 @@ def run_reminder_job(now=None):
                     f'{BOOKING_DEADLINE_NOTICE} Registration closes automatically at that time.\n\n'
                     f'{ACCESS_PLANNING_NOTICE}\n\n'
                     f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
+                    f'{ATTENDANCE_NOTICE}\n\n'
                     'Dates are added only after our host confirms the rooms. If another Friday is not listed yet, it has not been released for booking.\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
                 )
@@ -990,6 +996,7 @@ def run_reminder_job(now=None):
                     f'Location: {booking.room.building_location}\n\n'
                     f'View or cancel this booking: {reminder_base_url()}/cancel/{booking.cancel_token}\n\n'
                     f'Before you visit, read Kirsty\'s help sheet, including the building guidance and emergency procedures:\n{reminder_base_url()}/help-sheet\n\n'
+                    f'{ACCESS_PLANNING_NOTICE}\n\n'
                     f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
                     f'{ATTENDANCE_NOTICE}\n\n'
                     'Warm wishes,\nLondon Autism Group Charity' + footer
@@ -1232,7 +1239,8 @@ def landing():
         db.session.rollback()
         app.logger.exception('Unable to load homepage room schedule')
         schedule_available = False
-    return render_template('landing.html', announcements=get_announcements(), room_dates=room_dates, schedule_available=schedule_available)
+    return render_template('landing.html', announcements=get_announcements(), room_dates=room_dates, schedule_available=schedule_available,
+                           access_planning_notice=ACCESS_PLANNING_NOTICE, attendance_notice=ATTENDANCE_NOTICE)
 
 @app.route('/peer-support')
 def peer_support():
@@ -1270,7 +1278,7 @@ def yoga_cancel_page(token):
 @app.route('/book')
 def index():
     """Main booking page"""
-    return render_template('index.html')
+    return render_template('index.html', access_planning_notice=ACCESS_PLANNING_NOTICE, attendance_notice=ATTENDANCE_NOTICE)
 
 
 def mobility_name(name):

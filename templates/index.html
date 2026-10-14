@@ -8,7 +8,8 @@
 
     <div class="notice-box info booking-ahead-note">
         <p><strong>Booking deadline: Thursday at 10am each week (London time).</strong> You must complete your booking before then to attend the following Friday. Telling someone you plan to come or requesting a reminder does not reserve a place.</p>
-        <p>Pan Macmillan needs at least <strong>24 hours' notice of mobility needs</strong> so the building team can plan safe access and emergency evacuation. This can include arranging additional fire wardens. The Thursday deadline gives them time to prepare.</p>
+        <p>{{ access_planning_notice }}</p>
+        <p><strong>If you book, attend or cancel as soon as you know you cannot come.</strong> Missing bookings without cancelling can mean unnecessary fire-warden arrangements and put our agreement and relationship with Pan Macmillan at risk.</p>
         <p>Closed dates stay visible. The session is still going ahead and existing bookings remain valid.</p>
         <p><a href="{{ url_for('help_sheet') }}">Read Kirsty's help sheet before you visit</a> for building guidance and emergency procedures.</p>
         <p><strong>Before attending, read our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a>.</strong> Following them is a condition of attending Fridays @ Farringdon. This includes treating other participants, staff and volunteers with kindness and respect.</p>
@@ -82,7 +83,9 @@
             <div id="room-fields">
             <fieldset class="form-group mobility-question">
                 <legend>Do you or anyone coming with you have any mobility needs? <span class="required">*</span></legend>
-                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. Pan Macmillan needs at least 24 hours' notice to plan safe access and emergency evacuation, including fire-warden arrangements where needed. We tell the building team whether mobility needs have been reported for the session. Your written details stay with the LAGC team.</p>
+                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. {{ access_planning_notice }} We tell the building team whether mobility needs have been reported for the session. Your written details stay with the LAGC team.</p>
+                <p class="hint"><strong>Attend or cancel:</strong> If you report mobility needs and cannot come, cancel as soon as you can using your cancellation link. Fire wardens may have been arranged specifically for you. Missing bookings without cancelling can mean unnecessary staffing and preparation, and put our agreement and relationship with Pan Macmillan at risk.</p>
+                <p class="hint">Repeatedly missing bookings without cancelling, or repeatedly failing to follow the booking requirements or community guidelines, may lead to <strong>suspension or a ban from Fridays @ Farringdon</strong>. There is no automatic three-strikes rule.</p>
                 <p class="hint">Choose what applies to you and anyone coming with you <strong>for this visit</strong>. If you want to see or reuse an earlier answer, you can request a private email link below. This is optional.</p>
                 <div id="mobility-history" class="mobility-history" hidden>
                     <p id="mobility-history-heading"></p>
@@ -277,7 +280,7 @@
             </div>
 
             <p><strong>Following our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a> is a condition of attending.</strong> By booking, you agree to follow them, including treating staff, volunteers and other participants with kindness and respect.</p>
-            <p class="hint">If you cannot attend, cancel as soon as you can using your cancellation link. We understand that illness and changing support needs can make plans unpredictable. If bookings are repeatedly missed, the team may contact you privately to understand what happened and discuss what would help with future visits.</p>
+            <p class="hint">{{ attendance_notice }}</p>
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
                 <button class="btn btn-primary" id="btn-confirm-booking" onclick="submitBooking()">Confirm Booking</button>

@@ -55,8 +55,11 @@ uncertain SMTP deliveries are never retried automatically.
 Participant pages and confirmation/reminder emails link to the charity's
 community guidelines and say that following them is a condition of attending.
 They explain Pan Macmillan's advance mobility notice and fire-warden planning.
-Repeated missed bookings may lead to private, considerate contact; there is no
-automatic strikes rule or exclusion action in the booking system.
+They explain why attending or cancelling matters: unnecessary fire-warden
+arrangements can put the Pan Macmillan agreement and relationship at risk.
+Repeated missed bookings without cancelling or repeated failure to follow booking
+requirements or community guidelines may lead to suspension or a ban from F@F.
+There is no automatic three-strikes rule or automated exclusion action.
 
 ## Pan Macmillan attendance reports
 

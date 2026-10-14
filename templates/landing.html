@@ -142,7 +142,7 @@
 
             <section class="notice-box info booking-ahead-note" aria-labelledby="booking-deadline-title">
                 <h2 id="booking-deadline-title">Book before Thursday at 10am</h2>
-                <p>Registration for each Friday closes on <strong>Thursday at 10am (London time)</strong>. Pan Macmillan needs at least <strong>24 hours' notice of mobility needs</strong> to plan safe access and emergency evacuation, including additional fire wardens where needed. Same-day and late bookings are not available.</p>
+                <p>Registration for each Friday closes on <strong>Thursday at 10am (London time)</strong>. {{ access_planning_notice }} Same-day and late bookings are not available.</p>
                 <p>Saying you plan to come or requesting a reminder does not reserve a place. Complete the booking form to book your visit.</p>
                 <p>When a date says <strong>Registration closed</strong>, the session is still going ahead and existing bookings remain valid.</p>
                 <p><a href="{{ url_for('help_sheet') }}"><strong>Kirsty's help sheet for community members and volunteers</strong></a>: useful information about the building, rooms and emergency procedures. You can read it online or download it.</p>
@@ -424,10 +424,10 @@
                 They apply to <strong>everyone attending</strong>, across all our in-person initiatives, and they're there to keep the space safe and comfortable for all of us.
             </p>
             <p>
-                <strong>If the guidelines aren't followed, we may need to suspend someone's participation</strong> in this and other LAGC in-person initiatives. We'd always talk to you first wherever we can.
+                Repeated failure to follow the community guidelines may lead to <strong>suspension or a ban from Fridays @ Farringdon</strong>.
             </p>
             <p class="commitment-note">
-                If you cannot attend, cancel your booking as soon as you can using your cancellation link. We understand that illness and changing support needs can make plans unpredictable. If bookings are repeatedly missed, the team may contact you privately to understand what happened and discuss what would help with future visits.
+                {{ attendance_notice }}
             </p>
         </div>
 

@@ -158,9 +158,9 @@ class DateReminderTest(unittest.TestCase):
                 response=client.post('/api/book',json=dict(room_id=room.id,date='2099-01-02',name='Test Person',email='booker@example.test',mobility_needs=False))
                 assert response.status_code==200,response.json
                 email=next(body for recipient,subject,body in queue.call_args.args[0] if recipient=='booker@example.test')
-                for phrase in ['community-guidelines','condition of attending','fire wardens','24 hours','contact you privately']:
+                for phrase in ['community-guidelines','condition of attending','fire wardens','24 hours','suspension or a ban','relationship with Pan Macmillan','no automatic three-strikes rule']:
                     assert phrase in email,phrase
-                assert 'three strikes' not in email.lower()
+                assert 'contact you privately' not in email
                 html=client.get('/book').text
                 assert 'community-guidelines' in html and 'condition of attending' in html
         ''')

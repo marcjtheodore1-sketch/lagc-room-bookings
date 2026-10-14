@@ -134,7 +134,8 @@ def run_date_reminders(now):
     from app import (db, DateBookingReminder, Booking, EmailDeliveryUncertain,
                      get_room_schedule_ids, booking_registration_closed,
                      is_blocked_email_recipient, reminder_base_url, reminder_date_display,
-                     BOOKING_DEADLINE_NOTICE, COMMUNITY_GUIDELINES_NOTICE)
+                     BOOKING_DEADLINE_NOTICE, COMMUNITY_GUIDELINES_NOTICE,
+                     ACCESS_PLANNING_NOTICE, ATTENDANCE_NOTICE)
     now = now.astimezone(LONDON) if now.tzinfo else now.replace(tzinfo=LONDON)
     schedule = get_room_schedule_ids()
     counts = {'sent': 0, 'failed': 0}
@@ -173,6 +174,8 @@ def run_date_reminders(now):
             'This reminder does not reserve a place. Complete the booking form to book. '
             'If you have already booked using a different email address, there is no need to book again.\n\n'
             f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
+            f'{ACCESS_PLANNING_NOTICE}\n\n'
+            f'{ATTENDANCE_NOTICE}\n\n'
             'This is your only reminder for this request. You have not been subscribed to weekly emails.\n\n'
             'Many thanks,\nLondon Autism Group Charity'
         )
