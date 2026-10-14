@@ -1702,12 +1702,21 @@ def create_booking():
             return jsonify({'error': f'Missing required field: {field}'}), 400
     
     room_id = data['room_id']
-    name = data['name'].strip()
+    raw_name = data['name']
+    if not isinstance(raw_name, str):
+        return jsonify({'error': 'Please enter your full first and last names.'}), 400
+    # Keep accepting the combined name from cached versions of the form, but
+    # validate both parts on the server as well as in the browser.
+    parts = raw_name.strip().split(maxsplit=1)
+    first_name = data.get('first_name', parts[0] if parts else '')
+    last_name = data.get('last_name', parts[1] if len(parts) == 2 else '')
+    for label, value in (('first', first_name), ('last', last_name)):
+        if not isinstance(value, str) or len(''.join(value.split())) < 3:
+            return jsonify({'error': f'Please enter your full {label} name, using at least 3 characters rather than an initial.'}), 400
+    name = ' '.join(f'{first_name.strip()} {last_name.strip()}'.split())
+    if len(name) > 120:
+        return jsonify({'error': 'Please keep your full name to 120 characters or fewer.'}), 400
     email = data['email'].strip().lower()
-    
-    # Validate name
-    if not name:
-        return jsonify({'error': 'Please enter your name'}), 400
     
     # Validate email
     if '@' not in email or '.' not in email.split('@')[1]:
@@ -2781,6 +2790,30 @@ def admin_get_bookings():
         })
 
     return jsonify(result)
+
+@app.route('/api/admin/bookings/<int:booking_id>/name', methods=['PATCH'])
+@admin_required
+def admin_update_booking_name(booking_id):
+    """Correct one attendee name without cancelling or emailing the booking."""
+    booking = db.session.get(Booking, booking_id)
+    if not booking or booking.cancelled_at is not None:
+        return jsonify({'error': 'Booking not found'}), 404
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Enter the attendee\'s full name.'}), 400
+    name = data.get('name')
+    if not isinstance(name, str):
+        return jsonify({'error': 'Enter the attendee\'s full name.'}), 400
+    name = ' '.join(name.split())
+    # Staff can record genuine short names when helping someone book.
+    if len(name.split()) < 2 or len(name) > 120:
+        return jsonify({'error': 'Enter the attendee\'s first and last names (up to 120 characters in total).'}), 400
+    if data.get('original_name') != booking.user_name:
+        return jsonify({'error': 'This name has changed since you opened it. Refresh the bookings and try again.'}), 409
+    booking.user_name = name
+    db.session.commit()
+    return jsonify({'success': True, 'user_name': booking.user_name})
+
 
 @app.route('/api/admin/bookings/export')
 @admin_required

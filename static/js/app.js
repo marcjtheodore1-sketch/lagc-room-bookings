@@ -1244,13 +1244,15 @@ async function submitBooking() {
     const lastName = elements.lastNameInput.value.trim();
     const email = elements.emailInput.value.trim();
     
-    if (!firstName) {
-        alert('Please enter your first name');
+    if (Array.from(firstName.replace(/\s/g, '')).length < 3) {
+        alert('Please enter your full first name, using at least 3 characters rather than an initial.');
+        elements.firstNameInput.focus();
         return;
     }
     
-    if (!lastName) {
-        alert('Please enter your last name');
+    if (Array.from(lastName.replace(/\s/g, '')).length < 3) {
+        alert('Please enter your full last name, using at least 3 characters rather than an initial.');
+        elements.lastNameInput.focus();
         return;
     }
     
@@ -1335,6 +1337,8 @@ async function submitBooking() {
         room_id: state.selectedRoom.id,
         date: state.selectedDate,
         name: name,
+        first_name: firstName,
+        last_name: lastName,
         email: email,
         accessibility_needs: document.getElementById('accessibility-needs').value.trim(),
         bringing_others: bringingOthers,

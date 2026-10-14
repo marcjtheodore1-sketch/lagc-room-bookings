@@ -62,13 +62,14 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="first-name">First Name:</label>
-                    <input type="text" id="first-name" placeholder="John" required>
+                    <input type="text" id="first-name" placeholder="John" minlength="3" maxlength="60" autocomplete="given-name" aria-describedby="booking-name-hint" required>
                 </div>
                 <div class="form-group">
                     <label for="last-name">Last Name:</label>
-                    <input type="text" id="last-name" placeholder="Smith" required>
+                    <input type="text" id="last-name" placeholder="Smith" minlength="3" maxlength="60" autocomplete="family-name" aria-describedby="booking-name-hint" required>
                 </div>
             </div>
+            <p class="hint" id="booking-name-hint">Enter your full first and last names, using at least 3 characters in each rather than initials. These names are used for the building's attendee list. If either name is shorter, contact us at <a href="mailto:londonautismgroupcharity@gmail.com">londonautismgroupcharity@gmail.com</a> so we can help with your booking.</p>
             <div class="form-group">
                 <label for="email">Email Address:</label>
                 <input type="email" id="email" placeholder="your@email.com" required>
@@ -303,5 +304,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=51"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=52"></script>
 {% endblock %}

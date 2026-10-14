@@ -1258,6 +1258,7 @@ function bookingTable(bookings, archived = false) {
             </td>
             <td data-label="Other information" class="booking-answer">${escapeHtml(b.other_info || 'None given')}</td>
             <td data-label="Actions"><div class="booking-actions">
+                ${archived ? '' : `<button type="button" class="btn btn-small btn-secondary" onclick="openBookingNameEditor(${b.id}, this)">Edit name</button>`}
                 ${b.room_type === 'slot' ? attendanceButtons('booking', b.id, b.attended) : '<span class="hint">Open booking</span>'}
                 ${archived ? '' : `<button class="btn btn-small btn-danger" onclick="deleteBooking(${b.id})">Delete</button>`}
             </div></td>
@@ -1730,6 +1731,52 @@ function escapeHtml(text) {
 // ============================================
 // DELETE BOOKING
 // ============================================
+
+let editingBookingName = null;
+
+function openBookingNameEditor(bookingId, button) {
+    const row = button.closest('tr');
+    const name = row.querySelector('[data-label="Attendee"] strong').textContent;
+    editingBookingName = { id: bookingId, originalName: name, button };
+    document.getElementById('booking-name-input').value = name;
+    document.getElementById('booking-name-status').textContent = '';
+    document.getElementById('booking-name-modal').hidden = false;
+    document.getElementById('booking-name-input').focus();
+}
+
+function closeBookingNameEditor() {
+    document.getElementById('booking-name-modal').hidden = true;
+    editingBookingName?.button.focus();
+    editingBookingName = null;
+}
+
+async function saveBookingName(event) {
+    event.preventDefault();
+    if (!editingBookingName) return;
+    const editing = editingBookingName;
+    const status = document.getElementById('booking-name-status');
+    const save = document.getElementById('booking-name-save');
+    save.disabled = true;
+    try {
+        const response = await fetch(`/api/admin/bookings/${editing.id}/name`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: document.getElementById('booking-name-input').value,
+                original_name: editing.originalName })
+        });
+        const result = await response.json();
+        if (!response.ok) {
+            status.textContent = result.error || 'Could not save the name. Try again.';
+            return;
+        }
+        closeBookingNameEditor();
+        await loadAllBookings();
+    } catch (error) {
+        status.textContent = 'Could not check whether the name was saved. Refresh the bookings before trying again.';
+    } finally {
+        save.disabled = false;
+    }
+}
 
 async function deleteBooking(bookingId) {
     if (!confirm('Are you sure you want to delete this booking?\n\nThe user will be notified by email that their booking has been cancelled.')) {

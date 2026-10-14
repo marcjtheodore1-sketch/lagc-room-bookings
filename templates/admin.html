@@ -306,5 +306,24 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=48"></script>
+<div class="testimonial-modal" id="booking-name-modal" hidden>
+    <div class="testimonial-modal-backdrop" onclick="closeBookingNameEditor()"></div>
+    <div class="testimonial-modal-content" role="dialog" aria-modal="true" aria-labelledby="booking-name-title" onkeydown="if (event.key === 'Escape') closeBookingNameEditor()">
+        <button type="button" class="modal-close" onclick="closeBookingNameEditor()" aria-label="Close">&times;</button>
+        <h2 id="booking-name-title">Edit attendee name</h2>
+        <p>Correct the name used in the booking and future building attendee lists. This saves the name without sending an email. Lists already sent will not change.</p>
+        <form onsubmit="saveBookingName(event)">
+            <div class="form-group">
+                <label for="booking-name-input">Full first and last names</label>
+                <input id="booking-name-input" type="text" maxlength="120" required>
+            </div>
+            <p id="booking-name-status" role="status" aria-live="polite"></p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeBookingNameEditor()">Cancel</button>
+                <button type="submit" id="booking-name-save" class="btn btn-primary">Save name</button>
+            </div>
+        </form>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=49"></script>
 {% endblock %}
