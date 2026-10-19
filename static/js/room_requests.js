@@ -60,8 +60,23 @@ async function initialiseRoomRequests() {
     } catch (error) { document.getElementById('rr-status').textContent = error.message; }
 }
 
+function roomRequestDeliveryChoices() {
+    const mode = document.getElementById('rr-delivery').value;
+    const target = document.getElementById('rr-test-target').value;
+    return {delivery_mode: mode, test_recipients: mode === 'test' ?
+        (target === 'both' ? ['chris', 'florence'] : target ? [target] : []) : []};
+}
+
+function toggleRoomRequestDelivery() {
+    const test = document.getElementById('rr-delivery').value === 'test';
+    document.getElementById('rr-test-options').hidden = !test;
+    document.getElementById('rr-test-target').disabled = !test;
+    document.getElementById('rr-test-target').required = test;
+    changeRoomRequestChoices();
+}
+
 function roomRequestChoices() {
-    return {request_id: roomRequestOptions.request_id,
+    return {request_id: roomRequestOptions.request_id, ...roomRequestDeliveryChoices(),
         rooms: roomRequestOptions.rooms.flatMap(room => {
             const count = Number(document.getElementById(`rr-count-${room.id}`).value);
             return count > 0 ? [{room_id: room.id, count}] : [];
@@ -116,7 +131,9 @@ async function previewRoomRequest(event) {
             body: JSON.stringify({...roomRequestChoices(), subject: document.getElementById('rr-email-subject').value,
                 body: document.getElementById('rr-email-body').value})});
         if (generation !== roomRequestGeneration || selection !== currentRoomRequestSelection()) return;
-        if (record.status === 'draft' && (record.subject !== document.getElementById('rr-email-subject').value.trim() ||
+        let expectedSubject = document.getElementById('rr-email-subject').value.trim();
+        if (roomRequestDeliveryChoices().delivery_mode === 'test' && !expectedSubject.startsWith('[TEST] ')) expectedSubject = '[TEST] ' + expectedSubject;
+        if (record.status === 'draft' && (record.subject !== expectedSubject ||
                 record.body !== document.getElementById('rr-email-body').value.trim())) {
             throw new Error('The email has changed. Review it again before sending.');
         }
@@ -132,6 +149,8 @@ async function previewRoomRequest(event) {
 function showRoomRequestPreview(record, readOnly = false) {
     cancelRoomRequestSend();
     roomRequestReview = readOnly ? null : record;
+    const test = record.delivery_mode === 'test';
+    document.getElementById('rr-send-btn').textContent = test ? 'Send test email' : 'Send request';
     document.getElementById('rr-headers').innerHTML = [['To', record.recipient_names.to.join(' and ')],
         ['Copy to', record.recipient_names.cc.join(' and ')]].filter(([, value]) => value)
         .map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
@@ -140,7 +159,8 @@ function showRoomRequestPreview(record, readOnly = false) {
     const states = {draft: 'Nothing has been sent. Check your email, then choose Send request.',
         sent: 'This email has already been sent.', sending: 'Check delivery in the mailbox before trying again.',
         uncertain: 'Delivery is unclear. Check the mailbox before trying again.', failed: 'The email could not be sent. Review it again before retrying.'};
-    document.getElementById('rr-preview-state').textContent = readOnly ? 'Previous email, shown for reference.' : states[record.status] || record.status;
+    document.getElementById('rr-preview-state').textContent = readOnly ? 'Previous email, shown for reference.' :
+        test && record.status === 'draft' ? 'Nothing has been sent. This test will go only to the names shown above.' : states[record.status] || record.status;
     document.getElementById('rr-send-btn').hidden = readOnly;
     document.getElementById('rr-send-btn').disabled = readOnly || record.status !== 'draft' || roomRequestBusy;
     document.getElementById('rr-preview').hidden = false;
@@ -155,12 +175,16 @@ function sendRoomRequest() {
     if (!roomRequestReview || roomRequestReview.status !== 'draft' || roomRequestBusy) return;
     if (!roomRequestSelectionStillMatches()) {
         invalidateRoomRequest();
-        document.getElementById('rr-status').textContent = 'Your email or room choices have changed. Choose Review email again.';
+        document.getElementById('rr-status').textContent = 'Your email or room choices have changed. Choose Check before sending again.';
         return;
     }
     roomRequestPendingSend = roomRequestReview.review_key;
-    document.getElementById('rr-confirm-recipients').textContent =
-        roomRequestReview.recipient_names.to.join(' and ') + ', with ' + roomRequestReview.recipient_names.cc.join(' and ') + ' copied in.';
+    const test = roomRequestReview.delivery_mode === 'test';
+    document.getElementById('rr-confirm-heading').textContent = test ? 'Send this test email?' : 'Send this room request?';
+    document.getElementById('rr-confirm-summary').textContent = test ?
+        'This is a test. Emma and Martha will not receive it. Your email will go to:' : 'Your email will go to:';
+    document.getElementById('rr-confirm-recipients').textContent = roomRequestReview.recipient_names.to.join(' and ') +
+        (roomRequestReview.recipient_names.cc.length ? ', with ' + roomRequestReview.recipient_names.cc.join(' and ') + ' copied in.' : '.');
     document.getElementById('rr-confirm-subject').textContent = roomRequestReview.subject;
     const dialog = document.getElementById('rr-send-confirmation');
     if (!dialog.open) dialog.showModal();
@@ -173,7 +197,7 @@ async function confirmRoomRequestSend() {
             roomRequestPendingSend !== roomRequestReview.review_key) return;
     if (!roomRequestSelectionStillMatches()) {
         invalidateRoomRequest();
-        document.getElementById('rr-status').textContent = 'Your email or room choices have changed. Choose Review email again.';
+        document.getElementById('rr-status').textContent = 'Your email or room choices have changed. Choose Check before sending again.';
         return;
     }
     const review = roomRequestReview;
@@ -188,7 +212,9 @@ async function confirmRoomRequestSend() {
             body: JSON.stringify({review_key: review.review_key, confirmed: true})});
         showRoomRequestPreview(result.request);
         document.getElementById('rr-preview-state').textContent = result.already_sent ?
-            'This email was already sent. No second email was sent.' : 'Sent to Emma and Martha, with Florence copied in. Replies go to Florence.';
+            'This email was already sent. No second email was sent.' : result.request.delivery_mode === 'test' ?
+                'Test email sent only to ' + result.request.recipient_names.to.join(' and ') + '. Emma and Martha have not been emailed.' :
+                'Sent to Emma and Martha, with Florence copied in. Replies go to Florence.';
     } catch (error) {
         if (error.record) showRoomRequestPreview(error.record);
         else roomRequestReview = null;
@@ -207,6 +233,9 @@ async function startNewRoomRequest() {
     changeRoomRequestChoices();
     roomRequestOptions = null;
     document.getElementById('rr-notes').value = '';
+    document.getElementById('rr-delivery').value = 'test';
+    document.getElementById('rr-test-target').value = '';
+    toggleRoomRequestDelivery();
     await loadRoomRequests();
     document.getElementById('room-request-form').scrollIntoView({block: 'start', behavior: 'smooth'});
 }

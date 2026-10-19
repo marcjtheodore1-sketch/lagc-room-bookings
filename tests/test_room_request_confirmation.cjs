@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../static/js/room_requests.js'), 'utf8');
 
-function setup() {
+function setup(mode='live', target='chris') {
     const elements = new Map(), events = new Map();
     let focused;
     const document = {getElementById(id) {
@@ -16,8 +16,10 @@ function setup() {
     }};
     const context=vm.createContext({document,escapeHtml:String});
     vm.runInContext(source,context);
-    const record={review_key:'reviewed-key',status:'draft',subject:'Rooms',body:'Edited email',
-        recipient_names:{to:['Emma','Martha'],cc:['Florence']}};
+    const record={review_key:'reviewed-key',status:'draft',delivery_mode:mode,subject:'Rooms',body:'Edited email',
+        recipient_names:mode==='test' ? {to:target==='both'?['Chris','Florence']:[target==='chris'?'Chris':'Florence'],cc:[]} : {to:['Emma','Martha'],cc:['Florence']}};
+    document.getElementById('rr-delivery').value=mode;
+    document.getElementById('rr-test-target').value=target;
     context.record=record;
     document.getElementById('rr-email-subject').value=record.subject;
     document.getElementById('rr-email-body').value=record.body;
@@ -49,7 +51,7 @@ for(const field of ['rr-email-subject','rr-email-body','rr-notes']) {
         const s=setup();s.context.sendRoomRequest();s.document.getElementById(field).value+='changed';
         await s.context.confirmRoomRequestSend();
         assert.equal(s.calls.length,0);assert.equal(s.document.getElementById('rr-send-confirmation').open,false);
-        assert.match(s.document.getElementById('rr-status').textContent,/Review email again/);
+        assert.match(s.document.getElementById('rr-status').textContent,/Check before sending again/);
     });
 }
 
@@ -64,4 +66,22 @@ test('Previous emails are read-only and cannot reopen an old send',async()=>{
     assert.equal(s.document.getElementById('rr-send-btn').hidden,true);
     s.context.sendRoomRequest();assert.equal(s.document.getElementById('rr-send-confirmation').open,false);
     assert.equal(s.calls.length,0);
+});
+
+for(const target of ['chris','florence','both']) {
+    test(`Test confirmation uses names only for ${target}`, async()=>{
+        const s=setup('test',target);s.context.sendRoomRequest();
+        const label=s.document.getElementById('rr-confirm-recipients').textContent;
+        assert.equal(label,(target==='both'?'Chris and Florence':target==='chris'?'Chris':'Florence')+'.');
+        assert.equal(label.includes('@'),false);
+        assert.equal(s.document.getElementById('rr-confirm-heading').textContent,'Send this test email?');
+        s.context.cancelRoomRequestSend();await s.context.confirmRoomRequestSend();assert.equal(s.calls.length,0);
+    });
+}
+
+test('Changing the test recipient without an input event blocks the old confirmation',async()=>{
+    const s=setup('test','chris');s.context.sendRoomRequest();
+    s.document.getElementById('rr-test-target').value='both';
+    await s.context.confirmRoomRequestSend();assert.equal(s.calls.length,0);
+    assert.equal(s.document.getElementById('rr-send-confirmation').open,false);
 });

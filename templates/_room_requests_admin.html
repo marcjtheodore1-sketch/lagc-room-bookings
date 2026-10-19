@@ -1,5 +1,6 @@
 <div class="tab-content" id="tab-roomrequests">
     <h2>Request rooms</h2>
+    <p class="hint">Choose rooms → Preview and edit → Check and confirm. Nothing is sent just by previewing.</p>
     <p>Choose the rooms and how many Fridays you’d like each one. Emma and Martha will let Florence know which dates they can offer.</p>
     <form id="room-request-form" onsubmit="createRoomRequestEmail(event)">
         <h3>1. Choose your rooms</h3>
@@ -11,20 +12,35 @@
         <div class="form-group"><label for="rr-notes">Anything else to mention? (optional)</label>
             <textarea id="rr-notes" rows="2" maxlength="2000"></textarea>
         </div>
-        <button class="btn btn-primary" id="rr-create-btn" type="submit">Create email</button>
+        <div class="room-request-delivery">
+            <label for="rr-delivery">What would you like to do?</label>
+            <select id="rr-delivery" onchange="toggleRoomRequestDelivery()">
+                <option value="test" selected>Send a test email</option>
+                <option value="live">Request rooms from Emma and Martha</option>
+            </select>
+            <div id="rr-test-options">
+                <label for="rr-test-target">Who should receive the test?</label>
+                <select id="rr-test-target" required>
+                    <option value="">Choose a name</option><option value="chris">Chris</option>
+                    <option value="florence">Florence</option><option value="both">Both</option>
+                </select>
+                <p class="hint">Tests only go to the person or people you choose. Emma and Martha won’t receive them.</p>
+            </div>
+        </div>
+        <button class="btn btn-primary" id="rr-create-btn" type="submit">Preview email</button>
     </form>
     <p id="rr-status" role="status" aria-live="polite"></p>
     <section id="rr-editor" aria-labelledby="rr-editor-heading" hidden>
-        <h3 id="rr-editor-heading">2. Check and edit your email</h3>
-        <p>You can change the wording below before sending. It will go to Emma and Martha, with Florence copied in. Replies go to Florence.</p>
+        <h3 id="rr-editor-heading">2. Preview and edit your email</h3>
+        <p>This is your email preview. You can edit the subject and message. Then choose “Check before sending” to review the recipients and final wording.</p>
         <form id="rr-editor-form" onsubmit="previewRoomRequest(event)">
             <div class="form-group"><label for="rr-email-subject">Subject</label><input type="text" id="rr-email-subject" maxlength="200" required></div>
             <div class="form-group"><label for="rr-email-body">Email message</label><textarea id="rr-email-body" rows="17" maxlength="12000" required></textarea></div>
-            <button class="btn btn-primary" id="rr-preview-btn" type="submit">Review email</button>
+            <button class="btn btn-primary" id="rr-preview-btn" type="submit">Check before sending</button>
         </form>
     </section>
     <section id="rr-preview" class="notice-box info" aria-labelledby="rr-preview-heading" hidden>
-        <h3 id="rr-preview-heading">3. Ready to send?</h3>
+        <h3 id="rr-preview-heading">3. Check before sending</h3>
         <dl id="rr-headers"></dl>
         <p><strong>Subject:</strong> <span id="rr-subject"></span></p>
         <pre id="rr-body" class="room-request-message"></pre>
@@ -54,8 +70,10 @@
 <style>
     #tab-roomrequests { max-width: 950px; }
     #tab-roomrequests label { display: block; margin-bottom: .4rem; }
-    #tab-roomrequests input, #tab-roomrequests textarea { width: 100%; padding: .65rem; border: 1px solid #b8afc6; border-radius: 6px; background: white; color: inherit; font: inherit; box-sizing: border-box; }
+    #tab-roomrequests input, #tab-roomrequests textarea, #tab-roomrequests select { width: 100%; padding: .65rem; border: 1px solid #b8afc6; border-radius: 6px; background: white; color: inherit; font: inherit; box-sizing: border-box; }
     #tab-roomrequests h3 { margin: 1.5rem 0 .6rem; }
+    .room-request-delivery { max-width: 600px; margin: 1.5rem 0; padding: 1rem; border: 1px solid #ded8e4; border-radius: 8px; }
+    #rr-test-options { margin-top: 1rem; }
     .room-request-table { max-width: 600px; margin: 1rem 0 1.5rem; }
     .room-request-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 1rem; align-items: center; padding: .55rem 0; border-bottom: 1px solid #ded8e4; }
     #tab-roomrequests .room-request-row label { margin: 0; }

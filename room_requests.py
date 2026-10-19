@@ -63,7 +63,7 @@ def room_label(name):
 def normalise(data):
     if not isinstance(data, dict):
         raise ValueError('Choose the rooms and how many Fridays you would like each one.')
-    if set(data) - {'request_id', 'rooms', 'notes', 'subject', 'body'}:
+    if set(data) - {'request_id', 'rooms', 'notes', 'subject', 'body', 'delivery_mode', 'test_recipients'}:
         raise ValueError('This form has changed. Refresh the page to request rooms without dates.')
     request_id = data.get('request_id')
     if (not isinstance(request_id, str) or not 24 <= len(request_id) <= 64
@@ -85,7 +85,16 @@ def normalise(data):
     notes = data.get('notes', '')
     if not isinstance(notes, str) or len(notes) > 2000 or '\x00' in notes:
         raise ValueError('Additional details must be text of up to 2,000 characters.')
-    return {'version': 2, 'request_id': request_id, 'delivery_mode': 'live',
+    mode = data.get('delivery_mode', 'live')
+    delivery = {'delivery_mode': mode}
+    if mode == 'test':
+        delivery['test_recipients'] = data.get('test_recipients', [])
+    elif mode != 'live' or data.get('test_recipients'):
+        raise ValueError('Choose a test email or a room request to Emma and Martha.')
+    delivery_details(delivery)
+    if mode == 'test':
+        delivery['test_recipients'] = sorted(delivery['test_recipients'])
+    return {'version': 2, 'request_id': request_id, **delivery,
             'rooms': sorted(selected, key=lambda room: room['room_id']),
             'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip()}
 
@@ -101,6 +110,10 @@ def compose(payload):
     paragraphs.extend(['Could you let me know which dates you can offer?',
         f'Once agreed, could you send the hire agreement to Chris Papadopoulos at {CONTRACT_TO}?',
         'Many thanks,\nFlorence Perdriel\nLondon Autism Group Charity'])
+    if payload['delivery_mode'] == 'test':
+        subject = '[TEST] ' + subject
+        names = ' and '.join(TEST_RECIPIENTS[key][0] for key in payload['test_recipients'])
+        paragraphs.insert(0, f'TEST ONLY: This copy is for {names}. Emma and Martha will not receive it.')
     return subject, '\n\n'.join(paragraphs)
 
 
@@ -113,7 +126,10 @@ def reviewed_text(data, payload):
         raise ValueError('Enter an email subject of up to 200 characters on one line.')
     if not isinstance(body, str) or not body.strip() or len(body) > 12000 or '\x00' in body:
         raise ValueError('Enter an email message of up to 12,000 characters.')
-    return subject.strip(), body.replace('\r\n', '\n').replace('\r', '\n').strip()
+    subject = subject.strip()
+    if payload['delivery_mode'] == 'test' and not subject.startswith('[TEST] '):
+        subject = '[TEST] ' + subject
+    return subject, body.replace('\r\n', '\n').replace('\r', '\n').strip()
 
 
 def recipient_names(delivery):
@@ -139,8 +155,16 @@ def preview(data):
     sender = app.config['SMTP_FROM']
     # One record per request, including its edits. A new form gets a fresh ID,
     # so Florence can request the same room quantities again in future.
-    fingerprint = hashlib.sha256(json.dumps([2, payload['request_id'], sender, TO, CC, REPLY_TO]).encode()).hexdigest()
+    identity = [2, payload['request_id'], sender, TO, CC, REPLY_TO]
+    if payload['delivery_mode'] == 'test':
+        identity.append(delivery_details(payload))
+    fingerprint = hashlib.sha256(json.dumps(identity).encode()).hexdigest()
     record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
+    # A deliberate new preview may repeat a test. Repeated sends of the same
+    # reviewed key remain duplicate-safe, and tests never block a real request.
+    while payload['delivery_mode'] == 'test' and record is not None and record.status == 'sent':
+        fingerprint = hashlib.sha256((fingerprint + record.review_key).encode()).hexdigest()
+        record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
     if record is None:
         record = RoomRequest(review_key=secrets.token_urlsafe(32), fingerprint=fingerprint,
             payload=json.dumps(payload), subject=subject, body=body, from_email=sender, status='draft')
@@ -197,7 +221,7 @@ def send(data):
         return {'error': 'This send was already attempted. Check the history and sent mailbox before trying anything further.',
                 'request': serialise(record)}, 409
     payload = json.loads(record.payload)
-    if payload.get('version') != 2 or payload.get('delivery_mode') != 'live':
+    if payload.get('version') != 2 or payload.get('delivery_mode') not in ('live', 'test'):
         return {'error': 'This is an older preview. Refresh the page and prepare a new room request.'}, 409
     if record.from_email != app.config['SMTP_FROM']:
         return {'error': 'The sender has changed. Preview the request again.'}, 409
@@ -256,7 +280,8 @@ def register_routes(app, admin_required):
     def room_request_options():
         return jsonify({'request_id': secrets.token_urlsafe(24),
             'rooms': [{'id': room.id, 'name': room.name, 'label': room_label(room.name)} for room in requestable_rooms()],
-            'recipient_names': {'to': ['Emma', 'Martha'], 'cc': ['Florence']}})
+            'recipient_names': {'to': ['Emma', 'Martha'], 'cc': ['Florence']},
+            'test_recipients': [{'id': key, 'name': person[0]} for key, person in TEST_RECIPIENTS.items()]})
 
     @app.post('/api/admin/room-requests/preview')
     @admin_required
