@@ -5,6 +5,10 @@
     <form id="room-request-form" onsubmit="createRoomRequestEmail(event)">
         <h3>1. Choose your rooms</h3>
         <p class="hint">For example: Rose 4 times, Clerkenwell 3 times and Loft once. Leave a room at 0 if you don’t need it.</p>
+        <div class="form-group"><label for="rr-period">Period (optional)</label>
+            <input type="text" id="rr-period" maxlength="160" placeholder="For example, January 2027">
+            <p class="hint">Add the period you’re asking about, if you want it mentioned in the email. You don’t need to choose dates for each room.</p>
+        </div>
         <div class="room-request-table">
             <div class="room-request-row room-request-table-heading"><span>Room</span><span>Number of Fridays</span></div>
             <div id="rr-rooms">Loading rooms...</div>

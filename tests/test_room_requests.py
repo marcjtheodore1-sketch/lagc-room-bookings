@@ -38,9 +38,11 @@ class RoomRequestTest(unittest.TestCase):
         assert preview['to']==list(TO) and preview['cc']==list(CC)
         assert 'Rose: 4 Fridays' in preview['body'] and 'Clerkenwell: 3 Fridays' in preview['body']
         assert 'Loft: 1 Friday' in preview['body'] and 'Fridays covered' not in preview['body']
-        assert 'which dates you can offer' in preview['body']
+        assert 'what alternatives we can consider please?' in preview['body']
         assert preview['body'].endswith('Florence Perdriel\\nLondon Autism Group Charity')
-        assert CONTRACT_TO in preview['body']
+        assert CONTRACT_TO not in preview['body'] and 'Chris Papadopoulos' not in preview['body']
+        assert 'share the hire agreement with Chris as you usually do' in preview['body']
+        assert preview['subject']=='Fridays @ Farringdon: room booking'
         again=client.post('/api/admin/room-requests/preview',json=payload).json
         assert again['review_key']==preview['review_key'] and RoomRequest.query.count()==1
         assert Booking.query.count()==0 and get_room_schedule_ids()==before
@@ -58,6 +60,7 @@ class RoomRequestTest(unittest.TestCase):
         self.check_case('''
     invalid=[dict(payload,rooms=[]),dict(payload,rooms=None),dict(payload,notes='x'*2001),
         dict(payload,request_id='bad'),dict(payload,start_date='2099-01-01'),
+        dict(payload,period='x'*161),dict(payload,period='two\\nlines'),dict(payload,period=123),
         dict(payload,delivery_mode='test',test_recipients=['emma']),dict(payload,to=list(TO)),
         dict(payload,subject='Only subject'),dict(payload,subject='bad\\r\\nBcc: someone',body='text'),
         dict(payload,subject='Okay',body=' '),dict(payload,subject='Okay',body='x'*12001)]
@@ -224,6 +227,25 @@ class RoomRequestTest(unittest.TestCase):
         for changes in invalid:
             assert client.post('/api/admin/room-requests/preview',json=dict(payload,**changes)).status_code==400
         assert client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True,test_recipients=['florence'])).status_code==400
+        smtp.assert_not_called()
+''')
+
+    def test_florences_wording_optional_period_and_independent_room_quantities(self):
+        self.check_case('''
+    chosen=dict(payload,period='January 2027',rooms=[dict(room_id=rooms[0].id,count=4),
+        dict(room_id=rooms[1].id,count=6),dict(room_id=rooms[2].id,count=7)])
+    with patch('app.send_smtp_message') as smtp:
+        response=client.post('/api/admin/room-requests/preview',json=chosen)
+        assert response.status_code==200,response.json
+        preview=response.json
+        assert 'I am reaching out to agree on what rooms we can have for the January 2027 period.' in preview['body']
+        assert 'If possible, could we get:' in preview['body']
+        assert 'Clerkenwell: 6 Fridays' in preview['body'] and 'Loft: 7 Fridays' in preview['body']
+        assert 'Fridays covered' not in preview['body'] and CONTRACT_TO not in preview['body']
+        assert 'Chris Papadopoulos' not in preview['body'] and 'Many thanks 🙂' in preview['body']
+        assert preview['subject']=='Fridays @ Farringdon: room booking'
+        blank=client.post('/api/admin/room-requests/preview',json=dict(chosen,period='')).json
+        assert 'for the next period.' in blank['body'] and '[date range]' not in blank['body']
         smtp.assert_not_called()
 ''')
 

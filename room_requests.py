@@ -63,7 +63,7 @@ def room_label(name):
 def normalise(data):
     if not isinstance(data, dict):
         raise ValueError('Choose the rooms and how many Fridays you would like each one.')
-    if set(data) - {'request_id', 'rooms', 'notes', 'subject', 'body', 'delivery_mode', 'test_recipients'}:
+    if set(data) - {'request_id', 'rooms', 'notes', 'subject', 'body', 'delivery_mode', 'test_recipients', 'period'}:
         raise ValueError('This form has changed. Refresh the page to request rooms without dates.')
     request_id = data.get('request_id')
     if (not isinstance(request_id, str) or not 24 <= len(request_id) <= 64
@@ -85,6 +85,10 @@ def normalise(data):
     notes = data.get('notes', '')
     if not isinstance(notes, str) or len(notes) > 2000 or '\x00' in notes:
         raise ValueError('Additional details must be text of up to 2,000 characters.')
+    period = data.get('period', '')
+    if (not isinstance(period, str) or len(period) > 160
+            or any(char in period for char in '\r\n\x00')):
+        raise ValueError('Enter a short period on one line, such as January 2027, or leave it blank.')
     mode = data.get('delivery_mode', 'live')
     delivery = {'delivery_mode': mode}
     if mode == 'test':
@@ -96,20 +100,22 @@ def normalise(data):
         delivery['test_recipients'] = sorted(delivery['test_recipients'])
     return {'version': 2, 'request_id': request_id, **delivery,
             'rooms': sorted(selected, key=lambda room: room['room_id']),
-            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip()}
+            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip(), 'period': period.strip()}
 
 
 def compose(payload):
-    subject = 'Fridays @ Farringdon: room request'
-    paragraphs = ['Hello Emma and Martha,',
-        'Could you help us arrange rooms for our next Fridays @ Farringdon sessions?',
-        'We’d like:\n' + '\n'.join(f'- {room["room_name"]}: {room["count"]} Friday' +
+    subject = 'Fridays @ Farringdon: room booking'
+    period = payload.get('period', '')
+    opening = (f'I am reaching out to agree on what rooms we can have for the {period} period.' if period else
+               'I am reaching out to agree on what rooms we can have for the next period.')
+    paragraphs = ['Hello Emma and Martha,', opening,
+        'If possible, could we get:\n' + '\n'.join(f'- {room["room_name"]}: {room["count"]} Friday' +
             ('s' if room['count'] != 1 else '') for room in payload['rooms'])]
     if payload['notes']:
         paragraphs.append(payload['notes'])
-    paragraphs.extend(['Could you let me know which dates you can offer?',
-        f'Once agreed, could you send the hire agreement to Chris Papadopoulos at {CONTRACT_TO}?',
-        'Many thanks,\nFlorence Perdriel\nLondon Autism Group Charity'])
+    paragraphs.extend(['Could you let me know if this is possible and, if not, what alternatives we can consider please?',
+        'Once this is all agreed, please share the hire agreement with Chris as you usually do.',
+        'Many thanks 🙂\nFlorence Perdriel\nLondon Autism Group Charity'])
     if payload['delivery_mode'] == 'test':
         subject = '[TEST] ' + subject
         names = ' and '.join(TEST_RECIPIENTS[key][0] for key in payload['test_recipients'])

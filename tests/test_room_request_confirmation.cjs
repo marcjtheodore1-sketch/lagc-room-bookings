@@ -46,7 +46,7 @@ test('Confirm send sends the reviewed key only once',async()=>{
     assert.deepEqual(s.calls,[{route:'send',body:{review_key:'reviewed-key',confirmed:true}}]);
 });
 
-for(const field of ['rr-email-subject','rr-email-body','rr-notes']) {
+for(const field of ['rr-email-subject','rr-email-body','rr-notes','rr-period']) {
     test(`Changing ${field} blocks an old confirmation even without an input event`,async()=>{
         const s=setup();s.context.sendRoomRequest();s.document.getElementById(field).value+='changed';
         await s.context.confirmRoomRequestSend();

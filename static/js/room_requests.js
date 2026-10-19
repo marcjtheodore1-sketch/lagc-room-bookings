@@ -80,7 +80,7 @@ function roomRequestChoices() {
         rooms: roomRequestOptions.rooms.flatMap(room => {
             const count = Number(document.getElementById(`rr-count-${room.id}`).value);
             return count > 0 ? [{room_id: room.id, count}] : [];
-        }), notes: document.getElementById('rr-notes').value};
+        }), notes: document.getElementById('rr-notes').value, period: document.getElementById('rr-period').value};
 }
 
 function currentRoomRequestSelection() {
@@ -233,6 +233,7 @@ async function startNewRoomRequest() {
     changeRoomRequestChoices();
     roomRequestOptions = null;
     document.getElementById('rr-notes').value = '';
+    document.getElementById('rr-period').value = '';
     document.getElementById('rr-delivery').value = 'test';
     document.getElementById('rr-test-target').value = '';
     toggleRoomRequestDelivery();
