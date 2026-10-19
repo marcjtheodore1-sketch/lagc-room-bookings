@@ -5,6 +5,8 @@ let roomRequestReview = null;
 let roomRequestBusy = false;
 let roomRequestGeneration = 0;
 let roomRequestPendingSend = null;
+let roomRequestPreviewSelection = null;
+let roomRequestLoading = null;
 
 function roomRequestDate(value) {
     const day = new Date(value + 'T12:00:00Z');
@@ -30,12 +32,19 @@ function invalidateRoomRequest() {
     cancelRoomRequestSend();
     roomRequestGeneration++;
     roomRequestReview = null;
+    roomRequestPreviewSelection = null;
     document.getElementById('rr-preview').hidden = true;
     document.getElementById('rr-send-btn').disabled = true;
     document.getElementById('rr-status').textContent = '';
 }
 
 async function loadRoomRequests() {
+    if (roomRequestLoading) return roomRequestLoading;
+    roomRequestLoading = initialiseRoomRequests();
+    try { await roomRequestLoading; } finally { roomRequestLoading = null; }
+}
+
+async function initialiseRoomRequests() {
     const status = document.getElementById('rr-status');
     try {
         if (!roomRequestOptions) {
@@ -44,17 +53,56 @@ async function loadRoomRequests() {
                 document.getElementById(id).value = value;
                 document.getElementById(id).min = roomRequestOptions.min_date;
             }
-            document.getElementById('rr-test-recipients').innerHTML = roomRequestOptions.test_recipients.map(person =>
-                `<label><input type="checkbox" name="rr-test-person" value="${escapeHtml(person.id)}" checked> ${escapeHtml(person.name)} (${escapeHtml(person.email)})</label>`).join('');
+            document.getElementById('rr-arranged-summary').textContent = roomRequestOptions.arranged_through ?
+                'Rooms are already arranged through ' + roomRequestDate(roomRequestOptions.arranged_through) +
+                '. This form starts with the next Fridays, from ' + roomRequestDate(roomRequestOptions.start_date) + '.' :
+                'Use this form for Fridays that haven’t been arranged yet.';
+            document.getElementById('rr-test-target').innerHTML = '<option value="">Choose who receives the test</option>' +
+                roomRequestOptions.test_recipients.map(person =>
+                    `<option value="${escapeHtml(person.id)}">${escapeHtml(person.name)} only (${escapeHtml(person.email)})</option>`).join('') +
+                '<option value="both">Chris and Florence</option>';
+            toggleRoomRequestDelivery();
             buildRoomRequestChoices();
         }
         await loadRoomRequestHistory();
     } catch (error) { status.textContent = error.message; }
 }
 
+function roomRequestDeliverySelection() {
+    const mode = document.getElementById('rr-delivery').value;
+    const target = document.getElementById('rr-test-target').value;
+    return {delivery_mode: mode, test_recipients: mode !== 'test' ? [] :
+        target === 'both' ? ['chris', 'florence'] : target ? [target] : []};
+}
+
+function currentRoomRequestSelection() {
+    return JSON.stringify({start_date: document.getElementById('rr-start').value,
+        end_date: document.getElementById('rr-end').value, notes: document.getElementById('rr-notes').value,
+        ...roomRequestDeliverySelection(), rooms: roomRequestOptions.rooms.map(room => ({id: room.id,
+            mode: document.getElementById(`rr-mode-${room.id}`).value,
+            count: document.getElementById(`rr-count-${room.id}`).value,
+            dates: [...document.querySelectorAll(`input[name="rr-days-${room.id}"]:checked`)].map(input => input.value)}))});
+}
+
+function roomRequestRecipientsMatch(record) {
+    const selection = roomRequestDeliverySelection();
+    const expectedTo = selection.delivery_mode === 'test' ? selection.test_recipients.map(id =>
+        roomRequestOptions.test_recipients.find(person => person.id === id)?.email).filter(Boolean) : roomRequestOptions.to;
+    const expectedCc = selection.delivery_mode === 'test' ? [] : roomRequestOptions.cc;
+    const same = (left, right) => JSON.stringify([...left].sort()) === JSON.stringify([...right].sort());
+    return record.delivery_mode === selection.delivery_mode && same(record.to, expectedTo) && same(record.cc, expectedCc);
+}
+
+function roomRequestSelectionStillMatches() {
+    return roomRequestReview !== null && roomRequestPreviewSelection !== null &&
+        roomRequestPreviewSelection === currentRoomRequestSelection() && roomRequestRecipientsMatch(roomRequestReview);
+}
+
 function toggleRoomRequestDelivery() {
     const test = document.getElementById('rr-delivery').value === 'test';
     document.getElementById('rr-test-options').hidden = !test;
+    document.getElementById('rr-test-target').disabled = !test;
+    document.getElementById('rr-test-target').required = test;
     document.getElementById('rr-live-warning').hidden = test;
     invalidateRoomRequest();
 }
@@ -69,7 +117,7 @@ function buildRoomRequestChoices() {
     const days = [];
     if (!start || !end || start < roomRequestOptions.min_date || last < first || (last - first) / 86400000 > 366) {
         roomRequestPeriod = null;
-        document.getElementById('rr-status').textContent = 'Choose a future period of up to one year.';
+        document.getElementById('rr-status').textContent = 'Choose dates after the rooms already arranged, covering up to a year.';
         return;
     }
     for (const day = new Date(first); day <= last; day.setUTCDate(day.getUTCDate() + 1)) {
@@ -80,19 +128,19 @@ function buildRoomRequestChoices() {
         `${days.length} Friday${days.length === 1 ? '' : 's'}: ${days.map(roomRequestDate).join('; ')}.` : 'This period has no Fridays. Choose another period.';
     document.getElementById('rr-rooms').innerHTML = days.length ? roomRequestOptions.rooms.map(room => `
         <fieldset class="room-request-room" data-room-id="${room.id}">
-            <legend>${escapeHtml(room.name)}</legend>
-            <label for="rr-mode-${room.id}">Dates for ${escapeHtml(room.name)}</label>
+            <legend>${escapeHtml(room.label || room.name)}</legend>
+            <label for="rr-mode-${room.id}">Dates for ${escapeHtml(room.label || room.name)}</label>
             <select id="rr-mode-${room.id}" onchange="toggleRoomRequestMode(${room.id})">
-                <option value="none">Not requested</option><option value="exact">Choose exact Fridays</option><option value="flexible">Flexible dates</option>
+                <option value="none">Not requested</option><option value="exact">Choose the Fridays</option><option value="flexible">Let the venue choose which Fridays</option>
             </select>
             <div id="rr-exact-${room.id}" hidden>
-                <button type="button" class="btn btn-secondary btn-small" onclick="selectAllRoomRequestDates(${room.id})">Select all Fridays</button>
+                <button type="button" class="btn btn-secondary btn-small" onclick="selectAllRoomRequestDates(${room.id})">Every Friday in this period</button>
                 <div class="room-request-days">${days.map(day => `<label><input type="checkbox" value="${day}" name="rr-days-${room.id}"> ${roomRequestDate(day)}</label>`).join('')}</div>
             </div>
             <div id="rr-flexible-${room.id}" hidden>
-                <label for="rr-count-${room.id}">How many of these ${days.length} Fridays?</label>
+                <label for="rr-count-${room.id}">How many Fridays would you like this room? (up to ${days.length})</label>
                 <input type="number" id="rr-count-${room.id}" min="1" max="${days.length}" value="1" disabled>
-                <p class="hint">Emma and Martha can suggest which Fridays work for this room.</p>
+                <p class="hint">For example, choose 3 to ask for this room on any 3 Fridays in this period. Emma and Martha can offer the dates that are available.</p>
             </div>
         </fieldset>`).join('') : '';
 }
@@ -110,14 +158,13 @@ function selectAllRoomRequestDates(id) {
     invalidateRoomRequest();
 }
 
-function showRoomRequestPreview(record) {
+function showRoomRequestPreview(record, readOnly = false) {
     cancelRoomRequestSend();
-    roomRequestReview = record;
+    roomRequestReview = readOnly ? null : record;
     const test = record.delivery_mode === 'test';
-    document.getElementById('rr-preview-heading').textContent = test ? 'Check your test email' : 'Check your request before sending';
+    document.getElementById('rr-preview-heading').textContent = test ? 'Check your test email' : 'Check your email';
     document.getElementById('rr-send-btn').textContent = test ? 'Send test email' : 'Send request to Emma and Martha';
-    document.getElementById('rr-headers').innerHTML = [['Delivery', test ? 'Test only. Emma and Martha will not receive this email.' : 'Live room request'], ['From', record.from_email], ['To', record.to.join(', ')],
-        ['Cc', record.cc.join(', ')], ['Replies go to', record.reply_to], ['Contract requested for Chris at', record.contract_to]]
+    document.getElementById('rr-headers').innerHTML = [['To', record.to.join(', ')], ['Cc', record.cc.join(', ')]]
         .filter(([, value]) => value).map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
     document.getElementById('rr-subject').textContent = record.subject;
     document.getElementById('rr-body').textContent = record.body;
@@ -128,7 +175,9 @@ function showRoomRequestPreview(record) {
         failed: 'The email could not be sent. Preview the form again to retry.'};
     document.getElementById('rr-preview-state').textContent = test && record.status === 'draft' ?
         'Nothing has been sent. This test will go only to the recipients shown above.' : states[record.status] || record.status;
-    document.getElementById('rr-send-btn').disabled = record.status !== 'draft' || roomRequestBusy;
+    document.getElementById('rr-send-btn').hidden = readOnly;
+    document.getElementById('rr-send-btn').disabled = readOnly || record.status !== 'draft' || roomRequestBusy;
+    if (readOnly) document.getElementById('rr-preview-state').textContent = 'Previous email, shown for reference. Use the form above to prepare a new email.';
     document.getElementById('rr-preview').hidden = false;
 }
 
@@ -150,6 +199,7 @@ async function previewRoomRequest(event) {
             {count: Number(document.getElementById(`rr-count-${room.id}`).value)})}];
     });
     invalidateRoomRequest();
+    const selection = currentRoomRequestSelection();
     const generation = roomRequestGeneration;
     const button = document.getElementById('rr-preview-btn');
     button.disabled = true;
@@ -157,10 +207,10 @@ async function previewRoomRequest(event) {
     try {
         const record = await roomRequestFetch('preview', {method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({start_date: start, end_date: end, rooms, notes: document.getElementById('rr-notes').value,
-                delivery_mode: document.getElementById('rr-delivery').value,
-                test_recipients: document.getElementById('rr-delivery').value === 'test' ?
-                    [...document.querySelectorAll('input[name="rr-test-person"]:checked')].map(input => input.value) : []})});
-        if (generation !== roomRequestGeneration) return;
+                ...roomRequestDeliverySelection()})});
+        if (generation !== roomRequestGeneration || selection !== currentRoomRequestSelection()) return;
+        if (!roomRequestRecipientsMatch(record)) throw new Error('The recipients do not match your choice. Preview the email again.');
+        roomRequestPreviewSelection = selection;
         showRoomRequestPreview(record);
         status.textContent = 'Preview ready. Review the message below.';
         document.getElementById('rr-preview-heading').scrollIntoView({block: 'start', behavior: 'smooth'});
@@ -182,6 +232,11 @@ function cancelRoomRequestSend() {
 
 function sendRoomRequest() {
     if (!roomRequestReview || roomRequestReview.status !== 'draft' || roomRequestBusy) return;
+    if (!roomRequestSelectionStillMatches()) {
+        invalidateRoomRequest();
+        document.getElementById('rr-status').textContent = 'Your choices have changed. Choose Preview email again before sending.';
+        return;
+    }
     const review = roomRequestReview;
     const test = review.delivery_mode === 'test';
     roomRequestPendingSend = review.review_key;
@@ -201,6 +256,11 @@ async function confirmRoomRequestSend() {
     const dialog = document.getElementById('rr-send-confirmation');
     if (!dialog.open || !roomRequestReview || roomRequestReview.status !== 'draft' || roomRequestBusy ||
             roomRequestPendingSend !== roomRequestReview.review_key) return;
+    if (!roomRequestSelectionStillMatches()) {
+        invalidateRoomRequest();
+        document.getElementById('rr-status').textContent = 'Your choices have changed. Choose Preview email again before sending.';
+        return;
+    }
     const review = roomRequestReview;
     cancelRoomRequestSend();
     roomRequestBusy = true;
@@ -234,8 +294,9 @@ async function loadRoomRequestHistory() {
     try {
         const records = await roomRequestFetch('history');
         container.replaceChildren();
-        if (!records.length) { container.textContent = 'No room requests yet.'; return; }
-        for (const record of records) {
+        const previous = records.filter(record => record.status !== 'draft');
+        if (!previous.length) { container.textContent = 'No emails have been sent yet.'; return; }
+        for (const record of previous) {
             const item = document.createElement('div'); item.className = 'room-request-history-item';
             const text = document.createElement('p');
             const labels = {draft: 'Unsent preview', sent: 'Sent', sending: 'Check delivery', uncertain: 'Check delivery', failed: 'Not sent'};
@@ -245,7 +306,8 @@ async function loadRoomRequestHistory() {
             button.textContent = 'View email'; button.addEventListener('click', () => {
                 if (roomRequestBusy) return;
                 roomRequestGeneration++;
-                showRoomRequestPreview(record);
+                roomRequestPreviewSelection = null;
+                showRoomRequestPreview(record, true);
                 document.getElementById('rr-preview-heading').scrollIntoView({block: 'start', behavior: 'smooth'});
             });
             item.append(text, button); container.append(item);
@@ -254,5 +316,6 @@ async function loadRoomRequestHistory() {
 }
 
 document.getElementById('room-request-form').addEventListener('input', invalidateRoomRequest);
+document.getElementById('room-request-form').addEventListener('change', invalidateRoomRequest);
 
 document.getElementById('rr-send-confirmation').addEventListener('close', () => { roomRequestPendingSend = null; });

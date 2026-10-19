@@ -1,37 +1,41 @@
 <div class="tab-content" id="tab-roomrequests">
-    <h2>Request rooms from Pan Macmillan</h2>
-    <p>Choose any period, including four weeks across two months. For each room, choose specific Fridays or let Emma and Martha suggest the dates.</p>
-    <p class="hint">This asks for rooms. Emma and Martha still need to confirm availability and send the hire agreement to Chris. It does not add dates to the public booking page.</p>
+    <h2>Ask for rooms for future Fridays</h2>
+    <p>Choose the dates and rooms you’d like, then send your request to Emma and Martha. They’ll reply about availability and send the agreement to Chris.</p>
+    <p id="rr-arranged-summary" class="room-request-arranged"></p>
     <form id="room-request-form" onsubmit="previewRoomRequest(event)">
-        <div class="notice-box info">
-            <label for="rr-delivery">Who is this email for?</label>
-            <select id="rr-delivery" onchange="toggleRoomRequestDelivery()">
-                <option value="test" selected>Test only: Florence and/or Chris</option>
-                <option value="live">Live request to Emma and Martha</option>
-            </select>
-            <div id="rr-test-options">
-                <p>Send a test copy to:</p>
-                <div id="rr-test-recipients"></div>
-                <p class="hint">Tests only go to the people selected here. Emma and Martha will not receive them. Test emails are clearly marked TEST.</p>
-            </div>
-            <p id="rr-live-warning" hidden>This will send a real room request to Emma and Martha, with Florence copied. Check the preview carefully before sending.</p>
-        </div>
+        <h3>1. Choose a period</h3>
         <div class="room-request-period">
-            <div class="form-group"><label for="rr-start">Period starts</label><input type="date" id="rr-start" required></div>
-            <div class="form-group"><label for="rr-end">Period ends</label><input type="date" id="rr-end" required></div>
+            <div class="form-group"><label for="rr-start">From</label><input type="date" id="rr-start" required></div>
+            <div class="form-group"><label for="rr-end">To</label><input type="date" id="rr-end" required></div>
             <button class="btn btn-secondary" type="button" onclick="buildRoomRequestChoices()">Show Fridays</button>
         </div>
-        <p class="hint">After changing the period, choose Show Fridays and select your rooms again.</p>
+        <p class="hint">You can request any period. If you change these dates, choose Show Fridays to update the rooms below.</p>
         <p id="rr-period-summary" role="status"></p>
+        <h3>2. Choose the rooms you’d like</h3>
+        <p class="hint">Pick the Fridays for each room, or ask the venue to offer a set number of Fridays in this period.</p>
         <div id="rr-rooms"><p>Loading rooms...</p></div>
         <div class="form-group"><label for="rr-notes">Anything else to mention? (optional)</label>
             <textarea id="rr-notes" rows="3" maxlength="2000"></textarea>
+        </div>
+        <h3>3. Choose who receives the email</h3>
+        <div class="room-request-delivery">
+            <label for="rr-delivery">Try it out or send a room request?</label>
+            <select id="rr-delivery" onchange="toggleRoomRequestDelivery()">
+                <option value="test" selected>Send a test to Chris or Florence</option>
+                <option value="live">Send a room request to Emma and Martha</option>
+            </select>
+            <div id="rr-test-options">
+                <label for="rr-test-target">Send the test to</label>
+                <select id="rr-test-target" required><option value="">Choose who receives the test</option></select>
+                <p class="hint">Only the person or people you choose will get the test. Emma and Martha won’t receive it.</p>
+            </div>
+            <p id="rr-live-warning" hidden>Emma and Martha will receive the request, with Florence copied in.</p>
         </div>
         <button class="btn btn-primary" id="rr-preview-btn" type="submit">Preview email</button>
     </form>
     <p id="rr-status" role="status" aria-live="polite"></p>
     <section id="rr-preview" class="notice-box info" aria-labelledby="rr-preview-heading" hidden>
-        <h3 id="rr-preview-heading">Check your request before sending</h3>
+        <h3 id="rr-preview-heading">Check your email</h3>
         <dl id="rr-headers"></dl>
         <p><strong>Subject:</strong> <span id="rr-subject"></span></p>
         <pre id="rr-body" class="room-request-message"></pre>
@@ -52,9 +56,11 @@
             <button type="button" class="btn btn-primary" id="rr-confirm-send" onclick="confirmRoomRequestSend()">Confirm send</button>
         </div>
     </dialog>
-    <h3>Request history</h3>
-    <p class="hint">Sent requests remain here for reference. A request marked “Check delivery” must be checked in the sent mailbox before anything is sent again.</p>
+    <details class="room-request-history">
+    <summary>Previous emails</summary>
+    <p class="hint">These are for reference. To send another email, use the form above. If delivery is unclear, check the mailbox before trying again.</p>
     <div id="rr-history"></div>
+    </details>
 </div>
 <style>
     #tab-roomrequests { max-width: 1050px; }
@@ -64,6 +70,12 @@
     .room-request-period { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0 .5rem; }
     .room-request-period .form-group { flex: 1 1 200px; margin: 0; }
     .room-request-period button { margin-bottom: 0; }
+    .room-request-arranged { padding: .8rem 1rem; border-left: 3px solid #8c7a9f; background: #f3f0f6; margin: 1rem 0 1.5rem; }
+    #tab-roomrequests h3 { margin: 1.75rem 0 .6rem; }
+    .room-request-delivery { max-width: 680px; padding: 1rem; border: 1px solid #d4cddd; border-radius: 8px; margin-bottom: 1rem; }
+    #rr-test-options { margin-top: 1rem; }
+    .room-request-history { margin-top: 2rem; }
+    .room-request-history summary { cursor: pointer; font-weight: bold; }
     .room-request-room { min-width: 0; padding: 1rem; margin: 1rem 0; border: 1px solid #b8afc6; border-radius: 8px; }
     .room-request-room legend { font-weight: bold; padding: 0 .4rem; }
     .room-request-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .6rem; margin-top: 1rem; }
@@ -74,7 +86,7 @@
     #rr-headers dd, #rr-confirm-recipients dd { margin: 0 0 .5rem; overflow-wrap: anywhere; }
     #rr-send-confirmation { margin: auto; width: min(560px, calc(100% - 2rem)); max-height: calc(100vh - 2rem); box-sizing: border-box; overflow: auto; padding: 1.5rem; border: 0; border-radius: 12px; background: white; color: #292530; box-shadow: 0 12px 48px #0004; }
     #rr-send-confirmation::backdrop { background: #0008; }
-    #rr-send-confirmation h3 { margin-top: 0; }
+    #tab-roomrequests #rr-send-confirmation h3 { margin-top: 0; }
     #rr-confirm-subject { overflow-wrap: anywhere; }
     .room-request-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
     .room-request-history-item { padding: 1rem 0; border-bottom: 1px solid #d4cddd; }

@@ -62,6 +62,24 @@ def period_fridays(start, end):
     return [first + timedelta(days=7 * i) for i in range(max(0, (end - first).days // 7 + 1))]
 
 
+def request_window(today=None):
+    from app import ROOM_SCHEDULE_BY_NAME
+    today = today or datetime.now(LONDON).date()
+    arranged = [date.fromisoformat(day) for day, rooms in ROOM_SCHEDULE_BY_NAME.items() if rooms]
+    latest = max(arranged, default=None)
+    earliest = max(today, latest + timedelta(days=1)) if latest else today
+    first = earliest + timedelta(days=(4 - earliest.weekday()) % 7)
+    return earliest, first, latest
+
+
+def room_label(name):
+    for token, label in [('indigo', 'Indigo'), ('rose', 'Rose'), ('clerkenwell', 'Clerkenwell'),
+                         ('loft', 'Loft'), ('farringdon', 'Farringdon')]:
+        if token in name.casefold():
+            return label
+    return name
+
+
 def normalise(data, today=None):
     if not isinstance(data, dict):
         raise ValueError('Choose a period and at least one room.')
@@ -72,6 +90,9 @@ def normalise(data, today=None):
     today = today or datetime.now(LONDON).date()
     if start < today or end < start or (end - start).days > 366:
         raise ValueError('Choose a future period of up to one year, with the end after the start.')
+    earliest, _, latest = request_window(today)
+    if start < earliest:
+        raise ValueError(f'Rooms are already arranged through {date_display(latest)}. Choose a period after that date.')
     fridays = period_fridays(start, end)
     if not fridays:
         raise ValueError('The period must include at least one Friday.')
@@ -146,8 +167,9 @@ def compose(payload):
         'Many thanks,\nFridays @ Farringdon\nLondon Autism Group Charity'])
     if payload.get('delivery_mode') == 'test':
         subject = '[TEST] ' + subject
-        paragraphs.insert(0, 'TEST ONLY: This is a sample room request for Florence and/or Chris. '
-                          'No request has been sent to Emma or Martha. The sample message follows.')
+        names = ' and '.join(TEST_RECIPIENTS[key][0] for key in payload['test_recipients'])
+        paragraphs.insert(0, f'TEST ONLY: This copy is for {names}. Emma and Martha will not receive it. '
+                          'The sample room request is below.')
     return subject, '\n\n'.join(paragraphs)
 
 
@@ -229,6 +251,9 @@ def send(data):
     payload = json.loads(record.payload)
     if date.fromisoformat(payload['start_date']) < datetime.now(LONDON).date():
         return {'error': 'The request period has started. Choose a future period and preview again.'}, 409
+    earliest, _, _ = request_window()
+    if date.fromisoformat(payload['start_date']) < earliest:
+        return {'error': 'Rooms have already been arranged for part of this period. Choose new dates and preview again.'}, 409
     if record.from_email != app.config['SMTP_FROM']:
         return {'error': 'The sender has changed. Preview the request again.'}, 409
     delivery = delivery_details(payload)
@@ -285,10 +310,10 @@ def register_routes(app, admin_required):
     @admin_required
     def room_request_options():
         today = datetime.now(LONDON).date()
-        first = today + timedelta(days=(4 - today.weekday()) % 7)
-        return jsonify({'rooms': [{'id': r.id, 'name': r.name} for r in requestable_rooms()],
+        earliest, first, latest = request_window(today)
+        return jsonify({'rooms': [{'id': r.id, 'name': r.name, 'label': room_label(r.name)} for r in requestable_rooms()],
             'start_date': first.isoformat(), 'end_date': (first + timedelta(days=21)).isoformat(),
-            'min_date': today.isoformat(), 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO,
+            'min_date': earliest.isoformat(), 'arranged_through': latest.isoformat() if latest else None, 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO,
             'default_delivery_mode': 'test',
             'test_recipients': [{'id': key, 'name': value[0], 'email': value[1]}
                                 for key, value in TEST_RECIPIENTS.items()]})

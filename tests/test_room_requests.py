@@ -231,6 +231,32 @@ class RoomRequestTest(unittest.TestCase):
         assert smtp.call_args.kwargs['recipients']==list(TO+CC)
 ''')
 
+    def test_default_period_starts_after_arranged_dates_and_existing_dates_are_rejected(self):
+        self.check_case('''
+    from datetime import datetime
+    with patch('app.ROOM_SCHEDULE_BY_NAME',{'2026-11-13':['Rose'],'2026-11-20':['Rose']}),patch('room_requests.datetime') as clock:
+        clock.now.return_value=datetime(2026,10,19)
+        options=client.get('/api/admin/room-requests/options').json
+        assert options['arranged_through']=='2026-11-20'
+        assert options['min_date']=='2026-11-21' and options['start_date']=='2026-11-27'
+        assert options['end_date']=='2026-12-18'
+        assert options['rooms'][0]['label']=='Rose'
+        old=dict(payload,start_date='2026-11-13',end_date='2026-12-04')
+        response=client.post('/api/admin/room-requests/preview',json=old)
+        assert response.status_code==400 and 'already arranged' in response.json['error']
+    assert RoomRequest.query.count()==0
+''')
+
+    def test_old_preview_cannot_send_if_its_dates_have_since_been_arranged(self):
+        self.check_case('''
+    preview=client.post('/api/admin/room-requests/preview',json=payload).json
+    with patch('app.ROOM_SCHEDULE_BY_NAME',{'2099-02-13':['Rose']}),patch('app.send_smtp_message') as smtp:
+        response=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+        assert response.status_code==409 and 'already been arranged' in response.json['error']
+        smtp.assert_not_called()
+    assert RoomRequest.query.one().status=='draft'
+''')
+
 
 if __name__=='__main__':
     unittest.main()
