@@ -20,6 +20,7 @@
         <button class="tab-btn" onclick="showTab('volunteers')">🙋 Volunteer Rota</button>
         <button class="tab-btn" onclick="showTab('yoga')">🧘 Yoga Bookings</button>
         <button class="tab-btn" onclick="showTab('emailblast')">📣 Email Blast</button>
+        <button class="tab-btn" onclick="showTab('roomrequests')">Room Requests</button>
         <button class="tab-btn" onclick="showTab('archive')">Archive</button>
     </div>
 
@@ -264,6 +265,8 @@
         </div>
     </div>
 
+    {% include '_room_requests_admin.html' %}
+
     <!-- Archive Tab -->
     <div class="tab-content" id="tab-archive">
         <h2>📁 Booking Archive</h2>
@@ -334,5 +337,6 @@
         <p id="booking-name-status" role="status" aria-live="polite"></p>
     </div>
 </div>
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=50"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=51"></script>
+<script src="{{ url_for('static', filename='js/room_requests.js') }}?v=1"></script>
 {% endblock %}

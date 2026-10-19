@@ -225,6 +225,20 @@ class GeneralEmailBlast(db.Model):
     sent_at = db.Column(db.DateTime, nullable=True)
     error = db.Column(db.Text, default='')
 
+class RoomRequest(db.Model):
+    """A reviewed request to the venue, independent of public bookings."""
+    id = db.Column(db.Integer, primary_key=True)
+    review_key = db.Column(db.String(64), unique=True, nullable=False)
+    fingerprint = db.Column(db.String(64), unique=True, nullable=False)
+    payload = db.Column(db.Text, nullable=False)
+    subject = db.Column(db.String(200), nullable=False)
+    body = db.Column(db.Text, nullable=False)
+    from_email = db.Column(db.String(254), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='draft')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    error = db.Column(db.Text, nullable=False, default='')
+
 class VolunteerAvailability(db.Model):
     """A volunteer marking their status for a given Friday"""
     id = db.Column(db.Integer, primary_key=True)
@@ -1558,6 +1572,9 @@ def scheduled_reminder_trigger():
 
 from date_reminders import register_routes as register_date_reminder_routes
 register_date_reminder_routes(app)
+
+from room_requests import register_routes as register_room_request_routes
+register_room_request_routes(app, admin_required)
 
 @app.route('/admin')
 def admin():

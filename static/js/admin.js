@@ -25,6 +25,7 @@ function showTab(tabName) {
     if (tabName === 'volunteers') loadVolunteers();
     if (tabName === 'yoga') loadYogaBookings();
     if (tabName === 'emailblast') { loadEmailBlastDates(); loadBuildingReports(); loadGeneralEmailHistory(); }
+    if (tabName === 'roomrequests') loadRoomRequests();
     if (tabName === 'archive') loadArchivedBookings();
 }
 

@@ -1,0 +1,55 @@
+<div class="tab-content" id="tab-roomrequests">
+    <h2>Request rooms from Pan Macmillan</h2>
+    <p>Choose any period, including four weeks across two months. For each room, choose specific Fridays or let Emma and Martha suggest the dates.</p>
+    <p class="hint">This asks for rooms. Emma and Martha still need to confirm availability and send the hire agreement to Chris. It does not add dates to the public booking page.</p>
+    <form id="room-request-form" onsubmit="previewRoomRequest(event)">
+        <div class="room-request-period">
+            <div class="form-group"><label for="rr-start">Period starts</label><input type="date" id="rr-start" required></div>
+            <div class="form-group"><label for="rr-end">Period ends</label><input type="date" id="rr-end" required></div>
+            <button class="btn btn-secondary" type="button" onclick="buildRoomRequestChoices()">Show Fridays</button>
+        </div>
+        <p class="hint">After changing the period, choose Show Fridays and select your rooms again.</p>
+        <p id="rr-period-summary" role="status"></p>
+        <div id="rr-rooms"><p>Loading rooms...</p></div>
+        <div class="form-group"><label for="rr-notes">Anything else to mention? (optional)</label>
+            <textarea id="rr-notes" rows="3" maxlength="2000"></textarea>
+        </div>
+        <button class="btn btn-primary" id="rr-preview-btn" type="submit">Preview email</button>
+    </form>
+    <p id="rr-status" role="status" aria-live="polite"></p>
+    <section id="rr-preview" class="notice-box info" aria-labelledby="rr-preview-heading" hidden>
+        <h3 id="rr-preview-heading">Check your request before sending</h3>
+        <dl id="rr-headers"></dl>
+        <p><strong>Subject:</strong> <span id="rr-subject"></span></p>
+        <pre id="rr-body" class="room-request-message"></pre>
+        <p id="rr-preview-state" role="status"></p>
+        <div class="room-request-actions">
+            <button type="button" class="btn btn-secondary" onclick="editRoomRequest()">Back to the form</button>
+            <button type="button" class="btn btn-primary" id="rr-send-btn" onclick="sendRoomRequest()">Send request to Emma and Martha</button>
+        </div>
+    </section>
+    <h3>Request history</h3>
+    <p class="hint">Sent requests remain here for reference. A request marked “Check delivery” must be checked in the sent mailbox before anything is sent again.</p>
+    <div id="rr-history"></div>
+</div>
+<style>
+    #tab-roomrequests { max-width: 1050px; }
+    #tab-roomrequests label { display: block; margin-bottom: .4rem; }
+    #tab-roomrequests input[type="date"], #tab-roomrequests input[type="number"],
+    #tab-roomrequests select, #tab-roomrequests textarea { width: 100%; padding: .65rem; border: 1px solid #b8afc6; border-radius: 6px; background: white; color: inherit; font: inherit; }
+    .room-request-period { display: flex; align-items: end; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0 .5rem; }
+    .room-request-period .form-group { flex: 1 1 200px; margin: 0; }
+    .room-request-period button { margin-bottom: 0; }
+    .room-request-room { min-width: 0; padding: 1rem; margin: 1rem 0; border: 1px solid #b8afc6; border-radius: 8px; }
+    .room-request-room legend { font-weight: bold; padding: 0 .4rem; }
+    .room-request-days { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .6rem; margin-top: 1rem; }
+    #tab-roomrequests .room-request-days label { display: flex; align-items: start; gap: .5rem; }
+    .room-request-days input { margin-top: .3rem; }
+    .room-request-message { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 1rem 0; }
+    #rr-headers dt { font-weight: bold; }
+    #rr-headers dd { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+    .room-request-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+    .room-request-history-item { padding: 1rem 0; border-bottom: 1px solid #d4cddd; }
+    #rr-status, #rr-preview-state { margin: 1rem 0; }
+    @media (max-width: 480px) { .room-request-days { grid-template-columns: 1fr; } .room-request-actions button { width: 100%; } }
+</style>

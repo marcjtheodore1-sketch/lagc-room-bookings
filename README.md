@@ -61,6 +61,22 @@ Repeated missed bookings without cancelling or repeated failure to follow bookin
 requirements or community guidelines may lead to suspension or a ban from F@F.
 There is no automatic three-strikes rule or automated exclusion action.
 
+## Room requests to the venue
+
+Admin → Room Requests prepares an email to Emma Perez and Martha Fisher, copying
+Florence with replies addressed to her. Choose any future period of up to one
+year, then exact Fridays or a flexible count for each active room. The preview
+shows the sender, recipients and complete message; sending requires the separate
+Send request button. The email asks for availability and for the hire agreement
+to be sent to Chris at the charity contact address. This does not publish rooms,
+create attendee bookings or accept a contract.
+
+Previews and sending outcomes are recorded in `room_request`. Identical requests
+reuse the same preview, and a durable claim prevents concurrent or duplicate
+sends. Definite failures require a fresh preview before retrying. Uncertain or
+interrupted sends stay blocked until the sent mailbox has been checked; there
+is no automatic resend. No additional scheduler or credentials are needed.
+
 ## Pan Macmillan attendance reports
 
 Admin → Email Blast includes a preview and an on/off setting for attendance
