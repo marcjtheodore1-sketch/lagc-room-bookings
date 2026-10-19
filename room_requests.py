@@ -2,7 +2,7 @@
 import hashlib
 import json
 import secrets
-from datetime import date, datetime, timedelta
+from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import make_msgid
@@ -52,26 +52,6 @@ def requestable_rooms():
     return list(grouped.values())
 
 
-def date_display(day):
-    suffix = 'th' if 11 <= day.day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day.day % 10, 'th')
-    return f'{day:%A} {day.day}{suffix} {day:%B %Y}'
-
-
-def period_fridays(start, end):
-    first = start + timedelta(days=(4 - start.weekday()) % 7)
-    return [first + timedelta(days=7 * i) for i in range(max(0, (end - first).days // 7 + 1))]
-
-
-def request_window(today=None):
-    from app import ROOM_SCHEDULE_BY_NAME
-    today = today or datetime.now(LONDON).date()
-    arranged = [date.fromisoformat(day) for day, rooms in ROOM_SCHEDULE_BY_NAME.items() if rooms]
-    latest = max(arranged, default=None)
-    earliest = max(today, latest + timedelta(days=1)) if latest else today
-    first = earliest + timedelta(days=(4 - earliest.weekday()) % 7)
-    return earliest, first, latest
-
-
 def room_label(name):
     for token, label in [('indigo', 'Indigo'), ('rose', 'Rose'), ('clerkenwell', 'Clerkenwell'),
                          ('loft', 'Loft'), ('farringdon', 'Farringdon')]:
@@ -80,104 +60,74 @@ def room_label(name):
     return name
 
 
-def normalise(data, today=None):
+def normalise(data):
     if not isinstance(data, dict):
-        raise ValueError('Choose a period and at least one room.')
-    try:
-        start, end = (date.fromisoformat(data[key]) for key in ('start_date', 'end_date'))
-    except (KeyError, TypeError, ValueError):
-        raise ValueError('Enter a valid start and end date.')
-    today = today or datetime.now(LONDON).date()
-    if start < today or end < start or (end - start).days > 366:
-        raise ValueError('Choose a future period of up to one year, with the end after the start.')
-    earliest, _, latest = request_window(today)
-    if start < earliest:
-        raise ValueError(f'Rooms are already arranged through {date_display(latest)}. Choose a period after that date.')
-    fridays = period_fridays(start, end)
-    if not fridays:
-        raise ValueError('The period must include at least one Friday.')
-    options = {r.id: r for r in requestable_rooms()}
+        raise ValueError('Choose the rooms and how many Fridays you would like each one.')
+    if set(data) - {'request_id', 'rooms', 'notes', 'subject', 'body'}:
+        raise ValueError('This form has changed. Refresh the page to request rooms without dates.')
+    request_id = data.get('request_id')
+    if (not isinstance(request_id, str) or not 24 <= len(request_id) <= 64
+            or any(char not in 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-' for char in request_id)):
+        raise ValueError('Refresh the page to start a new request.')
+    options = {room.id: room for room in requestable_rooms()}
     rows = data.get('rooms')
     if not isinstance(rows, list) or not rows or len(rows) > len(options):
-        raise ValueError('Choose at least one room.')
+        raise ValueError('Choose at least one room by entering how many Fridays you would like it.')
     selected, seen = [], set()
-    available_dates = {day.isoformat() for day in fridays}
     for row in rows:
-        if not isinstance(row, dict) or type(row.get('room_id')) is not int:
-            raise ValueError('Choose a valid room.')
-        room_id = row['room_id']
-        if room_id not in options or room_id in seen:
+        if (not isinstance(row, dict) or set(row) != {'room_id', 'count'}
+                or type(row.get('room_id')) is not int or row['room_id'] not in options or row['room_id'] in seen):
             raise ValueError('Choose each available room only once.')
-        seen.add(room_id)
-        mode = row.get('mode')
-        item = {'room_id': room_id, 'room_name': options[room_id].name, 'mode': mode}
-        if mode == 'exact':
-            days = row.get('dates')
-            if (not isinstance(days, list) or not days or any(not isinstance(d, str) for d in days)
-                    or len(set(days)) != len(days) or not set(days) <= available_dates):
-                raise ValueError(f'Choose Fridays within the period for {options[room_id].name}.')
-            item.update(dates=sorted(days), count=len(days))
-        elif mode == 'flexible':
-            count = row.get('count')
-            if type(count) is not int or not 1 <= count <= len(fridays) or row.get('dates'):
-                raise ValueError(f'Choose how many of the {len(fridays)} Fridays you want {options[room_id].name}.')
-            item.update(dates=[], count=count)
-        else:
-            raise ValueError('Choose exact Fridays or flexible dates for each room.')
-        selected.append(item)
-    if set(data) - {'start_date', 'end_date', 'rooms', 'notes', 'delivery_mode', 'test_recipients'}:
-        raise ValueError('Use the form to choose the delivery mode and recipients.')
-    delivery_mode = data.get('delivery_mode', 'test')
-    delivery = {'delivery_mode': delivery_mode}
-    if delivery_mode == 'test':
-        delivery['test_recipients'] = data.get('test_recipients', [])
-    elif delivery_mode != 'live' or data.get('test_recipients'):
-        raise ValueError('Choose test mode or a live request to Emma and Martha.')
-    delivery_details(delivery)
-    if delivery_mode == 'test':
-        delivery['test_recipients'] = sorted(delivery['test_recipients'])
+        if type(row.get('count')) is not int or not 1 <= row['count'] <= 52:
+            raise ValueError('Enter a whole number between 1 and 52 for each room you want.')
+        seen.add(row['room_id'])
+        selected.append({'room_id': row['room_id'], 'room_name': room_label(options[row['room_id']].name), 'count': row['count']})
     notes = data.get('notes', '')
     if not isinstance(notes, str) or len(notes) > 2000 or '\x00' in notes:
         raise ValueError('Additional details must be text of up to 2,000 characters.')
-    return {'start_date': start.isoformat(), 'end_date': end.isoformat(),
-            'fridays': sorted(available_dates), 'rooms': sorted(selected, key=lambda r: r['room_id']),
-            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip(), **delivery}
+    return {'version': 2, 'request_id': request_id, 'delivery_mode': 'live',
+            'rooms': sorted(selected, key=lambda room: room['room_id']),
+            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip()}
 
 
 def compose(payload):
-    start, end = (date.fromisoformat(payload[key]) for key in ('start_date', 'end_date'))
-    subject = f'F@F room request: {date_display(start)} to {date_display(end)}'
+    subject = 'Fridays @ Farringdon: room request'
     paragraphs = ['Hello Emma and Martha,',
-        f'Could you help us arrange rooms for Fridays @ Farringdon for the period {date_display(start)} to {date_display(end)}?',
-        'Fridays covered: ' + '; '.join(date_display(date.fromisoformat(d)) for d in payload['fridays']) + '.']
-    exact = [r for r in payload['rooms'] if r['mode'] == 'exact']
-    flexible = [r for r in payload['rooms'] if r['mode'] == 'flexible']
-    if exact:
-        paragraphs.append('Our preferred dates for these rooms are:\n' + '\n'.join(
-            '- ' + r['room_name'] + ': ' + '; '.join(date_display(date.fromisoformat(d)) for d in r['dates']) + '.'
-            for r in exact))
-    if flexible:
-        paragraphs.append('We are flexible about the dates for these rooms, within the Fridays listed above:\n' + '\n'.join(
-            f'- {r["room_name"]}: {r["count"]} of the {len(payload["fridays"])} Fridays.' for r in flexible))
+        'Could you help us arrange rooms for our next Fridays @ Farringdon sessions?',
+        'We’d like:\n' + '\n'.join(f'- {room["room_name"]}: {room["count"]} Friday' +
+            ('s' if room['count'] != 1 else '') for room in payload['rooms'])]
     if payload['notes']:
-        paragraphs.append('Additional details:\n' + payload['notes'])
-    paragraphs.extend([
-        'These are our preferences, subject to availability. Could you let us know which rooms and dates are available?',
+        paragraphs.append(payload['notes'])
+    paragraphs.extend(['Could you let me know which dates you can offer?',
         f'Once agreed, could you send the hire agreement to Chris Papadopoulos at {CONTRACT_TO}?',
-        'Many thanks,\nFridays @ Farringdon\nLondon Autism Group Charity'])
-    if payload.get('delivery_mode') == 'test':
-        subject = '[TEST] ' + subject
-        names = ' and '.join(TEST_RECIPIENTS[key][0] for key in payload['test_recipients'])
-        paragraphs.insert(0, f'TEST ONLY: This copy is for {names}. Emma and Martha will not receive it. '
-                          'The sample room request is below.')
+        'Many thanks,\nFlorence Perdriel\nLondon Autism Group Charity'])
     return subject, '\n\n'.join(paragraphs)
+
+
+def reviewed_text(data, payload):
+    if 'subject' not in data and 'body' not in data:
+        return compose(payload)
+    subject, body = data.get('subject'), data.get('body')
+    if (not isinstance(subject, str) or not subject.strip() or len(subject) > 200
+            or any(char in subject for char in '\r\n\x00')):
+        raise ValueError('Enter an email subject of up to 200 characters on one line.')
+    if not isinstance(body, str) or not body.strip() or len(body) > 12000 or '\x00' in body:
+        raise ValueError('Enter an email message of up to 12,000 characters.')
+    return subject.strip(), body.replace('\r\n', '\n').replace('\r', '\n').strip()
+
+
+def recipient_names(delivery):
+    names = {TO[0]: 'Emma', TO[1]: 'Martha', CC[0]: 'Florence',
+             TEST_RECIPIENTS['chris'][1]: 'Chris'}
+    return {key: [names.get(address, 'Previous recipient') for address in delivery[key]] for key in ('to', 'cc')}
 
 
 def serialise(record):
     def local_time(value):
         return value.replace(tzinfo=ZoneInfo('UTC')).astimezone(LONDON).isoformat() if value else None
+    delivery = delivery_details(json.loads(record.payload))
     return {'review_key': record.review_key, 'subject': record.subject, 'body': record.body,
-            'from_email': record.from_email, **delivery_details(json.loads(record.payload)),
+            'from_email': record.from_email, **delivery, 'recipient_names': recipient_names(delivery),
             'contract_to': CONTRACT_TO, 'status': record.status, 'error': record.error,
             'created_at': local_time(record.created_at), 'sent_at': local_time(record.sent_at)}
 
@@ -185,21 +135,12 @@ def serialise(record):
 def preview(data):
     from app import app, db, RoomRequest
     payload = normalise(data)
-    subject, body = compose(payload)
+    subject, body = reviewed_text(data, payload)
     sender = app.config['SMTP_FROM']
-    if payload['delivery_mode'] == 'live':
-        # Preserve fingerprints of real requests saved before test mode existed.
-        original_payload = {key: value for key, value in payload.items() if key != 'delivery_mode'}
-        identity = [original_payload, subject, body, sender, TO, CC, REPLY_TO]
-    else:
-        identity = [payload, subject, body, sender, delivery_details(payload)]
-    fingerprint = hashlib.sha256(json.dumps(identity, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    # One record per request, including its edits. A new form gets a fresh ID,
+    # so Florence can request the same room quantities again in future.
+    fingerprint = hashlib.sha256(json.dumps([2, payload['request_id'], sender, TO, CC, REPLY_TO]).encode()).hexdigest()
     record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
-    # A fresh test preview may be sent again, while reusing the same send key
-    # remains duplicate-safe. Real requests keep the existing deduplication.
-    while payload['delivery_mode'] == 'test' and record is not None and record.status == 'sent':
-        fingerprint = hashlib.sha256((fingerprint + record.review_key).encode()).hexdigest()
-        record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
     if record is None:
         record = RoomRequest(review_key=secrets.token_urlsafe(32), fingerprint=fingerprint,
             payload=json.dumps(payload), subject=subject, body=body, from_email=sender, status='draft')
@@ -209,11 +150,16 @@ def preview(data):
         except IntegrityError:
             db.session.rollback()
             record = RoomRequest.query.filter_by(fingerprint=fingerprint).one()
-    elif record.status == 'failed':
-        # A definite failure may be explicitly reviewed and attempted again.
-        RoomRequest.query.filter_by(id=record.id, status='failed').update({'status': 'draft', 'error': ''})
-        db.session.commit()
-        db.session.refresh(record)
+    # Sent or uncertain requests are immutable. Editing a draft rotates its
+    # review key, so an older preview cannot send wording that has changed.
+    if record.status in ('draft', 'failed'):
+        if record.subject != subject or record.body != body or json.loads(record.payload) != payload or record.status == 'failed':
+            RoomRequest.query.filter_by(id=record.id, review_key=record.review_key).filter(
+                RoomRequest.status.in_(('draft', 'failed'))).update({
+                    'review_key': secrets.token_urlsafe(32), 'payload': json.dumps(payload),
+                    'subject': subject, 'body': body, 'status': 'draft', 'error': ''}, synchronize_session=False)
+            db.session.commit()
+            db.session.refresh(record)
     return serialise(record)
 
 
@@ -222,7 +168,9 @@ def html_body(body):
     blocks = []
     for paragraph in body.split('\n\n'):
         lines = paragraph.split('\n')
-        if len(lines) > 1 and all(line.startswith('- ') for line in lines[1:]):
+        if all(line.startswith('- ') for line in lines):
+            blocks.append('<ul>' + ''.join('<li>' + escape(line[2:]) + '</li>' for line in lines) + '</ul>')
+        elif len(lines) > 1 and all(line.startswith('- ') for line in lines[1:]):
             blocks.append('<p>' + escape(lines[0]) + '</p><ul>' + ''.join(
                 '<li>' + escape(line[2:]) + '</li>' for line in lines[1:]) + '</ul>')
         else:
@@ -249,17 +197,14 @@ def send(data):
         return {'error': 'This send was already attempted. Check the history and sent mailbox before trying anything further.',
                 'request': serialise(record)}, 409
     payload = json.loads(record.payload)
-    if date.fromisoformat(payload['start_date']) < datetime.now(LONDON).date():
-        return {'error': 'The request period has started. Choose a future period and preview again.'}, 409
-    earliest, _, _ = request_window()
-    if date.fromisoformat(payload['start_date']) < earliest:
-        return {'error': 'Rooms have already been arranged for part of this period. Choose new dates and preview again.'}, 409
+    if payload.get('version') != 2 or payload.get('delivery_mode') != 'live':
+        return {'error': 'This is an older preview. Refresh the page and prepare a new room request.'}, 409
     if record.from_email != app.config['SMTP_FROM']:
         return {'error': 'The sender has changed. Preview the request again.'}, 409
     delivery = delivery_details(payload)
     if not reminders_mail_ready():
         return {'error': 'Email sending is unavailable. Nothing has been sent.'}, 503
-    claimed = RoomRequest.query.filter_by(id=record.id, status='draft').update(
+    claimed = RoomRequest.query.filter_by(id=record.id, status='draft', review_key=key).update(
         {'status': 'sending'}, synchronize_session=False)
     db.session.commit()
     if not claimed:
@@ -309,14 +254,9 @@ def register_routes(app, admin_required):
     @app.get('/api/admin/room-requests/options')
     @admin_required
     def room_request_options():
-        today = datetime.now(LONDON).date()
-        earliest, first, latest = request_window(today)
-        return jsonify({'rooms': [{'id': r.id, 'name': r.name, 'label': room_label(r.name)} for r in requestable_rooms()],
-            'start_date': first.isoformat(), 'end_date': (first + timedelta(days=21)).isoformat(),
-            'min_date': earliest.isoformat(), 'arranged_through': latest.isoformat() if latest else None, 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO,
-            'default_delivery_mode': 'test',
-            'test_recipients': [{'id': key, 'name': value[0], 'email': value[1]}
-                                for key, value in TEST_RECIPIENTS.items()]})
+        return jsonify({'request_id': secrets.token_urlsafe(24),
+            'rooms': [{'id': room.id, 'name': room.name, 'label': room_label(room.name)} for room in requestable_rooms()],
+            'recipient_names': {'to': ['Emma', 'Martha'], 'cc': ['Florence']}})
 
     @app.post('/api/admin/room-requests/preview')
     @admin_required
