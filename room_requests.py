@@ -19,6 +19,21 @@ REPLY_TO = 'florence.perdriel@gmail.com'
 CONTRACT_TO = 'contact@londonautismgroupcharity.org'
 
 
+def requestable_rooms():
+    """Use one choice per physical venue room, preserving historical DB rows."""
+    from app import Room
+    grouped = {}
+    aliases = (('4.2', 'indigo'), ('4.4', 'rose'), ('4.7', 'clerkenwell'),
+               ('loft',), ('4.6', 'farringdon'), ('5.1',))
+    for room in Room.query.filter_by(is_active=True).order_by(Room.id).all():
+        name = room.name.casefold()
+        key = next((tokens[0] for tokens in aliases if any(token in name for token in tokens)),
+                   (name.strip(), room.building_location.casefold().strip()))
+        # The existing schedule mapping also favours the latest matching row.
+        grouped[key] = room
+    return list(grouped.values())
+
+
 def date_display(day):
     suffix = 'th' if 11 <= day.day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day.day % 10, 'th')
     return f'{day:%A} {day.day}{suffix} {day:%B %Y}'
@@ -30,7 +45,6 @@ def period_fridays(start, end):
 
 
 def normalise(data, today=None):
-    from app import Room
     if not isinstance(data, dict):
         raise ValueError('Choose a period and at least one room.')
     try:
@@ -43,7 +57,7 @@ def normalise(data, today=None):
     fridays = period_fridays(start, end)
     if not fridays:
         raise ValueError('The period must include at least one Friday.')
-    options = {r.id: r for r in Room.query.filter_by(is_active=True).all()}
+    options = {r.id: r for r in requestable_rooms()}
     rows = data.get('rooms')
     if not isinstance(rows, list) or not rows or len(rows) > len(options):
         raise ValueError('Choose at least one room.')
@@ -225,10 +239,9 @@ def register_routes(app, admin_required):
     @app.get('/api/admin/room-requests/options')
     @admin_required
     def room_request_options():
-        from app import Room
         today = datetime.now(LONDON).date()
         first = today + timedelta(days=(4 - today.weekday()) % 7)
-        return jsonify({'rooms': [{'id': r.id, 'name': r.name} for r in Room.query.filter_by(is_active=True).order_by(Room.id).all()],
+        return jsonify({'rooms': [{'id': r.id, 'name': r.name} for r in requestable_rooms()],
             'start_date': first.isoformat(), 'end_date': (first + timedelta(days=21)).isoformat(),
             'min_date': today.isoformat(), 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO})
 

@@ -144,6 +144,20 @@ class RoomRequestTest(unittest.TestCase):
     assert RoomRequest.query.one().status=='draft'
 ''')
 
+    def test_legacy_room_aliases_do_not_create_duplicate_choices_or_requests(self):
+        self.check_case('''
+    duplicate=Room(name='Room 4.7 "Clerkenwell"',room_type='open')
+    db.session.add(duplicate);db.session.commit()
+    options=client.get('/api/admin/room-requests/options').json['rooms']
+    assert len(options)==3 and duplicate.id in [r['id'] for r in options]
+    assert rooms[1].id not in [r['id'] for r in options]
+    assert Room.query.count()==4
+    response=client.post('/api/admin/room-requests/preview',json=payload)
+    assert response.status_code==400
+    payload['rooms'][1]['room_id']=duplicate.id
+    assert client.post('/api/admin/room-requests/preview',json=payload).status_code==200
+''')
+
 
 if __name__=='__main__':
     unittest.main()
