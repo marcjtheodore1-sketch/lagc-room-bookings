@@ -4,6 +4,7 @@ let roomRequestPeriod = null;
 let roomRequestReview = null;
 let roomRequestBusy = false;
 let roomRequestGeneration = 0;
+let roomRequestPendingSend = null;
 
 function roomRequestDate(value) {
     const day = new Date(value + 'T12:00:00Z');
@@ -26,6 +27,7 @@ async function roomRequestFetch(path, options = {}) {
 }
 
 function invalidateRoomRequest() {
+    cancelRoomRequestSend();
     roomRequestGeneration++;
     roomRequestReview = null;
     document.getElementById('rr-preview').hidden = true;
@@ -109,6 +111,7 @@ function selectAllRoomRequestDates(id) {
 }
 
 function showRoomRequestPreview(record) {
+    cancelRoomRequestSend();
     roomRequestReview = record;
     const test = record.delivery_mode === 'test';
     document.getElementById('rr-preview-heading').textContent = test ? 'Check your test email' : 'Check your request before sending';
@@ -171,9 +174,35 @@ function editRoomRequest() {
     document.getElementById('rr-start').focus();
 }
 
-async function sendRoomRequest() {
+function cancelRoomRequestSend() {
+    roomRequestPendingSend = null;
+    const dialog = document.getElementById('rr-send-confirmation');
+    if (dialog.open) dialog.close();
+}
+
+function sendRoomRequest() {
     if (!roomRequestReview || roomRequestReview.status !== 'draft' || roomRequestBusy) return;
     const review = roomRequestReview;
+    const test = review.delivery_mode === 'test';
+    roomRequestPendingSend = review.review_key;
+    document.getElementById('rr-confirm-heading').textContent = test ? 'Send this test email?' : 'Send this room request?';
+    document.getElementById('rr-confirm-summary').textContent = test ?
+        'This is a test email. Only the people listed below will receive it. Emma and Martha will not be emailed.' :
+        'This is a real room request to Pan Macmillan. It will be emailed to the people listed below.';
+    document.getElementById('rr-confirm-recipients').innerHTML = [['To', review.to.join(', ')], ['Cc', review.cc.join(', ')]]
+        .filter(([, value]) => value).map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
+    document.getElementById('rr-confirm-subject').textContent = review.subject;
+    const dialog = document.getElementById('rr-send-confirmation');
+    if (!dialog.open) dialog.showModal();
+    document.getElementById('rr-confirm-cancel').focus();
+}
+
+async function confirmRoomRequestSend() {
+    const dialog = document.getElementById('rr-send-confirmation');
+    if (!dialog.open || !roomRequestReview || roomRequestReview.status !== 'draft' || roomRequestBusy ||
+            roomRequestPendingSend !== roomRequestReview.review_key) return;
+    const review = roomRequestReview;
+    cancelRoomRequestSend();
     roomRequestBusy = true;
     document.getElementById('rr-send-btn').disabled = true;
     document.getElementById('rr-preview-btn').disabled = true;
@@ -225,3 +254,5 @@ async function loadRoomRequestHistory() {
 }
 
 document.getElementById('room-request-form').addEventListener('input', invalidateRoomRequest);
+
+document.getElementById('rr-send-confirmation').addEventListener('close', () => { roomRequestPendingSend = null; });

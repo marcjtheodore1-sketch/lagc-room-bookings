@@ -41,6 +41,17 @@
             <button type="button" class="btn btn-primary" id="rr-send-btn" onclick="sendRoomRequest()">Send request to Emma and Martha</button>
         </div>
     </section>
+    <dialog id="rr-send-confirmation" aria-labelledby="rr-confirm-heading" aria-describedby="rr-confirm-summary">
+        <h3 id="rr-confirm-heading">Confirm send</h3>
+        <p id="rr-confirm-summary"></p>
+        <dl id="rr-confirm-recipients"></dl>
+        <p><strong>Subject:</strong> <span id="rr-confirm-subject"></span></p>
+        <p>Check the recipients before you confirm.</p>
+        <div class="room-request-actions">
+            <button type="button" class="btn btn-secondary" id="rr-confirm-cancel" onclick="cancelRoomRequestSend()" autofocus>Cancel</button>
+            <button type="button" class="btn btn-primary" id="rr-confirm-send" onclick="confirmRoomRequestSend()">Confirm send</button>
+        </div>
+    </dialog>
     <h3>Request history</h3>
     <p class="hint">Sent requests remain here for reference. A request marked “Check delivery” must be checked in the sent mailbox before anything is sent again.</p>
     <div id="rr-history"></div>
@@ -59,8 +70,12 @@
     #tab-roomrequests .room-request-days label { display: flex; align-items: start; gap: .5rem; }
     .room-request-days input { margin-top: .3rem; }
     .room-request-message { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; margin: 1rem 0; }
-    #rr-headers dt { font-weight: bold; }
-    #rr-headers dd { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+    #rr-headers dt, #rr-confirm-recipients dt { font-weight: bold; }
+    #rr-headers dd, #rr-confirm-recipients dd { margin: 0 0 .5rem; overflow-wrap: anywhere; }
+    #rr-send-confirmation { width: min(560px, calc(100% - 2rem)); max-height: calc(100vh - 2rem); box-sizing: border-box; overflow: auto; padding: 1.5rem; border: 0; border-radius: 12px; background: white; color: #292530; box-shadow: 0 12px 48px #0004; }
+    #rr-send-confirmation::backdrop { background: #0008; }
+    #rr-send-confirmation h3 { margin-top: 0; }
+    #rr-confirm-subject { overflow-wrap: anywhere; }
     .room-request-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
     .room-request-history-item { padding: 1rem 0; border-bottom: 1px solid #d4cddd; }
     #rr-status, #rr-preview-state { margin: 1rem 0; }
