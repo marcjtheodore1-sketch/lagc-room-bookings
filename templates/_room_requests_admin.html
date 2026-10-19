@@ -3,6 +3,19 @@
     <p>Choose any period, including four weeks across two months. For each room, choose specific Fridays or let Emma and Martha suggest the dates.</p>
     <p class="hint">This asks for rooms. Emma and Martha still need to confirm availability and send the hire agreement to Chris. It does not add dates to the public booking page.</p>
     <form id="room-request-form" onsubmit="previewRoomRequest(event)">
+        <div class="notice-box info">
+            <label for="rr-delivery">Who is this email for?</label>
+            <select id="rr-delivery" onchange="toggleRoomRequestDelivery()">
+                <option value="test" selected>Test only: Florence and/or Chris</option>
+                <option value="live">Live request to Emma and Martha</option>
+            </select>
+            <div id="rr-test-options">
+                <p>Send a test copy to:</p>
+                <div id="rr-test-recipients"></div>
+                <p class="hint">Tests only go to the people selected here. Emma and Martha will not receive them. Test emails are clearly marked TEST.</p>
+            </div>
+            <p id="rr-live-warning" hidden>This will send a real room request to Emma and Martha, with Florence copied. Check the preview carefully before sending.</p>
+        </div>
         <div class="room-request-period">
             <div class="form-group"><label for="rr-start">Period starts</label><input type="date" id="rr-start" required></div>
             <div class="form-group"><label for="rr-end">Period ends</label><input type="date" id="rr-end" required></div>

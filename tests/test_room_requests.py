@@ -6,7 +6,7 @@ FIXTURE = '''
 from copy import deepcopy
 from unittest.mock import patch
 from app import app,db,Room,Booking,RoomRequest,EmailDeliveryUncertain,get_room_schedule_ids
-from room_requests import TO,CC,CONTRACT_TO
+from room_requests import TO,CC,CONTRACT_TO,TEST_RECIPIENTS
 app.config.update(ENABLE_EMAIL=True,SMTP_USER='sender@example.test',SMTP_PASSWORD='dummy',SMTP_FROM='sender@example.test')
 client=app.test_client()
 with client.session_transaction() as session: session['admin_logged_in']=True
@@ -14,7 +14,7 @@ with app.app_context():
     rooms=[Room(name=name,room_type='open') for name in ('Rose','Clerkenwell','Loft')]
     db.session.add_all(rooms);db.session.commit()
     dates=['2099-01-23','2099-01-30','2099-02-06','2099-02-13']
-    payload=dict(start_date='2099-01-23',end_date='2099-02-13',rooms=[
+    payload=dict(delivery_mode='live',start_date='2099-01-23',end_date='2099-02-13',rooms=[
         dict(room_id=rooms[0].id,mode='exact',dates=dates),
         dict(room_id=rooms[1].id,mode='flexible',count=3),
         dict(room_id=rooms[2].id,mode='flexible',count=1)],notes='')
@@ -156,6 +156,79 @@ class RoomRequestTest(unittest.TestCase):
     assert response.status_code==400
     payload['rooms'][1]['room_id']=duplicate.id
     assert client.post('/api/admin/room-requests/preview',json=payload).status_code==200
+''')
+
+    def test_test_mode_sends_only_to_selected_allowlisted_people_and_keeps_live_request_separate(self):
+        self.check_case('''
+    for people in [['florence'],['chris'],['florence','chris']]:
+        test_payload=dict(payload,delivery_mode='test',test_recipients=people)
+        preview=client.post('/api/admin/room-requests/preview',json=test_payload).json
+        expected=[TEST_RECIPIENTS[key][1] for key in sorted(people)]
+        assert preview['delivery_mode']=='test' and preview['to']==expected and preview['cc']==[]
+        assert preview['subject'].startswith('[TEST] ') and preview['body'].startswith('TEST ONLY:')
+        def inspect(message,recipients):
+            assert recipients==expected
+            assert message['To']==', '.join(expected) and message['Cc'] is None and message['Bcc'] is None
+            assert message['Reply-To']==', '.join(expected)
+            assert all(address not in str(message) for address in TO)
+            assert message.get_payload(0).get_payload(decode=True).decode('utf-8')==preview['body']
+        with patch('app.send_smtp_message',side_effect=inspect) as smtp:
+            response=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+            assert response.status_code==200,response.json
+            assert smtp.call_count==1
+        repeat=client.post('/api/admin/room-requests/preview',json=test_payload).json
+        assert repeat['status']=='draft' and repeat['review_key']!=preview['review_key']
+        assert client.post('/api/admin/room-requests/preview',json=test_payload).json['review_key']==repeat['review_key']
+        with patch('app.send_smtp_message') as smtp:
+            again=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+            assert again.status_code==200 and again.json['already_sent']
+            smtp.assert_not_called()
+    live=client.post('/api/admin/room-requests/preview',json=payload).json
+    assert live['delivery_mode']=='live' and live['to']==list(TO) and live['status']=='draft'
+    assert not live['subject'].startswith('[TEST]') and 'TEST ONLY:' not in live['body']
+    assert RoomRequest.query.count()==7 and Booking.query.count()==0
+''')
+
+    def test_test_recipients_cannot_be_overridden_or_switched_after_preview(self):
+        self.check_case('''
+    invalid=[dict(delivery_mode='wrong'),dict(delivery_mode='test',test_recipients=[]),
+        dict(delivery_mode='test',test_recipients=['emma']),
+        dict(delivery_mode='test',test_recipients=[TO[0]]),
+        dict(delivery_mode='test',test_recipients=['chris','chris']),
+        dict(delivery_mode='test',test_recipients=[{}]),
+        dict(delivery_mode='test',test_recipients='chris'),
+        dict(delivery_mode='live',test_recipients=['chris']),
+        dict(delivery_mode='test',test_recipients=['chris'],to=list(TO))]
+    with patch('app.send_smtp_message') as smtp:
+        for changes in invalid:
+            response=client.post('/api/admin/room-requests/preview',json=dict(payload,**changes))
+            assert response.status_code==400,(changes,response.json)
+        test_payload=dict(payload,delivery_mode='test',test_recipients=['florence'])
+        del test_payload['delivery_mode']
+        preview=client.post('/api/admin/room-requests/preview',json=test_payload).json
+        assert preview['delivery_mode']=='test'
+        data=dict(review_key=preview['review_key'],confirmed=True)
+        for changes in [dict(to=list(TO)),dict(cc=list(TO)),dict(delivery_mode='live'),dict(test_recipients=['chris'])]:
+            assert client.post('/api/admin/room-requests/send',json=dict(data,**changes)).status_code==400
+        smtp.assert_not_called()
+    options=client.get('/api/admin/room-requests/options').json
+    assert options['default_delivery_mode']=='test' and len(options['test_recipients'])==2
+''')
+
+    def test_old_real_request_history_keeps_original_delivery_details(self):
+        self.check_case('''
+    import json
+    preview=client.post('/api/admin/room-requests/preview',json=payload).json
+    record=RoomRequest.query.one()
+    old=json.loads(record.payload);del old['delivery_mode']
+    record.payload=json.dumps(old);db.session.commit()
+    history=client.get('/api/admin/room-requests/history').json[0]
+    assert history['delivery_mode']=='live' and history['to']==list(TO) and history['cc']==list(CC)
+    assert client.post('/api/admin/room-requests/preview',json=payload).json['review_key']==preview['review_key']
+    with patch('app.send_smtp_message') as smtp:
+        response=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+        assert response.status_code==200,response.json
+        assert smtp.call_args.kwargs['recipients']==list(TO+CC)
 ''')
 
 

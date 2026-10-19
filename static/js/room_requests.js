@@ -42,10 +42,19 @@ async function loadRoomRequests() {
                 document.getElementById(id).value = value;
                 document.getElementById(id).min = roomRequestOptions.min_date;
             }
+            document.getElementById('rr-test-recipients').innerHTML = roomRequestOptions.test_recipients.map(person =>
+                `<label><input type="checkbox" name="rr-test-person" value="${escapeHtml(person.id)}" checked> ${escapeHtml(person.name)} (${escapeHtml(person.email)})</label>`).join('');
             buildRoomRequestChoices();
         }
         await loadRoomRequestHistory();
     } catch (error) { status.textContent = error.message; }
+}
+
+function toggleRoomRequestDelivery() {
+    const test = document.getElementById('rr-delivery').value === 'test';
+    document.getElementById('rr-test-options').hidden = !test;
+    document.getElementById('rr-live-warning').hidden = test;
+    invalidateRoomRequest();
 }
 
 function buildRoomRequestChoices() {
@@ -101,9 +110,12 @@ function selectAllRoomRequestDates(id) {
 
 function showRoomRequestPreview(record) {
     roomRequestReview = record;
-    document.getElementById('rr-headers').innerHTML = [['From', record.from_email], ['To', record.to.join(', ')],
+    const test = record.delivery_mode === 'test';
+    document.getElementById('rr-preview-heading').textContent = test ? 'Check your test email' : 'Check your request before sending';
+    document.getElementById('rr-send-btn').textContent = test ? 'Send test email' : 'Send request to Emma and Martha';
+    document.getElementById('rr-headers').innerHTML = [['Delivery', test ? 'Test only. Emma and Martha will not receive this email.' : 'Live room request'], ['From', record.from_email], ['To', record.to.join(', ')],
         ['Cc', record.cc.join(', ')], ['Replies go to', record.reply_to], ['Contract requested for Chris at', record.contract_to]]
-        .map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
+        .filter(([, value]) => value).map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
     document.getElementById('rr-subject').textContent = record.subject;
     document.getElementById('rr-body').textContent = record.body;
     const states = {draft: 'Nothing has been sent. Check the dates and rooms, then send when you are ready.',
@@ -111,7 +123,8 @@ function showRoomRequestPreview(record) {
         sending: 'This request is being sent, or needs a delivery check. Check the history and sent mailbox before doing anything further.',
         uncertain: 'Delivery is unclear. Check the sent mailbox before sending anything again.',
         failed: 'The email could not be sent. Preview the form again to retry.'};
-    document.getElementById('rr-preview-state').textContent = states[record.status] || record.status;
+    document.getElementById('rr-preview-state').textContent = test && record.status === 'draft' ?
+        'Nothing has been sent. This test will go only to the recipients shown above.' : states[record.status] || record.status;
     document.getElementById('rr-send-btn').disabled = record.status !== 'draft' || roomRequestBusy;
     document.getElementById('rr-preview').hidden = false;
 }
@@ -140,7 +153,10 @@ async function previewRoomRequest(event) {
     status.textContent = 'Preparing your preview...';
     try {
         const record = await roomRequestFetch('preview', {method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({start_date: start, end_date: end, rooms, notes: document.getElementById('rr-notes').value})});
+            body: JSON.stringify({start_date: start, end_date: end, rooms, notes: document.getElementById('rr-notes').value,
+                delivery_mode: document.getElementById('rr-delivery').value,
+                test_recipients: document.getElementById('rr-delivery').value === 'test' ?
+                    [...document.querySelectorAll('input[name="rr-test-person"]:checked')].map(input => input.value) : []})});
         if (generation !== roomRequestGeneration) return;
         showRoomRequestPreview(record);
         status.textContent = 'Preview ready. Review the message below.';
@@ -168,7 +184,9 @@ async function sendRoomRequest() {
             body: JSON.stringify({review_key: review.review_key, confirmed: true})});
         showRoomRequestPreview(result.request);
         document.getElementById('rr-preview-state').textContent = result.already_sent ?
-            'This request was already sent. No second email was sent.' : 'Request sent to Emma and Martha, with Florence copied. Replies go to Florence.';
+            'This request was already sent. No second email was sent.' : result.request.delivery_mode === 'test' ?
+                'Test email sent only to ' + result.request.to.join(', ') + '. Emma and Martha have not been emailed.' :
+                'Request sent to Emma and Martha, with Florence copied. Replies go to Florence.';
     } catch (error) {
         if (error.record) showRoomRequestPreview(error.record);
         else { roomRequestReview = null; }

@@ -17,6 +17,24 @@ TO = ('emma.perez@macmillan.com', 'martha.fisher@macmillan.com')
 CC = ('florence.perdriel@gmail.com',)
 REPLY_TO = 'florence.perdriel@gmail.com'
 CONTRACT_TO = 'contact@londonautismgroupcharity.org'
+TEST_RECIPIENTS = {
+    'florence': ('Florence', 'florence.perdriel@gmail.com'),
+    'chris': ('Chris', 'londonautismgroupcharity@gmail.com'),
+}
+
+
+def delivery_details(payload):
+    # Older saved requests were real requests. Never reroute their history.
+    mode = payload.get('delivery_mode', 'live')
+    if mode == 'live':
+        return {'delivery_mode': 'live', 'to': list(TO), 'cc': list(CC), 'reply_to': REPLY_TO}
+    recipients = payload.get('test_recipients')
+    if (mode != 'test' or not isinstance(recipients, list) or not recipients
+            or any(not isinstance(key, str) or key not in TEST_RECIPIENTS for key in recipients)
+            or len(set(recipients)) != len(recipients)):
+        raise ValueError('Choose Florence, Chris, or both for the test email.')
+    addresses = [TEST_RECIPIENTS[key][1] for key in sorted(recipients)]
+    return {'delivery_mode': 'test', 'to': addresses, 'cc': [], 'reply_to': ', '.join(addresses)}
 
 
 def requestable_rooms():
@@ -86,12 +104,23 @@ def normalise(data, today=None):
         else:
             raise ValueError('Choose exact Fridays or flexible dates for each room.')
         selected.append(item)
+    if set(data) - {'start_date', 'end_date', 'rooms', 'notes', 'delivery_mode', 'test_recipients'}:
+        raise ValueError('Use the form to choose the delivery mode and recipients.')
+    delivery_mode = data.get('delivery_mode', 'test')
+    delivery = {'delivery_mode': delivery_mode}
+    if delivery_mode == 'test':
+        delivery['test_recipients'] = data.get('test_recipients', [])
+    elif delivery_mode != 'live' or data.get('test_recipients'):
+        raise ValueError('Choose test mode or a live request to Emma and Martha.')
+    delivery_details(delivery)
+    if delivery_mode == 'test':
+        delivery['test_recipients'] = sorted(delivery['test_recipients'])
     notes = data.get('notes', '')
     if not isinstance(notes, str) or len(notes) > 2000 or '\x00' in notes:
         raise ValueError('Additional details must be text of up to 2,000 characters.')
     return {'start_date': start.isoformat(), 'end_date': end.isoformat(),
             'fridays': sorted(available_dates), 'rooms': sorted(selected, key=lambda r: r['room_id']),
-            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip()}
+            'notes': notes.replace('\r\n', '\n').replace('\r', '\n').strip(), **delivery}
 
 
 def compose(payload):
@@ -115,6 +144,10 @@ def compose(payload):
         'These are our preferences, subject to availability. Could you let us know which rooms and dates are available?',
         f'Once agreed, could you send the hire agreement to Chris Papadopoulos at {CONTRACT_TO}?',
         'Many thanks,\nFridays @ Farringdon\nLondon Autism Group Charity'])
+    if payload.get('delivery_mode') == 'test':
+        subject = '[TEST] ' + subject
+        paragraphs.insert(0, 'TEST ONLY: This is a sample room request for Florence and/or Chris. '
+                          'No request has been sent to Emma or Martha. The sample message follows.')
     return subject, '\n\n'.join(paragraphs)
 
 
@@ -122,7 +155,7 @@ def serialise(record):
     def local_time(value):
         return value.replace(tzinfo=ZoneInfo('UTC')).astimezone(LONDON).isoformat() if value else None
     return {'review_key': record.review_key, 'subject': record.subject, 'body': record.body,
-            'from_email': record.from_email, 'to': list(TO), 'cc': list(CC), 'reply_to': REPLY_TO,
+            'from_email': record.from_email, **delivery_details(json.loads(record.payload)),
             'contract_to': CONTRACT_TO, 'status': record.status, 'error': record.error,
             'created_at': local_time(record.created_at), 'sent_at': local_time(record.sent_at)}
 
@@ -132,9 +165,19 @@ def preview(data):
     payload = normalise(data)
     subject, body = compose(payload)
     sender = app.config['SMTP_FROM']
-    fingerprint = hashlib.sha256(json.dumps([payload, subject, body, sender, TO, CC, REPLY_TO],
-        sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+    if payload['delivery_mode'] == 'live':
+        # Preserve fingerprints of real requests saved before test mode existed.
+        original_payload = {key: value for key, value in payload.items() if key != 'delivery_mode'}
+        identity = [original_payload, subject, body, sender, TO, CC, REPLY_TO]
+    else:
+        identity = [payload, subject, body, sender, delivery_details(payload)]
+    fingerprint = hashlib.sha256(json.dumps(identity, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
     record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
+    # A fresh test preview may be sent again, while reusing the same send key
+    # remains duplicate-safe. Real requests keep the existing deduplication.
+    while payload['delivery_mode'] == 'test' and record is not None and record.status == 'sent':
+        fingerprint = hashlib.sha256((fingerprint + record.review_key).encode()).hexdigest()
+        record = RoomRequest.query.filter_by(fingerprint=fingerprint).first()
     if record is None:
         record = RoomRequest(review_key=secrets.token_urlsafe(32), fingerprint=fingerprint,
             payload=json.dumps(payload), subject=subject, body=body, from_email=sender, status='draft')
@@ -188,6 +231,7 @@ def send(data):
         return {'error': 'The request period has started. Choose a future period and preview again.'}, 409
     if record.from_email != app.config['SMTP_FROM']:
         return {'error': 'The sender has changed. Preview the request again.'}, 409
+    delivery = delivery_details(payload)
     if not reminders_mail_ready():
         return {'error': 'Email sending is unavailable. Nothing has been sent.'}, 503
     claimed = RoomRequest.query.filter_by(id=record.id, status='draft').update(
@@ -197,15 +241,16 @@ def send(data):
         return {'error': 'This request is already being sent. Check the history.'}, 409
     message = MIMEMultipart('alternative')
     message['From'] = record.from_email
-    message['To'] = ', '.join(TO)
-    message['Cc'] = ', '.join(CC)
-    message['Reply-To'] = REPLY_TO
+    message['To'] = ', '.join(delivery['to'])
+    if delivery['cc']:
+        message['Cc'] = ', '.join(delivery['cc'])
+    message['Reply-To'] = delivery['reply_to']
     message['Subject'] = record.subject
     message['Message-ID'] = make_msgid()
     message.attach(MIMEText(record.body, 'plain', 'utf-8'))
     message.attach(MIMEText(html_body(record.body), 'html', 'utf-8'))
     try:
-        send_smtp_message(message, recipients=list(TO + CC))
+        send_smtp_message(message, recipients=delivery['to'] + delivery['cc'])
     except Exception as error:
         record.status = 'uncertain' if isinstance(error, EmailDeliveryUncertain) else 'failed'
         record.error = ('Delivery could not be confirmed. Check the sent mailbox before sending anything again.'
@@ -243,7 +288,10 @@ def register_routes(app, admin_required):
         first = today + timedelta(days=(4 - today.weekday()) % 7)
         return jsonify({'rooms': [{'id': r.id, 'name': r.name} for r in requestable_rooms()],
             'start_date': first.isoformat(), 'end_date': (first + timedelta(days=21)).isoformat(),
-            'min_date': today.isoformat(), 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO})
+            'min_date': today.isoformat(), 'to': list(TO), 'cc': list(CC), 'contract_to': CONTRACT_TO,
+            'default_delivery_mode': 'test',
+            'test_recipients': [{'id': key, 'name': value[0], 'email': value[1]}
+                                for key, value in TEST_RECIPIENTS.items()]})
 
     @app.post('/api/admin/room-requests/preview')
     @admin_required
