@@ -152,7 +152,7 @@ function showRoomRequestPreview(record, readOnly = false) {
     const test = record.delivery_mode === 'test';
     document.getElementById('rr-send-btn').textContent = test ? 'Send test email' : 'Send request';
     document.getElementById('rr-headers').innerHTML = [['To', record.recipient_names.to.join(' and ')],
-        ['Copy to', record.recipient_names.cc.join(' and ')]].filter(([, value]) => value)
+        ['Copy to', record.recipient_names.cc.join(' and ')], ['Replies to', (record.reply_to_names || []).join(' and ')]].filter(([, value]) => value)
         .map(([label, value]) => `<dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd>`).join('');
     document.getElementById('rr-subject').textContent = record.subject;
     document.getElementById('rr-body').textContent = record.body;
@@ -214,7 +214,7 @@ async function confirmRoomRequestSend() {
         document.getElementById('rr-preview-state').textContent = result.already_sent ?
             'This email was already sent. No second email was sent.' : result.request.delivery_mode === 'test' ?
                 'Test email sent only to ' + result.request.recipient_names.to.join(' and ') + '. Emma and Martha have not been emailed.' :
-                'Sent to Emma and Martha, with Florence copied in. Replies go to Florence.';
+                'Sent to Emma and Martha, with Florence and Chris copied in. Replies will be addressed to Florence and Chris.';
     } catch (error) {
         if (error.record) showRoomRequestPreview(error.record);
         else roomRequestReview = null;

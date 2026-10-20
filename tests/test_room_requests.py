@@ -6,7 +6,7 @@ FIXTURE = '''
 from copy import deepcopy
 from unittest.mock import patch
 from app import app,db,Room,Booking,RoomRequest,EmailDeliveryUncertain,get_room_schedule_ids
-from room_requests import TO,CC,CONTRACT_TO
+from room_requests import TO,CC,CONTRACT_TO,REPLY_TO,CHRIS_EMAIL,FLORENCE_EMAIL
 app.config.update(ENABLE_EMAIL=True,SMTP_USER='sender@example.test',SMTP_PASSWORD='dummy',SMTP_FROM='sender@example.test')
 client=app.test_client()
 with client.session_transaction() as session: session['admin_logged_in']=True
@@ -30,7 +30,7 @@ class RoomRequestTest(unittest.TestCase):
     with patch('app.send_smtp_message') as smtp:
         options=client.get('/api/admin/room-requests/options').json
         assert len(options['rooms'])==3 and len(options['request_id'])>=24
-        assert options['recipient_names']=={'to':['Emma','Martha'],'cc':['Florence']}
+        assert options['recipient_names']=={'to':['Emma','Martha'],'cc':['Florence','Chris']}
         assert not {'start_date','end_date'} & set(options)
         assert all(set(person)=={'id','name'} for person in options['test_recipients'])
         preview=client.post('/api/admin/room-requests/preview',json=payload).json
@@ -38,10 +38,10 @@ class RoomRequestTest(unittest.TestCase):
         assert preview['to']==list(TO) and preview['cc']==list(CC)
         assert 'Rose: 4 Fridays' in preview['body'] and 'Clerkenwell: 3 Fridays' in preview['body']
         assert 'Loft: 1 Friday' in preview['body'] and 'Fridays covered' not in preview['body']
-        assert 'what alternatives we can consider please?' in preview['body']
+        assert 'If there are points we need to align on, please reply to this message.' in preview['body']
         assert preview['body'].endswith('Florence Perdriel\\nLondon Autism Group Charity')
         assert CONTRACT_TO not in preview['body'] and 'Chris Papadopoulos' not in preview['body']
-        assert 'share the hire agreement with Chris as you usually do' in preview['body']
+        assert 'share the hire agreement directly with Chris as you usually do' in preview['body']
         assert preview['subject']=='Fridays @ Farringdon: room booking'
         again=client.post('/api/admin/room-requests/preview',json=payload).json
         assert again['review_key']==preview['review_key'] and RoomRequest.query.count()==1
@@ -91,7 +91,7 @@ class RoomRequestTest(unittest.TestCase):
     def inspect(message,recipients):
         assert recipients==list(TO+CC)
         assert message['To']==', '.join(TO) and message['Cc']==', '.join(CC)
-        assert message['Reply-To']==CC[0] and message['Subject']==edited['subject']
+        assert message['Reply-To']==REPLY_TO and message['Subject']==edited['subject']
         assert message.get_payload(0).get_payload(decode=True).decode('utf-8')==edited['body']
         html=message.get_payload(1).get_payload(decode=True).decode('utf-8')
         assert '&amp;' in html and '&lt;details&gt;' in html
@@ -247,6 +247,44 @@ class RoomRequestTest(unittest.TestCase):
         blank=client.post('/api/admin/room-requests/preview',json=dict(chosen,period='')).json
         assert 'for the next period.' in blank['body'] and '[date range]' not in blank['body']
         smtp.assert_not_called()
+''')
+
+    def test_exact_closing_and_real_replies_include_florence_and_chris(self):
+        self.check_case('''
+    from email.utils import getaddresses
+    closing=('If this is all possible, please pick the dates that work for you and share the hire agreement directly with Chris as you usually do.'
+        +'\\n\\n'+'If there are points we need to align on, please reply to this message.')
+    preview=client.post('/api/admin/room-requests/preview',json=payload).json
+    assert closing in preview['body']
+    assert 'Could you let me know if this is possible' not in preview['body']
+    assert 'Once this is all agreed' not in preview['body']
+    assert preview['reply_to_names']==['Florence','Chris'] and preview['recipient_names']['cc']==['Florence','Chris']
+    def inspect(message,recipients):
+        assert [address for _,address in getaddresses(message.get_all('Reply-To'))]==[FLORENCE_EMAIL,CHRIS_EMAIL]
+        assert [address for _,address in getaddresses(message.get_all('Cc'))]==[FLORENCE_EMAIL,CHRIS_EMAIL]
+        assert recipients==list(TO)+(list(CC))
+        assert closing in message.get_payload(0).get_payload(decode=True).decode('utf-8')
+    with patch('app.send_smtp_message',side_effect=inspect) as smtp:
+        response=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+        assert response.status_code==200,response.json
+        assert smtp.call_count==1
+''')
+
+    def test_historical_routing_is_preserved_and_old_drafts_need_new_preview(self):
+        self.check_case('''
+    import json
+    preview=client.post('/api/admin/room-requests/preview',json=payload).json
+    record=RoomRequest.query.one()
+    old=json.loads(record.payload);del old['routing_version']
+    record.payload=json.dumps(old);db.session.commit()
+    history=client.get('/api/admin/room-requests/history').json[0]
+    assert history['cc']==[FLORENCE_EMAIL] and history['reply_to']==FLORENCE_EMAIL
+    with patch('app.send_smtp_message') as smtp:
+        response=client.post('/api/admin/room-requests/send',json=dict(review_key=preview['review_key'],confirmed=True))
+        assert response.status_code==409 and 'reply settings have changed' in response.json['error']
+        smtp.assert_not_called()
+    fresh=client.post('/api/admin/room-requests/preview',json=payload).json
+    assert fresh['reply_to_names']==['Florence','Chris']
 ''')
 
 

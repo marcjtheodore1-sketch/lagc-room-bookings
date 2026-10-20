@@ -14,8 +14,10 @@ from sqlalchemy.exc import IntegrityError
 
 LONDON = ZoneInfo('Europe/London')
 TO = ('emma.perez@macmillan.com', 'martha.fisher@macmillan.com')
-CC = ('florence.perdriel@gmail.com',)
-REPLY_TO = 'florence.perdriel@gmail.com'
+CHRIS_EMAIL = 'londonautismgroupcharity@gmail.com'
+FLORENCE_EMAIL = 'florence.perdriel@gmail.com'
+CC = (FLORENCE_EMAIL, CHRIS_EMAIL)
+REPLY_TO = ', '.join(CC)
 CONTRACT_TO = 'contact@londonautismgroupcharity.org'
 TEST_RECIPIENTS = {
     'florence': ('Florence', 'florence.perdriel@gmail.com'),
@@ -27,7 +29,10 @@ def delivery_details(payload):
     # Older saved requests were real requests. Never reroute their history.
     mode = payload.get('delivery_mode', 'live')
     if mode == 'live':
-        return {'delivery_mode': 'live', 'to': list(TO), 'cc': list(CC), 'reply_to': REPLY_TO}
+        # Preserve the actual recipients shown for older saved emails. New
+        # previews use the updated routing, and old drafts must be reviewed again.
+        copied = list(CC) if payload.get('routing_version') == 2 else [FLORENCE_EMAIL]
+        return {'delivery_mode': 'live', 'to': list(TO), 'cc': copied, 'reply_to': ', '.join(copied)}
     recipients = payload.get('test_recipients')
     if (mode != 'test' or not isinstance(recipients, list) or not recipients
             or any(not isinstance(key, str) or key not in TEST_RECIPIENTS for key in recipients)
@@ -90,7 +95,7 @@ def normalise(data):
             or any(char in period for char in '\r\n\x00')):
         raise ValueError('Enter a short period on one line, such as January 2027, or leave it blank.')
     mode = data.get('delivery_mode', 'live')
-    delivery = {'delivery_mode': mode}
+    delivery = {'delivery_mode': mode, 'routing_version': 2}
     if mode == 'test':
         delivery['test_recipients'] = data.get('test_recipients', [])
     elif mode != 'live' or data.get('test_recipients'):
@@ -113,8 +118,8 @@ def compose(payload):
             ('s' if room['count'] != 1 else '') for room in payload['rooms'])]
     if payload['notes']:
         paragraphs.append(payload['notes'])
-    paragraphs.extend(['Could you let me know if this is possible and, if not, what alternatives we can consider please?',
-        'Once this is all agreed, please share the hire agreement with Chris as you usually do.',
+    paragraphs.extend(['If this is all possible, please pick the dates that work for you and share the hire agreement directly with Chris as you usually do.',
+        'If there are points we need to align on, please reply to this message.',
         'Many thanks 🙂\nFlorence Perdriel\nLondon Autism Group Charity'])
     if payload['delivery_mode'] == 'test':
         subject = '[TEST] ' + subject
@@ -150,6 +155,7 @@ def serialise(record):
     delivery = delivery_details(json.loads(record.payload))
     return {'review_key': record.review_key, 'subject': record.subject, 'body': record.body,
             'from_email': record.from_email, **delivery, 'recipient_names': recipient_names(delivery),
+            'reply_to_names': recipient_names({'to': [address.strip() for address in delivery['reply_to'].split(',')], 'cc': []})['to'],
             'contract_to': CONTRACT_TO, 'status': record.status, 'error': record.error,
             'created_at': local_time(record.created_at), 'sent_at': local_time(record.sent_at)}
 
@@ -229,6 +235,8 @@ def send(data):
     payload = json.loads(record.payload)
     if payload.get('version') != 2 or payload.get('delivery_mode') not in ('live', 'test'):
         return {'error': 'This is an older preview. Refresh the page and prepare a new room request.'}, 409
+    if payload['delivery_mode'] == 'live' and payload.get('routing_version') != 2:
+        return {'error': 'The reply settings have changed. Prepare a new preview before sending.'}, 409
     if record.from_email != app.config['SMTP_FROM']:
         return {'error': 'The sender has changed. Preview the request again.'}, 409
     delivery = delivery_details(payload)
@@ -286,7 +294,7 @@ def register_routes(app, admin_required):
     def room_request_options():
         return jsonify({'request_id': secrets.token_urlsafe(24),
             'rooms': [{'id': room.id, 'name': room.name, 'label': room_label(room.name)} for room in requestable_rooms()],
-            'recipient_names': {'to': ['Emma', 'Martha'], 'cc': ['Florence']},
+            'recipient_names': {'to': ['Emma', 'Martha'], 'cc': ['Florence', 'Chris']},
             'test_recipients': [{'id': key, 'name': person[0]} for key, person in TEST_RECIPIENTS.items()]})
 
     @app.post('/api/admin/room-requests/preview')
