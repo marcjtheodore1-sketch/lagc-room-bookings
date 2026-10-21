@@ -241,6 +241,12 @@ function volChips(people) {
         : '<span class="vol-none">No one</span>';
 }
 
+function volunteerRoomLabel(day) {
+    return day.rooms?.length
+        ? `<span class="vol-room-list">Rooms: ${day.rooms.map(escapeHtml).join(' · ')}</span>`
+        : '';
+}
+
 function renderVolunteerPast() {
     const section = document.getElementById('volunteer-past-section');
     const wrap = document.getElementById('volunteer-past');
@@ -254,7 +260,7 @@ function renderVolunteerPast() {
     wrap.innerHTML = past.map(d => `
         <div class="vol-date-row">
             <div class="vol-date-head">
-                <span class="vol-date-label">${escapeHtml(d.display)}</span>
+                <span class="vol-date-label">${escapeHtml(d.display)}${volunteerRoomLabel(d)}</span>
                 <button class="btn btn-secondary btn-small" onclick="archiveVolunteerDate('${d.date}')">Archive</button>
             </div>
             <div class="vol-chips">${volChips(d.volunteers)}</div>
@@ -274,7 +280,7 @@ function renderVolunteerArchived() {
     wrap.innerHTML = archived.map(d => `
         <div class="vol-date-row vol-archived-row">
             <div class="vol-date-head">
-                <span class="vol-date-label">${escapeHtml(d.display)}</span>
+                <span class="vol-date-label">${escapeHtml(d.display)}${volunteerRoomLabel(d)}</span>
                 <button class="btn btn-secondary btn-small" onclick="unarchiveVolunteerDate('${d.date}')">Restore</button>
             </div>
             <div class="vol-chips">${volChips(d.volunteers)}</div>
@@ -337,7 +343,7 @@ function renderVolunteerEntries() {
     }
     wrap.innerHTML = volunteerRota.fridays.map(f => `
         <div class="vol-entry-row">
-            <span class="vol-entry-date">${escapeHtml(f.display)}</span>
+            <span class="vol-entry-date">${escapeHtml(f.display)}${volunteerRoomLabel(f)}</span>
             <select class="vol-entry-status" data-date="${f.date}" aria-label="Availability for ${escapeHtml(f.display)}" onchange="updateVolunteerTimeFields()">
                 <option value="">Choose availability</option>
                 <option value="available">✓ Available</option>
@@ -387,7 +393,7 @@ function renderVolunteerCoverage() {
         return `
             <div class="vol-date-row">
                 <div class="vol-date-head">
-                    <span class="vol-date-label">${escapeHtml(f.display)}</span>
+                    <span class="vol-date-label">${escapeHtml(f.display)}${volunteerRoomLabel(f)}</span>
                     <span class="vol-count ${countClass}">${available.length} ${available.length === 1 ? 'volunteer' : 'volunteers'}</span>
                 </div>
                 <div class="vol-chips">${chips}</div>

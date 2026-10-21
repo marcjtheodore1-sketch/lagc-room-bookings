@@ -1060,6 +1060,14 @@ def get_volunteer_rota(count=8):
       - archived: past Fridays the admin team has archived (kept for the record)
     """
     fridays = get_rota_fridays(count)
+    schedule = get_room_schedule_ids()
+    room_names = {room.id: room.name for room in Room.query.all()}
+
+    def rooms_for_date(date_str):
+        return [room_names[room_id] for room_id in schedule.get(date_str, [])
+                if room_id in room_names]
+
+    fridays = [dict(friday, rooms=rooms_for_date(friday['date'])) for friday in fridays]
     upcoming_strs = {f['date'] for f in fridays}
     today = datetime.now().date()
     archived_strs = set(get_archived_volunteer_dates())
@@ -1102,7 +1110,8 @@ def get_volunteer_rota(count=8):
         out = []
         for ds in sorted(date_map, reverse=reverse):
             people = sorted(date_map[ds], key=lambda p: p['name'].lower())
-            out.append({'date': ds, 'display': _friday_display(ds), 'volunteers': people})
+            out.append({'date': ds, 'display': _friday_display(ds),
+                        'rooms': rooms_for_date(ds), 'volunteers': people})
         return out
 
     vol_list = sorted(volunteers.values(), key=lambda v: v['name'].lower())

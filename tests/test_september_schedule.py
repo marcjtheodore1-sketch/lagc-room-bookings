@@ -16,7 +16,7 @@ class SeptemberScheduleTest(unittest.TestCase):
         result = run_isolated('''
             from datetime import datetime
             from unittest.mock import patch
-            from app import app, db, Room, Booking, init_default_data
+            from app import app, db, Room, Booking, init_default_data, get_volunteer_rota
             class Clock(datetime):
                 @classmethod
                 def now(cls, tz=None):
@@ -24,6 +24,10 @@ class SeptemberScheduleTest(unittest.TestCase):
             with app.app_context(), patch('app.datetime', Clock), patch('app.send_emails_async') as send:
                 init_default_data()
                 client = app.test_client()
+                rota_rooms = {day['date']: day['rooms'] for day in get_volunteer_rota()['fridays']}
+                assert rota_rooms['2026-10-30'] == ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"']
+                assert rota_rooms['2026-11-06'] == ['Room 4.4 "Rose"', 'The Loft']
+                assert '2026-11-13' not in rota_rooms
                 assert '2026-11-13' not in [day['date'] for day in client.get('/api/fridays').json]
                 for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'):
                     room = Room.query.filter_by(name=name).one()
