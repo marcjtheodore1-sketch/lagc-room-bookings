@@ -11,6 +11,33 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class SeptemberScheduleTest(unittest.TestCase):
+    def test_withdrawn_november_date_rejects_stale_forms(self):
+        from test_attendee_booking_experience import run_isolated
+        result = run_isolated('''
+            from datetime import datetime
+            from unittest.mock import patch
+            from app import app, db, Room, Booking, init_default_data
+            class Clock(datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return cls(2026, 10, 21, 12, tzinfo=tz)
+            with app.app_context(), patch('app.datetime', Clock), patch('app.send_emails_async') as send:
+                init_default_data()
+                client = app.test_client()
+                assert '2026-11-13' not in [day['date'] for day in client.get('/api/fridays').json]
+                for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'):
+                    room = Room.query.filter_by(name=name).one()
+                    response = client.post('/api/book', json=dict(
+                        room_id=room.id, date='2026-11-13', name='Test Person',
+                        email='test@example.test', mobility_needs=False,
+                        start_slot=0, end_slot=1))
+                    assert response.status_code == 409, response.json
+                    assert 'no longer available' in response.json['error']
+                assert Booking.query.count() == 0
+                send.assert_not_called()
+        ''')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def test_autumn_rooms_and_yoga_dates(self):
         with tempfile.TemporaryDirectory() as disk:
             env = {
@@ -71,7 +98,6 @@ class SeptemberScheduleTest(unittest.TestCase):
                 '2026-10-23': ['Room 4.4 "Rose"', 'The Loft'],
                 '2026-10-30': rose_and_clerkenwell,
                 '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
-                '2026-11-13': rose_and_clerkenwell,
                 '2026-11-20': rose_and_clerkenwell,
             },
             'yoga': [

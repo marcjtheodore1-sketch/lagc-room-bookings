@@ -10,6 +10,9 @@ class MobilityHistoryTest(unittest.TestCase):
             from datetime import date, datetime, timedelta
             from unittest.mock import patch
             from app import app, db, Room, Booking, MobilityAccessLink, previous_mobility_booking, new_mobility_link, run_migrations
+            from app import ROOM_SCHEDULE_BY_NAME
+            for day in ('2099-01-02', '2099-01-09', '2099-01-16', '2099-01-23'):
+                ROOM_SCHEDULE_BY_NAME[day] = ['Clerkenwell']
             with app.app_context():
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room)
@@ -167,6 +170,9 @@ class MobilityHistoryTest(unittest.TestCase):
             from datetime import date, datetime, timedelta
             from unittest.mock import patch
             from app import app, db, Room, Booking, MobilityAccessLink, new_mobility_link, run_migrations
+            from app import ROOM_SCHEDULE_BY_NAME
+            for day in ('2099-01-02', '2099-01-09', '2099-01-16', '2099-01-23'):
+                ROOM_SCHEDULE_BY_NAME[day] = ['Clerkenwell']
             with app.app_context():
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room)

@@ -10,6 +10,8 @@ class BookingSupportAndRotaTest(unittest.TestCase):
             from datetime import date
             from unittest.mock import patch
             from app import app, db, Booking, Room, run_migrations, attendee_count
+            from app import ROOM_SCHEDULE_BY_NAME
+            ROOM_SCHEDULE_BY_NAME['2099-01-02'] = ['Clerkenwell']
             with app.app_context():
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room)

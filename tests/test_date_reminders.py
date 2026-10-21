@@ -53,7 +53,7 @@ class DateReminderTest(unittest.TestCase):
                 send.assert_not_called()
         ''')
 
-    def test_all_four_new_dates_send_at_wednesday_nine_once_after_clock_change(self):
+    def test_remaining_autumn_dates_send_at_wednesday_nine_once_after_clock_change(self):
         self.check_case('''
             from datetime import date,datetime,timedelta
             from unittest.mock import patch
@@ -61,7 +61,7 @@ class DateReminderTest(unittest.TestCase):
             from app import app,db,Room,DateBookingReminder,run_reminder_job
             from date_reminders import run_date_reminders,reminder_due
             zone=ZoneInfo('Europe/London')
-            days=[date(2026,10,30),date(2026,11,6),date(2026,11,13),date(2026,11,20)]
+            days=[date(2026,10,30),date(2026,11,6),date(2026,11,20)]
             with app.app_context(), patch('app.reminders_mail_ready',return_value=True), patch('date_reminders.send_date_reminder') as send:
                 db.session.add(Room(name='Rose',room_type='slot'));db.session.commit()
                 for day in days:
@@ -78,7 +78,7 @@ class DateReminderTest(unittest.TestCase):
                     assert 'community-guidelines' in body and 'condition of attending' in body
                     assert day.isoformat() in body and 'different email address' in body
                     assert run_date_reminders(due)['sent']==0
-                assert send.call_count==4
+                assert send.call_count==3
                 assert all(r.status=='sent' and r.sent_at for r in DateBookingReminder.query.all())
         ''')
 
@@ -149,6 +149,8 @@ class DateReminderTest(unittest.TestCase):
             from datetime import date
             from unittest.mock import patch
             from app import app,db,Room,DateBookingReminder
+            from app import ROOM_SCHEDULE_BY_NAME
+            ROOM_SCHEDULE_BY_NAME['2099-01-02'] = ['Clerkenwell']
             with app.app_context(),patch('app.reminders_mail_ready',return_value=True),patch('app.send_confirmation_email',return_value=True) as send,patch('app.send_emails_async') as queue:
                 room=Room(name='Clerkenwell',room_type='open');db.session.add(room);db.session.commit()
                 client=app.test_client()

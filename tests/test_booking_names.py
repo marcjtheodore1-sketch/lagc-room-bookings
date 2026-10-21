@@ -8,6 +8,8 @@ class BookingNameTest(unittest.TestCase):
         result = run_isolated('''
             from unittest.mock import patch
             from app import app, db, Room, Booking
+            from app import ROOM_SCHEDULE_BY_NAME
+            ROOM_SCHEDULE_BY_NAME['2099-01-02'] = ['Clerkenwell']
             with app.app_context(), patch('app.send_confirmation_email', return_value=True):
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room); db.session.commit()

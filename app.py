@@ -349,7 +349,7 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-10-23': ['Room 4.4 "Rose"', 'The Loft'],
     '2026-10-30': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
     '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
-    '2026-11-13': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    # 2026-11-13 withdrawn from the booking schedule.
     '2026-11-20': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
 }
 
@@ -1891,6 +1891,10 @@ def create_booking():
     room = Room.query.get(room_id)
     if not room:
         return jsonify({'error': 'Room not found'}), 404
+
+    # Recheck the published schedule when submitting a previously opened form.
+    if room_id not in get_room_schedule_ids().get(booking_date.isoformat(), []):
+        return jsonify({'error': 'This room is no longer available on this date. Please choose another Friday.'}), 409
 
     # One booking per email, per room, per date — blocks accidental duplicates
     # (e.g. someone clicking "book" twice on a whole-day shared room).
