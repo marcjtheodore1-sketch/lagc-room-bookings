@@ -8,8 +8,8 @@ The general site navigation already points to this information page.
 
 The supporter portal is `/peer-support/supporter`. Chris has chosen one separate
 shared Student Support password for Sungji, Marilena and himself. It is independent
-of the general F@F administrator password. The preview is waiting for his chosen
-password; no default or temporary password is enabled.
+of the general F@F administrator password. His chosen password has been configured in the local preview and successful
+browser sign-in has been verified. No default or temporary password is enabled.
 
 The application reads only `STUDENT_SUPPORT_PASSWORD_HASH`, a Werkzeug password
 hash. The local preview loads that hash from the private, untracked file
