@@ -48,7 +48,7 @@
     <h2><span class="student-step">3</span> Check and request your place</h2>
     <div class="student-privacy">
         <h3>Your information</h3>
-        <p>Sungji, Marilena and Chris can view and manage your booking in the private Student Support portal. Your form answers are kept out of the general F@F admin area and notification emails.</p>
+        <p>Sungji, Marilena and Chris can view and manage your booking in the private admin portal. Your form answers are kept out of the general F@F admin area and notification emails.</p>
         <p>For an in-person session, your full name is included on the venue attendance list sent to Pan Macmillan reception and the F@F coordinator. Your email address and written answers are not included. A single Yes/No mobility flag for the whole F@F session helps the venue plan safe access, without naming who needs support.</p>
         <p>{% if answer_retention_days %}Written answers are automatically removed {{ answer_retention_days }} days after your session date. Your name and appointment details remain available for administration.{% else %}Written answers are kept until the Student Support team removes them.{% endif %}</p>
         <p>Share only what you feel comfortable sharing and what will help with your session. This is informal peer support, rather than professional or crisis support.</p>
@@ -66,7 +66,7 @@
 {% else %}
 <section class="student-card student-empty"><h2>No appointments are available to book just now</h2><p>Our supporters add dates when their availability is confirmed. Please check back soon.</p><a href="/peer-support" class="btn btn-secondary">About student support</a></section>
 {% endif %}
-<p class="student-portal-link"><a href="{{ url_for('student_login') }}">Supporter sign in</a></p>
+<p class="student-portal-link"><a href="{{ url_for('student_login') }}">Admin portal</a></p>
 {% endblock %}
 {% block scripts %}
 <script>

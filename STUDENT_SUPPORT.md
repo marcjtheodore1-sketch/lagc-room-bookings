@@ -6,7 +6,7 @@ Built on `af94cd2` in `codex/student-support-bookings`. The existing Student
 Support information page (`/peer-support`) links to `/peer-support/book`.
 The general site navigation already points to this information page.
 
-The supporter portal is `/peer-support/supporter`. Chris has chosen one separate
+The admin portal is `/peer-support/supporter`. Chris has chosen one separate
 shared Student Support password for Sungji, Marilena and himself. It is independent
 of the general F@F administrator password. His chosen password has been configured in the local preview and successful
 browser sign-in has been verified. No default or temporary password is enabled.
@@ -28,7 +28,7 @@ which of the three people made a change.
 ## Agreed behaviour
 
 Sessions last 45 minutes, with one slot each hour. Dates and hours are managed in
-the supporter portal, with an explicit publish checkbox. Dates do not recur
+the admin portal, with an explicit publish checkbox. Dates do not recur
 implicitly. Supplied October dates are not seeded into production. Before adding
 availability, check and move any existing Calendly appointments, so the same time
 is not offered twice. Only Friday 30th October 2026 remains in the supplied future
@@ -59,7 +59,7 @@ the confirmation tells the student their supporter will email joining details.
 
 Student records are separate from room bookings, general admin lists, CSV exports,
 public availability and general mailshots. Written answers are displayed only
-inside the supporter portal. Template rendering escapes names and answers.
+inside the admin portal. Template rendering escapes names and answers.
 Notifications omit questionnaire answers. Confirmation and cancellation notices go
 separately to the student and the assigned supporter. Friday notifications go to
 Sungji; Sunday notifications go to Marilena. No emails go to the other supporter.
@@ -72,7 +72,7 @@ support-service labels are excluded from that report. Reception delivery remains
 at Thursday 10am, with its existing recipients and frozen snapshot. A later
 cancellation cannot retract or change an already-sent list.
 
-Supporter sign-in uses the separate shared password, checked against a secure
+Admin portal sign-in uses the separate shared password, checked against a secure
 hash. Sessions expire after eight hours and can be revoked by signing out.
 Changing the configured password hash immediately invalidates all previous
 supporter sessions. Missing password configuration fails closed. Old supporter

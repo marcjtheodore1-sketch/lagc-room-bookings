@@ -1,10 +1,10 @@
 {% extends 'student_base.html' %}
-{% set title = 'Student Support sign in' %}
+{% set title = 'Admin portal sign in' %}
 {% block student_content %}
 <section class="student-card student-message">
-    <p class="student-eyebrow">Private student support portal</p>
-    <h1>Welcome, Sungji, Marilena and Chris</h1>
-    <p>Enter your shared Student Support password. This is separate from the general F@F admin password.</p>
+    <p class="student-eyebrow">Private admin portal</p>
+    <h1>Admin portal</h1>
+    <p>For Sungji, Marilena and Chris. Enter your shared Student Support password. This is separate from the general F@F admin password.</p>
     {% if error %}<p class="student-alert" role="alert">{{ error }}</p>{% endif %}
     {% if not password_ready %}<p class="student-notice" role="status">The preview login is ready. The shared password still needs to be set.</p>{% endif %}
     <form method="post" class="student-form">

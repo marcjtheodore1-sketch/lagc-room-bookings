@@ -166,7 +166,7 @@ def notify(booking, event, student_token=None):
             body += '\n\nView or cancel your appointment: ' + reminder_base_url() + '/peer-support/appointment/' + student_token
         if audience == 'supporter':
             body += '\n\nSign in to view the booking: ' + reminder_base_url() + '/peer-support/supporter'
-        body += '\n\nSessions last 45 minutes within a one-hour slot. Private booking-form answers are available only in the supporter portal.\n\nLondon Autism Group Charity'
+        body += '\n\nSessions last 45 minutes within a one-hour slot. Private booking-form answers are available only in the admin portal.\n\nLondon Autism Group Charity'
         try:
             deliver(recipient, 'Student support appointment ' + event, body)
             row.status = 'sent'
