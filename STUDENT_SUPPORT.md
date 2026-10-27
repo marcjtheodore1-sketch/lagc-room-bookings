@@ -15,7 +15,9 @@ The application reads only `STUDENT_SUPPORT_PASSWORD_HASH`, a Werkzeug password
 hash. The local preview loads that hash from the private, untracked file
 `/tmp/lagc-student-preview-password.hash`. Never put a plaintext password or its
 hash in Git, logs, screenshots or email. Configure the real password only when
-Chris supplies it, and keep this feature local until he authorises publication.
+Chris supplies it. Chris authorised live publication on 27th October 2026.
+The production deployment reads the same hash from its ignored, private `.env`
+file; preview-only configuration and fictional records must never be copied.
 
 All three people using the shared password can manage both calendars and see the
 private forms. The general F@F administrator session grants no access to this
@@ -98,8 +100,9 @@ There is no automatic Calendly import or historical email subscription.
 
 ## Release and rollback
 
-This shared-password change is authorised for the local preview only. Deployment
-requires separate approval from Chris. Deploy only the reviewed source revision to the existing PythonAnywhere
+Chris authorised publication of the shared-password system on 27th October 2026.
+Appointment availability remains unpublished until Calendly bookings and current
+availability are checked. Deploy only the reviewed source revision to the existing PythonAnywhere
 checkout and reload the web app. Do not copy the local preview database, fake
 mailbox or preview server. No paid-account scheduler changes are required.
 
