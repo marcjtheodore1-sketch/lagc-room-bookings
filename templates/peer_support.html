@@ -6,7 +6,7 @@
 <div class="landing-page">
     <div class="landing-header">
         <h1>🎓 Peer Support Sessions for Autistic University Students</h1>
-        <p class="subtitle">Fridays, around 11:00 to 13:00 (Dates and time may vary – please check available slots on Calendly)</p>
+        <p class="subtitle">Fridays with Sungji and Sundays with Marilena. Check the booking page for available dates and times.</p>
     </div>
 
     <div class="landing-content">
@@ -18,7 +18,7 @@
             <div class="initiative-description">
                 <p>In this session, you'll speak with an autistic person who understands the higher education system. Whether you'd like to talk through specific challenges or just chat about your interests, the peer supporter is here to help you make your university life feel a little easier!</p>
                 
-                <p>These are <strong>online or in-person sessions</strong>, and each one lasts <strong>30 minutes</strong>. They're <strong>free and open to all autistic university students</strong> – you don't need a formal diagnosis to join.</p>
+                <p>These are <strong>online or in-person sessions</strong>, and each one lasts <strong>45 minutes, within a one-hour booking slot</strong>. They're <strong>free and open to all autistic university students</strong> – you don't need a formal diagnosis to join.</p>
             </div>
 
             <div class="notice-box warning">
@@ -41,23 +41,25 @@
 
         <div class="info-card venue-card">
             <h2>📍 Location</h2>
-            <p>Online or in-person at <strong>Room 4.4 "Rose"</strong></p>
+            <p>Online on Fridays and Sundays. In-person appointments are available on selected Fridays, in <strong>Rose Room 4.4 or a semi-open green booth on the fourth floor</strong>, depending on availability. A private room cannot be guaranteed.</p>
             <p>Pan Macmillan HQ, 6 Briset Street, London, EC1M 5NR</p>
             <p>(Nearest Tube Station: Farringdon)</p>
         </div>
 
         <div class="notice-box warning">
-            <p><strong>Note:</strong> Sessions are confidential and judgment-free. They're here to offer peer support, not professional or crisis support.</p>
+            <p><strong>Note:</strong> Sessions are confidential and judgement-free. They're here to offer peer support, not professional or crisis support.</p>
         </div>
 
         <div class="info-card">
             <h2>📝 How to request a place</h2>
-            <p><strong>Booking is essential.</strong> Please click the button below to book your session on Calendly to request a place. Spaces are offered on a first-come, first-served basis.</p>
+            <p><strong>Booking is essential.</strong> Choose an available appointment and complete the short booking form. You will receive an email link to confirm your place. Spaces are offered on a first-come, first-served basis.</p>
             
             <div class="cta-section" style="margin-top: 1.5rem;">
-                <a href="https://calendly.com/lagcstudentsupport/30min" target="_blank" class="btn btn-primary btn-large">Book on Calendly →</a>
+                <a href="{{ url_for('student_book') }}" class="btn btn-primary btn-large">Book a student support session →</a>
             </div>
         </div>
+
+        <p class="hint">In-person appointments must be booked and confirmed by Thursday at <strong>10am London time</strong>. Friday appointments booked after this deadline are online only. <a href="{{ url_for('student_login') }}">Supporter sign in</a></p>
 
         <div class="testimonials-section">
             <h2>💬 What People Say</h2>
@@ -98,7 +100,7 @@
                         <input type="text" id="testimonial-name" name="name" placeholder="">
                     </div>
 
-                    <label for="testimonial-email">Your email <span class="optional">(optional — so we can verify your message)</span></label>
+                    <label for="testimonial-email">Your email <span class="optional">(optional, so we can verify your message)</span></label>
                     <input type="email" id="testimonial-email" name="email" placeholder="you@example.com">
 
                     <div class="modal-actions">

@@ -1,0 +1,12 @@
+{% extends 'student_base.html' %}
+{% set title = 'Supporter sign in' %}
+{% block student_content %}
+<section class="student-card student-message">
+    <p class="student-eyebrow">Private supporter portal</p>
+    <h1>Welcome, Sungji and Marilena</h1>
+    <p>Use your authorised email address to receive a single-use sign-in link. This portal has separate access from the general F@F admin area.</p>
+    {% if notice %}<p class="student-notice" role="status">{{ notice }}</p>{% endif %}
+    <form method="post" class="student-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="supporter-email">Your email address</label><input id="supporter-email" type="email" autocomplete="email" name="email" required maxlength="254"><button type="submit" class="btn btn-primary">Email my sign-in link</button></form>
+    <p class="student-muted">Links expire after 15 minutes. Sign-in sessions last up to eight hours. Do not forward your link, and sign out on shared devices.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}{{ title|default('Student Support') }} - LAGC{% endblock %}
+{% block main_class %} student-wide{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/student_support.css') }}?v=1">
+<div class="student-page">
+    {% if config.get('STUDENT_SUPPORT_PREVIEW') %}<p class="student-alert"><strong>Local preview:</strong> example availability and fictional records only. Emails are disabled. The live site has not changed.</p>{% endif %}
+    <p class="student-breadcrumb"><a href="/peer-support">Student Support</a> <span aria-hidden="true">/</span> {{ title|default('Book a session') }}</p>
+    {% block student_content %}{% endblock %}
+</div>
+{% endblock %}

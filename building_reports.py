@@ -63,8 +63,10 @@ def build_snapshot(day):
                 people.append({'name': name})
         return sorted(people, key=lambda p: p['name'].casefold())
 
-    volunteer_names = add_names(v.name for v in volunteers)
-    attendee_values = []
+    from student_support import reception_names, reception_mobility
+    student_names, student_supporters = reception_names(day)
+    volunteer_names = add_names([v.name for v in volunteers] + student_supporters)
+    attendee_values = list(student_names)
     for booking in bookings:
         attendee_values.append(booking.user_name)
         if booking.carer_attending:
@@ -78,7 +80,7 @@ def build_snapshot(day):
     return {'date': day.isoformat(),
             'scheduled': bool(get_room_schedule_ids().get(day.isoformat())),
             'volunteers': volunteer_names, 'attendees': attendees,
-            'mobility_needs': any(has_mobility_needs(b) for b in bookings),
+            'mobility_needs': any(has_mobility_needs(b) for b in bookings) or reception_mobility(day),
             'total': len(seen)}
 
 

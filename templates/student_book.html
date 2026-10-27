@@ -1,0 +1,97 @@
+{% extends 'student_base.html' %}
+{% set title = 'Book a student support session' %}
+{% set values = values|default({}) %}
+{% block student_content %}
+<header class="student-hero">
+    <p class="student-eyebrow">A little space to talk things through</p>
+    <h1>Book your student support session</h1>
+    <p>Free, peer-informed support for autistic university students. No formal diagnosis needed.</p>
+    <div class="student-tags"><span>45 minutes, just for you</span><span>Online or in person</span><span>Fridays &amp; Sundays</span></div>
+</header>
+{% if error %}<div class="student-alert" role="alert">{{ error }}</div>{% endif %}
+{% if slots %}
+<div class="student-layout">
+<form method="post" class="student-card student-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <h2><span class="student-step">1</span> Choose your appointment</h2>
+    <p class="student-muted">All times are London time. Each 45-minute session has a one-hour booking slot, allowing a break between students.</p>
+    <label for="student-slot">Available appointment</label>
+    <select id="student-slot" name="slot_id" required>
+        <option value="">Choose a date and time</option>
+        {% for slot in slots %}<option value="{{ slot.id }}" {% if selected_slot == slot.id|string %}selected{% endif %} data-in-person="{{ 'yes' if in_person_open(slot) else 'no' }}">{{ slot_label(slot) }}</option>{% endfor %}
+    </select>
+    <p class="student-muted" id="student-selection-summary" aria-live="polite"></p>
+    <label for="student-location">Where would you like to meet?</label>
+    <select id="student-location" name="location" required>
+        <option value="online">Online</option>
+        <option value="in_person" id="student-in-person" {% if selected_location == 'in_person' %}selected{% endif %} disabled>In person (eligible Fridays only)</option>
+    </select>
+    <p class="student-muted" id="student-location-help">Choose an appointment to see whether in-person booking is available.</p>
+    <div id="student-mobility" hidden>
+        <label for="student-mobility-answer">Will you need mobility or evacuation support at the venue?</label>
+        <select id="student-mobility-answer" name="mobility_needs"><option value="">Choose an answer</option><option value="no" {% if selected_mobility == 'no' %}selected{% endif %}>No</option><option value="yes" {% if selected_mobility == 'yes' %}selected{% endif %}>Yes</option></select>
+        <p class="student-muted">The venue needs advance notice to plan fire-warden support. The reception report includes a Yes/No flag for the whole F@F session, without identifying who needs support. Your supporter can discuss practical arrangements with you.</p>
+    </div>
+    <h2><span class="student-step">2</span> Tell us a little about yourself</h2>
+    <label for="student-name">Your name</label>
+    <input id="student-name" name="name" autocomplete="name" maxlength="100" required value="{{ values.get('name', '') }}">
+    <p class="student-muted">For an in-person session, use your full name so reception can welcome you.</p>
+    <label for="student-email">Your email address</label>
+    <input type="email" id="student-email" name="email" autocomplete="email" maxlength="254" required value="{{ values.get('email', '') }}">
+    <p class="student-muted">Check this carefully. You will need to confirm your appointment by email.</p>
+    <label for="student-studying">What are you studying, and at what level?</label>
+    <textarea id="student-studying" name="studying" rows="2" maxlength="3000" required placeholder="For example, Engineering BA or Nursing MA">{{ values.get('studying', '') }}</textarea>
+    <label for="student-goals">What would you like to get out of your session?</label>
+    <textarea id="student-goals" name="goals" rows="3" maxlength="3000" required placeholder="For example, talking through your reasonable adjustments">{{ values.get('goals', '') }}</textarea>
+    <label for="student-questions">Do you have any questions? <span class="student-muted">(optional)</span></label>
+    <textarea id="student-questions" name="questions" rows="3" maxlength="3000">{{ values.get('questions', '') }}</textarea>
+    <h2><span class="student-step">3</span> Check and request your place</h2>
+    <div class="student-privacy">
+        <h3>Your information</h3>
+        <p>Sungji and Marilena can view and manage your booking in their private supporter portal. Your form answers are kept out of the general F@F admin area and notification emails.</p>
+        <p>For an in-person session, your full name is included on the venue attendance list sent to Pan Macmillan reception and the F@F coordinator. Your email address and written answers are not included. A single Yes/No mobility flag for the whole F@F session helps the venue plan safe access, without naming who needs support.</p>
+        <p>{% if answer_retention_days %}Written answers are automatically removed {{ answer_retention_days }} days after your session date. Your name and appointment details remain available for administration.{% else %}Written answers are kept until the supporters remove them.{% endif %}</p>
+        <p>Share only what you feel comfortable sharing and what will help with your session. This is informal peer support, rather than professional or crisis support.</p>
+    </div>
+    <label class="student-check"><input type="checkbox" name="privacy" value="yes" required><span>I have read how my information will be used and understand that I must confirm my appointment by email.</span></label>
+    <button type="submit" class="btn btn-primary btn-large">Email me a confirmation link</button>
+    <p class="student-muted">Your selected time is held for 20 minutes. Your appointment is confirmed only after you follow the email link and press Confirm appointment.</p>
+</form>
+<aside class="student-sidebar">
+    <section class="student-card"><h2>Meet your supporters</h2><h3>Sungji</h3><p>Fridays, online or in person.</p><h3>Marilena</h3><p>Sundays, online.</p><p class="student-muted">Only dates the supporters have published appear in the appointment list.</p></section>
+    <section class="student-card"><h2>Coming in person?</h2><p>Book and confirm by <strong>Thursday at 10am</strong>, London time. After this deadline, Friday appointments are available online only.</p><p>Pan Macmillan HQ<br>6 Briset Street<br>London EC1M 5NR</p><p>Sessions take place in Rose Room 4.4 or a semi-open green booth on the fourth floor, depending on availability. A private room cannot be guaranteed.</p><a href="/help-sheet">Read the venue help sheet</a></section>
+    <section class="student-card"><h2>What happens next?</h2><ol><li>Choose a time and fill in the form.</li><li>Confirm using the link in your email.</li><li>Your supporter receives the appointment notification. Online joining details arrive by email.</li></ol><p>You can cancel using your private appointment link.</p></section>
+</aside>
+</div>
+{% else %}
+<section class="student-card student-empty"><h2>No appointments are available to book just now</h2><p>Our supporters add dates when their availability is confirmed. Please check back soon.</p><a href="/peer-support" class="btn btn-secondary">About student support</a></section>
+{% endif %}
+<p class="student-portal-link"><a href="{{ url_for('student_login') }}">Supporter sign in</a></p>
+{% endblock %}
+{% block scripts %}
+<script>
+const slot = document.getElementById('student-slot');
+if (slot) {
+    const locationSelect = document.getElementById('student-location');
+    const inPerson = document.getElementById('student-in-person');
+    const help = document.getElementById('student-location-help');
+    function updateMobility() {
+        const inPersonSelected = locationSelect.value === 'in_person';
+        document.getElementById('student-mobility').hidden = !inPersonSelected;
+        document.getElementById('student-mobility-answer').required = inPersonSelected;
+    }
+    locationSelect.addEventListener('change', updateMobility);
+    function updateLocation() {
+        const allowed = slot.selectedOptions[0]?.dataset.inPerson === 'yes';
+        document.getElementById('student-selection-summary').textContent = slot.value ? slot.selectedOptions[0].textContent : '';
+        inPerson.disabled = !allowed;
+        if (!allowed) locationSelect.value = 'online';
+        updateMobility();
+        help.textContent = allowed ? 'Online or in person. In-person appointments must be confirmed before Thursday at 10am London time.' : 'This appointment is online only. In-person booking is available on eligible Fridays before Thursday at 10am London time.';
+        if (!slot.value) help.textContent = 'Choose an appointment to see whether in-person booking is available.';
+    }
+    slot.addEventListener('change', updateLocation);
+    updateLocation();
+}
+</script>
+{% endblock %}

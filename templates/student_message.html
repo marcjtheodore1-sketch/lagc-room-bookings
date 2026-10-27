@@ -1,0 +1,9 @@
+{% extends 'student_base.html' %}
+{% block student_content %}
+<section class="student-card student-message">
+    <p class="student-eyebrow">London Autism Group Charity</p>
+    <h1>{{ title }}</h1><p>{{ message }}</p>
+    {% if action %}<form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-primary" type="submit">{{ action }}</button></form>{% endif %}
+    <p><a href="{{ url_for('student_book') }}">Back to appointments</a></p>
+</section>
+{% endblock %}

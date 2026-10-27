@@ -1571,6 +1571,12 @@ def scheduled_reminder_trigger():
         app.logger.exception('Building report job unavailable')
         building_counts = {'sent': 0, 'failed': 1, 'skipped': 0}
     try:
+        from student_support import maintain_student_records
+        maintain_student_records()
+    except Exception:
+        db.session.rollback()
+        app.logger.warning('Student support record maintenance needs checking')
+    try:
         counts = run_reminder_job()
     except RuntimeError:
         app.logger.exception('Reminder job unavailable')
@@ -1584,6 +1590,10 @@ register_date_reminder_routes(app)
 
 from room_requests import register_routes as register_room_request_routes
 register_room_request_routes(app, admin_required)
+
+# Separate records and authentication from the shared F@F administrator login.
+from student_support import register_student_support
+register_student_support(app, db)
 
 @app.route('/admin')
 def admin():

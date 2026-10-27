@@ -1,0 +1,17 @@
+{% extends 'student_base.html' %}
+{% set title = 'Your student support appointment' %}
+{% block student_content %}
+<section class="student-card student-message">
+    <p class="student-eyebrow">{{ booking.status|capitalize }}</p><h1>Your student support appointment</h1>
+    <p><strong>{{ slot_label(booking.slot) }}</strong></p>
+    <p>{{ 'Online' if booking.location == 'online' else 'In person at Pan Macmillan HQ, 6 Briset Street, London EC1M 5NR' }}</p>
+    {% if booking.status == 'confirmed' %}
+        {% if booking.location == 'online' %}
+            {% if booking.slot.meeting_url %}<p><a class="btn btn-primary" href="{{ booking.slot.meeting_url }}" rel="noreferrer noopener">Join your online session</a></p>{% else %}<p>Your supporter will email you the joining details before your session.</p>{% endif %}
+        {% else %}<p>Your session will take place in Rose Room 4.4 or a semi-open green booth on the fourth floor, depending on availability. A private room cannot be guaranteed.</p><p>Your full name is included on the reception attendance list. <a href="/help-sheet">Read the venue help sheet</a>.</p>{% endif %}
+        <p>Keep this page private. Your session lasts 45 minutes.</p>
+        <details><summary>Need to cancel?</summary><p>Cancelling releases your place so someone else can book it. A cancellation after Thursday at 10am will not change the reception list already sent for that Friday.</p><form method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button type="submit" class="btn btn-secondary">Cancel my appointment</button></form></details>
+    {% else %}<p>This appointment is {{ booking.status }}.</p>{% endif %}
+    <p><a href="{{ url_for('student_book') }}">View available appointments</a></p>
+</section>
+{% endblock %}
