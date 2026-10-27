@@ -1,9 +1,10 @@
-"""Student appointments with their own private, email-verified supporter access.
+"""Student appointments with their own private, shared-password supporter access.
 
 No student record is a room Booking. Only confirmed in-person names are exposed
 through reception_names(); answers never enter general admin exports or email.
 """
 import hashlib
+import os
 import re
 import secrets
 from datetime import datetime, timedelta
@@ -14,6 +15,7 @@ from zoneinfo import ZoneInfo
 
 from flask import abort, g, make_response, redirect, render_template, request, url_for
 from sqlalchemy.exc import IntegrityError
+from werkzeug.security import check_password_hash
 
 LONDON = ZoneInfo('Europe/London')
 SUPPORTERS = {
@@ -21,7 +23,10 @@ SUPPORTERS = {
     'marilena': {'name': 'Marilena', 'email': 'marilena.eleftheriou@yahoo.com', 'weekday': 6},
 }
 COOKIE = 'student_support_session'
-LOGIN_NOTICE = 'If this is an authorised supporter address, a private sign-in link will arrive shortly.'
+
+def shared_identity():
+    return 'shared-' + digest(_app.config.get('STUDENT_SUPPORT_PASSWORD_HASH', ''))[:12]
+
 
 
 def now_london():
@@ -191,6 +196,7 @@ def register_student_support(app, db):
     _app, _db = app, db
     app.config.setdefault('STUDENT_COOKIE_SECURE', True)
     app.config.setdefault('STUDENT_ANSWER_RETENTION_DAYS', None)
+    app.config.setdefault('STUDENT_SUPPORT_PASSWORD_HASH', os.environ.get('STUDENT_SUPPORT_PASSWORD_HASH', ''))
 
     class StudentSlot(db.Model):
         id = db.Column(db.Integer, primary_key=True)
@@ -241,17 +247,19 @@ def register_student_support(app, db):
     def page(template, **context):
         return render_template(template, csrf_token=csrf_token(), supporters=SUPPORTERS,
             slot_label=slot_label, display_time=display_time,
-            answer_retention_days=app.config['STUDENT_ANSWER_RETENTION_DAYS'], **context)
+            answer_retention_days=app.config['STUDENT_ANSWER_RETENTION_DAYS'],
+            password_ready=bool(app.config['STUDENT_SUPPORT_PASSWORD_HASH']), **context)
 
     def ip_hash():
-        return digest(str(app.secret_key) + ':' + (request.remote_addr or ''))
+        return digest(app.config['STUDENT_SUPPORT_PASSWORD_HASH'] + ':' + (request.remote_addr or ''))
 
     def private_required(view):
         @wraps(view)
         def wrapped(*args, **kwargs):
             token = request.cookies.get(COOKIE, '')
             access = StudentAccess.query.filter_by(token_hash=digest(token), kind='session').first() if token else None
-            if not access or access.expires_at <= datetime.utcnow() or access.supporter not in SUPPORTERS:
+            if (not app.config['STUDENT_SUPPORT_PASSWORD_HASH'] or not access
+                    or access.expires_at <= datetime.utcnow() or access.supporter != shared_identity()):
                 return redirect(url_for('student_login'))
             g.student_supporter = access.supporter
             g.student_access = access
@@ -382,46 +390,31 @@ def register_student_support(app, db):
         if request.method == 'GET':
             return page('student_login.html')
         check_csrf()
-        email = request.form.get('email', '').strip().lower()
+        password_hash = app.config['STUDENT_SUPPORT_PASSWORD_HASH']
+        if not password_hash:
+            return page('student_login.html', error='The shared password has not been set yet.'), 503
         now = datetime.utcnow()
-        # Persist rejected attempts too, so an unknown-email flood is limited.
-        recent = StudentAccess.query.filter(StudentAccess.kind == 'attempt', StudentAccess.ip_hash == ip_hash(), StudentAccess.created_at > now - timedelta(hours=1)).count()
+        recent = StudentAccess.query.filter(StudentAccess.kind == 'password_attempt',
+            StudentAccess.ip_hash == ip_hash(), StudentAccess.created_at > now - timedelta(hours=1)).count()
         if recent >= 10:
-            return page('student_login.html', notice=LOGIN_NOTICE)
-        supporter = next((key for key, item in SUPPORTERS.items() if item['email'] == email), None)
-        recent_email = StudentAccess.query.filter(StudentAccess.kind == 'login', StudentAccess.supporter == supporter, StudentAccess.created_at > now - timedelta(minutes=5)).first() if supporter else None
-        db.session.add(StudentAccess(token_hash=digest(secrets.token_urlsafe(32)), kind='attempt', ip_hash=ip_hash(), expires_at=now + timedelta(hours=1)))
+            return page('student_login.html', error='Too many sign-in attempts. Try again in an hour.'), 429
+        db.session.add(StudentAccess(token_hash=digest(secrets.token_urlsafe(32)), kind='password_attempt',
+            ip_hash=ip_hash(), expires_at=now + timedelta(hours=1)))
         db.session.commit()
-        if supporter and not recent_email:
-            from app import reminder_base_url
-            token = secrets.token_urlsafe(32)
-            access = StudentAccess(token_hash=digest(token), supporter=supporter, kind='login', ip_hash=ip_hash(), expires_at=now + timedelta(minutes=15))
-            db.session.add(access)
-            db.session.commit()
-            try:
-                deliver(email, 'Your private student support sign-in link', 'Sign in to the student support portal:\n\n' + reminder_base_url() + '/peer-support/supporter/access/' + token + '\n\nThis single-use link expires in 15 minutes. Do not forward it. Opening the link alone does not sign you in.')
-            except Exception:
-                app.logger.warning('Student supporter login email delivery could not be verified')
-        return page('student_login.html', notice=LOGIN_NOTICE)
-
-    @app.route('/peer-support/supporter/access/<token>', methods=['GET', 'POST'])
-    def student_access(token):
-        access = StudentAccess.query.filter_by(token_hash=digest(token), kind='login').first_or_404()
-        if access.expires_at <= datetime.utcnow() or access.supporter not in SUPPORTERS:
-            abort(410)
-        if request.method == 'GET':
-            return page('student_message.html', title='Sign in to student support', message='Continue as ' + SUPPORTERS[access.supporter]['name'] + '. Use this portal only on a device you trust.', action='Sign in')
-        check_csrf()
+        password = request.form.get('password', '')
+        try:
+            valid = bool(password) and len(password) <= 1024 and check_password_hash(password_hash, password)
+        except ValueError:
+            valid = False
+        if not valid:
+            return page('student_login.html', error='That password is not correct. Try again.'), 401
         raw = secrets.token_urlsafe(32)
-        # Consume the login atomically; mail scanners cannot consume GET links.
-        claimed = StudentAccess.query.filter_by(id=access.id, kind='login').update({'kind': 'used'}, synchronize_session=False)
-        if not claimed:
-            db.session.rollback()
-            abort(409)
-        db.session.add(StudentAccess(token_hash=digest(raw), supporter=access.supporter, kind='session', ip_hash=ip_hash(), expires_at=datetime.utcnow() + timedelta(hours=8)))
+        db.session.add(StudentAccess(token_hash=digest(raw), supporter=shared_identity(), kind='session',
+            ip_hash=ip_hash(), expires_at=now + timedelta(hours=8)))
         db.session.commit()
         response = make_response(redirect(url_for('student_supporter')))
-        response.set_cookie(COOKIE, raw, max_age=8 * 3600, secure=app.config['STUDENT_COOKIE_SECURE'], httponly=True, samesite='Lax', path='/peer-support')
+        response.set_cookie(COOKIE, raw, max_age=8 * 3600, secure=app.config['STUDENT_COOKIE_SECURE'],
+            httponly=True, samesite='Lax', path='/peer-support')
         return response
 
     @app.route('/peer-support/supporter', methods=['GET'])
@@ -433,7 +426,7 @@ def register_student_support(app, db):
         bookings = StudentBooking.query.filter(StudentBooking.status.in_(['confirmed', 'cancelled'])).order_by(StudentBooking.created_at.desc()).limit(200).all()
         failures = StudentMail.query.filter(StudentMail.status != 'sent').order_by(StudentMail.id.desc()).limit(50).all()
         return page('student_supporter.html', slots=slots, bookings=bookings, failures=failures,
-            signed_in=SUPPORTERS[g.student_supporter]['name'], notice=request.args.get('notice'))
+            notice=request.args.get('notice'))
 
     @app.route('/peer-support/supporter/logout', methods=['POST'])
     @private_required

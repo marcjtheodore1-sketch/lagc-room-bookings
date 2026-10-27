@@ -1,12 +1,18 @@
 {% extends 'student_base.html' %}
-{% set title = 'Supporter sign in' %}
+{% set title = 'Student Support sign in' %}
 {% block student_content %}
 <section class="student-card student-message">
-    <p class="student-eyebrow">Private supporter portal</p>
-    <h1>Welcome, Sungji and Marilena</h1>
-    <p>Use your authorised email address to receive a single-use sign-in link. This portal has separate access from the general F@F admin area.</p>
-    {% if notice %}<p class="student-notice" role="status">{{ notice }}</p>{% endif %}
-    <form method="post" class="student-form"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><label for="supporter-email">Your email address</label><input id="supporter-email" type="email" autocomplete="email" name="email" required maxlength="254"><button type="submit" class="btn btn-primary">Email my sign-in link</button></form>
-    <p class="student-muted">Links expire after 15 minutes. Sign-in sessions last up to eight hours. Do not forward your link, and sign out on shared devices.</p>
+    <p class="student-eyebrow">Private student support portal</p>
+    <h1>Welcome, Sungji, Marilena and Chris</h1>
+    <p>Enter your shared Student Support password. This is separate from the general F@F admin password.</p>
+    {% if error %}<p class="student-alert" role="alert">{{ error }}</p>{% endif %}
+    {% if not password_ready %}<p class="student-notice" role="status">The preview login is ready. The shared password still needs to be set.</p>{% endif %}
+    <form method="post" class="student-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label for="supporter-password">Student Support password</label>
+        <input id="supporter-password" type="password" autocomplete="current-password" name="password" required maxlength="1024" {% if not password_ready %}disabled{% endif %}>
+        <button type="submit" class="btn btn-primary" {% if not password_ready %}disabled{% endif %}>Sign in</button>
+    </form>
+    <p class="student-muted">Keep this password within your team of three. Sessions last up to eight hours. Sign out when you finish, especially on a shared device.</p>
 </section>
 {% endblock %}

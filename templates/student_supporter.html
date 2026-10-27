@@ -1,7 +1,7 @@
 {% extends 'student_base.html' %}
 {% set title = 'Supporter portal' %}
 {% block student_content %}
-<header class="student-hero"><p class="student-eyebrow">Private supporter portal</p><h1>Hello, {{ signed_in }}</h1><p>You and your fellow supporter can manage both calendars and view student booking forms here.</p><form method="post" action="{{ url_for('student_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-secondary">Sign out</button></form></header>
+<header class="student-hero"><p class="student-eyebrow">Private supporter portal</p><h1>Student support portal</h1><p>Private access for Sungji, Marilena and Chris to manage both calendars and view student booking forms.</p><form method="post" action="{{ url_for('student_logout') }}"><input type="hidden" name="csrf_token" value="{{ csrf_token }}"><button class="btn btn-secondary">Sign out</button></form></header>
 {% if notice %}<p class="student-notice" role="status">{{ notice }}</p>{% endif %}
 <div class="student-layout">
 <section class="student-card"><h2>Student appointments</h2><p class="student-muted">{% if answer_retention_days %}Written answers are automatically removed {{ answer_retention_days }} days after the session date.{% else %}Written answers are kept until manually removed.{% endif %}</p><p class="student-muted">The latest 200 confirmed or cancelled appointments. Private answers are shown only here. Email notifications contain appointment details without the booking-form answers.</p>

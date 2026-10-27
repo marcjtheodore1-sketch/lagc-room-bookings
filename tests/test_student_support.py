@@ -9,9 +9,11 @@ from datetime import date, datetime, timedelta
 from unittest.mock import patch
 from zoneinfo import ZoneInfo
 from app import app, db
+from werkzeug.security import generate_password_hash
 from student_support import (StudentSlot, StudentBooking, StudentAccess, StudentMail,
     digest, slot_label, in_person_open, reception_names)
-app.config.update(TESTING=True, STUDENT_COOKIE_SECURE=False)
+app.config.update(TESTING=True, STUDENT_COOKIE_SECURE=False,
+    STUDENT_SUPPORT_PASSWORD_HASH=generate_password_hash('preview-test-only', method='pbkdf2:sha256:1000'))
 client = app.test_client()
 sent = []
 patch('student_support.deliver', side_effect=lambda *args: sent.append(args)).start()
@@ -30,9 +32,10 @@ def confirm_booking():
     token = re.search(r'/confirm/(\S+)', sent[-1][2]).group(1)
     return client.post('/peer-support/confirm/' + token, data={'csrf_token': csrf()})
 def login(supporter='sungji'):
-    from student_support import COOKIE
+    from student_support import COOKIE, shared_identity
     raw = 'test-private-session-' + supporter
-    db.session.add(StudentAccess(token_hash=digest(raw), supporter=supporter, kind='session',
+    identity = shared_identity() if supporter in ('sungji', 'marilena', 'chris') else supporter
+    db.session.add(StudentAccess(token_hash=digest(raw), supporter=identity, kind='session',
         ip_hash='test', expires_at=datetime.utcnow() + timedelta(hours=1)))
     db.session.commit()
     client.set_cookie(COOKIE, raw, path='/peer-support')
@@ -136,25 +139,24 @@ class StudentSupportTest(unittest.TestCase):
         self.assertEqual(result['cache'], 'no-store, private')
         self.assertEqual(result['referrer'], 'no-referrer')
 
-    def test_login_allowlist_get_is_read_only_single_use_and_logout_revokes(self):
+    def test_shared_password_login_rejects_other_password_and_logout_revokes(self):
         result = run_case(r'''
-    csrf()
-    bad = client.post('/peer-support/supporter/login', data={'csrf_token': csrf(), 'email':'outsider@example.test'})
-    bad_sent = len(sent)
-    good = client.post('/peer-support/supporter/login', data={'csrf_token': csrf(), 'email':'sungji.lagc@gmail.com'})
-    token = re.search(r'/access/(\S+)', sent[-1][2]).group(1)
-    url = '/peer-support/supporter/access/' + token
-    get = client.get(url)
+    get = client.get('/peer-support/supporter/login')
+    bad = client.post('/peer-support/supporter/login', data={'csrf_token': csrf(), 'password':app.config['ADMIN_PASSWORD']})
     still_private = client.get('/peer-support/supporter')
-    entered = client.post(url, data={'csrf_token':csrf()})
+    good = client.post('/peer-support/supporter/login', data={'csrf_token': csrf(), 'password':'preview-test-only'})
     portal = client.get('/peer-support/supporter')
-    replay = client.post(url, data={'csrf_token':csrf()})
     logout = client.post('/peer-support/supporter/logout', data={'csrf_token':csrf()})
     after = client.get('/peer-support/supporter')
-    print(json.dumps(dict(bad_sent=bad_sent, get=get.status_code, still_private=still_private.status_code,
-        entered=entered.status_code, portal=portal.status_code, replay=replay.status_code, after=after.status_code)))
+    print(json.dumps(dict(get=get.status_code, bad=bad.status_code, still_private=still_private.status_code,
+        good=good.status_code, portal=portal.status_code, after=after.status_code, sent=len(sent),
+        rendered=get.get_data(as_text=True))))
 ''')
-        self.assertEqual(result, {'bad_sent': 0, 'get': 200, 'still_private': 302, 'entered': 302, 'portal': 200, 'replay': 404, 'after': 302})
+        html = result.pop('rendered')
+        self.assertNotIn('preview-test-only', html)
+        self.assertIn('type="password"', html)
+        self.assertIn('Chris', html)
+        self.assertEqual(result, {'get':200, 'bad':401, 'still_private':302, 'good':302, 'portal':200, 'after':302, 'sent':0})
 
     def test_csrf_cookie_expiry_and_unknown_identity_fail_closed(self):
         result = run_case(r'''
@@ -296,10 +298,10 @@ class StudentSupportTest(unittest.TestCase):
         result = run_case(r'''
     token = csrf()
     app.secret_key = 'different-worker-secret'
-    posted = client.post('/peer-support/supporter/login', data={'csrf_token':token, 'email':'sungji.lagc@gmail.com'})
+    posted = client.post('/peer-support/supporter/login', data={'csrf_token':token, 'password':'preview-test-only'})
     print(json.dumps(dict(posted=posted.status_code, sent=len(sent))))
 ''')
-        self.assertEqual(result, {'posted': 200, 'sent': 1})
+        self.assertEqual(result, {'posted': 302, 'sent': 0})
 
     def test_slot_withdrawal_preserves_booking_and_link_can_be_updated(self):
         result = run_case(r'''
@@ -370,3 +372,27 @@ class StudentSupportTest(unittest.TestCase):
     print(json.dumps(dict(missing=missing.status_code, good=good.status_code, status=booking.status, name=booking.name, answers=[booking.studying,booking.goals,booking.questions])))
 ''')
         self.assertEqual(result, {'missing':400, 'good':302, 'status':'confirmed', 'name':'Alex Student', 'answers':['','','']})
+
+    def test_unset_password_and_old_email_links_cannot_grant_access(self):
+        result = run_case(r'''
+    login()
+    app.config['STUDENT_SUPPORT_PASSWORD_HASH']=''
+    portal=client.get('/peer-support/supporter')
+    post=client.post('/peer-support/supporter/login', data={'csrf_token':csrf(), 'password':'preview-test-only'})
+    legacy=client.get('/peer-support/supporter/access/old-email-token')
+    print(json.dumps(dict(portal=portal.status_code, post=post.status_code, legacy=legacy.status_code, sent=len(sent))))
+''')
+        self.assertEqual(result, {'portal':302,'post':503,'legacy':404,'sent':0})
+
+    def test_password_rotation_revokes_sessions_and_attempt_limit_survives_worker_key_change(self):
+        result = run_case(r'''
+    login()
+    app.config['STUDENT_SUPPORT_PASSWORD_HASH']=generate_password_hash('different-test-password', method='pbkdf2:sha256:1000')
+    revoked=client.get('/peer-support/supporter')
+    for index in range(10):
+        app.secret_key='worker-'+str(index)
+        reply=client.post('/peer-support/supporter/login', data={'csrf_token':csrf(), 'password':'wrong'})
+    blocked=client.post('/peer-support/supporter/login', data={'csrf_token':csrf(), 'password':'different-test-password'})
+    print(json.dumps(dict(revoked=revoked.status_code, last=reply.status_code, blocked=blocked.status_code)))
+''')
+        self.assertEqual(result, {'revoked':302, 'last':401, 'blocked':429})
