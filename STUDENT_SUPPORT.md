@@ -34,6 +34,8 @@ availability, check and move any existing Calendly appointments, so the same tim
 is not offered twice. Only Friday 30th October 2026 remains in the supplied future
 availability; Sunday 1st November in the local preview is fictional test data.
 
+Both Sungji and Marilena can add and publish online availability on any day of
+the week. There are no fixed weekdays assigned to either supporter.
 Sungji offers online sessions and, on scheduled F@F Fridays before the deadline,
 in-person sessions. Marilena's sessions are online. In-person requests must be
 booked **and email-confirmed before Thursday at 10am London time**. After the
@@ -61,8 +63,8 @@ Student records are separate from room bookings, general admin lists, CSV export
 public availability and general mailshots. Written answers are displayed only
 inside the admin portal. Template rendering escapes names and answers.
 Notifications omit questionnaire answers. Confirmation and cancellation notices go
-separately to the student and the assigned supporter. Friday notifications go to
-Sungji; Sunday notifications go to Marilena. No emails go to the other supporter.
+separately to the student and the assigned supporter, according to the supporter
+selected for that slot rather than the day of the week. No emails go to the other supporter.
 
 Only confirmed in-person student names and Sungji's name feed the existing building
 report. They are deduplicated with ordinary attendee and volunteer names. The
@@ -132,9 +134,11 @@ APP_ENV_FILE=/nonexistent ENABLE_EMAIL=false RENDER=1 \
 RENDER_DISK_PATH="$(mktemp -d)" venv/bin/python -m unittest discover -s tests -q
 ```
 
-The updated suite covers 22 student-support tests, including password isolation,
+The updated suite covers 24 student-support tests, including availability on all
+seven weekdays for both supporters, notification routing independent of the day,
+Friday-only in-person safeguards, password isolation,
 missing configuration, obsolete email links, rotation, rate limits and shared-admin
-exclusion. The full updated run had 94 tests: 93 passed and one existing test
+exclusion. The full updated run had 96 tests: 95 passed and one existing test
 was skipped. The other student-support tests cover double-booking races, expiry, confirmation, routing,
 CSRF, shared-admin exclusion, cancellation, publication/date restrictions, meeting
 links, reception privacy, the aggregate mobility flag and answer retention. Browser checks use only

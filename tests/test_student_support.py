@@ -196,14 +196,61 @@ class StudentSupportTest(unittest.TestCase):
     data = dict(csrf_token=csrf(), supporter='marilena', day='2026-11-08', start='10:00', end='13:00', in_person='yes')
     added = client.post('/peer-support/supporter/slots', data=data)
     drafts = StudentSlot.query.filter_by(day=date(2026,11,8)).all()
-    wrongday = client.post('/peer-support/supporter/slots', data={**data, 'day':'2026-11-09'})
+    otherday = client.post('/peer-support/supporter/slots', data={**data, 'day':'2026-11-09'})
+    unknown = client.post('/peer-support/supporter/slots', data={**data, 'supporter':'unknown'})
     half = client.post('/peer-support/supporter/slots', data={**data, 'start':'10:30'})
     unsafe = client.post('/peer-support/supporter/slots', data={**data, 'meeting_url':'javascript:alert(1)'})
-    print(json.dumps(dict(added=added.status_code, slots=[(s.start_time,s.in_person,s.published) for s in drafts], wrongday=wrongday.status_code, half=half.status_code, unsafe=unsafe.status_code)))
+    print(json.dumps(dict(added=added.status_code, slots=[(s.start_time,s.in_person,s.published) for s in drafts], otherday=otherday.status_code, unknown=unknown.status_code, half=half.status_code, unsafe=unsafe.status_code)))
 ''')
         self.assertEqual(result['added'], 302)
         self.assertEqual(result['slots'], [['10:00', False, False], ['11:00', False, False], ['12:00', False, False]])
-        self.assertEqual((result['wrongday'], result['half'], result['unsafe']), (400, 400, 400))
+        self.assertEqual(result['otherday'], 302)
+        self.assertEqual((result['unknown'], result['half'], result['unsafe']), (400, 400, 400))
+
+    def test_both_supporters_can_publish_any_weekday_and_receive_own_notifications(self):
+        result = run_case(r'''
+    login()
+    responses = []
+    for supporter in ('sungji', 'marilena'):
+        for offset in range(7):
+            day = date(2026,11,2) + timedelta(days=offset)
+            response = client.post('/peer-support/supporter/slots', data=dict(
+                csrf_token=csrf(), supporter=supporter, day=day.isoformat(),
+                start='14:00', end='15:00', published='yes'))
+            responses.append(response.status_code)
+    page = client.get('/peer-support/book').get_data(as_text=True)
+    admin = client.get('/peer-support/supporter').get_data(as_text=True)
+    recipients = []
+    for supporter, day in [('marilena', date(2026,11,6)), ('sungji', date(2026,11,2))]:
+        slot = StudentSlot.query.filter_by(supporter=supporter, day=day).one()
+        assert f'value="{slot.id}"' in page
+        assert request_booking(slot_id=slot.id).status_code == 200
+        assert confirm_booking().status_code == 302
+        recipients.append(sent[-1][0])
+    print(json.dumps(dict(responses=responses, recipients=recipients,
+        names=reception_names(date(2026,11,6)),
+        old_labels=('Sungji (Fridays)' in admin or 'Marilena (Sundays)' in admin))))
+''')
+        self.assertEqual(result['responses'], [302] * 14)
+        self.assertEqual(result['recipients'], ['marilena.eleftheriou@yahoo.com', 'sungji.lagc@gmail.com'])
+        self.assertEqual(result['names'], [[], []])
+        self.assertFalse(result['old_labels'])
+
+    def test_in_person_still_requires_sungji_and_a_scheduled_friday(self):
+        result = run_case(r'''
+    login()
+    data = dict(csrf_token=csrf(), supporter='sungji', day='2026-11-02',
+        start='10:00', end='11:00', in_person='yes', published='yes')
+    with patch('app.get_room_schedule_ids', return_value={'2026-11-02':[1]}):
+        monday = client.post('/peer-support/supporter/slots', data=data)
+    unscheduled = client.post('/peer-support/supporter/slots', data={**data, 'day':'2026-11-06'})
+    marilena = client.post('/peer-support/supporter/slots', data={**data, 'supporter':'marilena', 'day':'2026-10-30'})
+    slot = StudentSlot.query.filter_by(supporter='marilena', day=date(2026,10,30)).one()
+    rejected = request_booking(slot_id=slot.id, location='in_person')
+    print(json.dumps(dict(monday=monday.status_code, unscheduled=unscheduled.status_code,
+        marilena=marilena.status_code, in_person=slot.in_person, rejected=rejected.status_code)))
+''')
+        self.assertEqual(result, {'monday':400, 'unscheduled':400, 'marilena':302, 'in_person':False, 'rejected':409})
 
     def test_report_deduplicates_names_without_answers_or_contact_details(self):
         result = run_case(r'''

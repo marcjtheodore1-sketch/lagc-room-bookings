@@ -19,8 +19,8 @@ from werkzeug.security import check_password_hash
 
 LONDON = ZoneInfo('Europe/London')
 SUPPORTERS = {
-    'sungji': {'name': 'Sungji', 'email': 'sungji.lagc@gmail.com', 'weekday': 4},
-    'marilena': {'name': 'Marilena', 'email': 'marilena.eleftheriou@yahoo.com', 'weekday': 6},
+    'sungji': {'name': 'Sungji', 'email': 'sungji.lagc@gmail.com'},
+    'marilena': {'name': 'Marilena', 'email': 'marilena.eleftheriou@yahoo.com'},
 }
 COOKIE = 'student_support_session'
 
@@ -447,8 +447,8 @@ def register_student_support(app, db):
             end = datetime.strptime(request.form.get('end', ''), '%H:%M').time()
         except ValueError:
             abort(400, 'Enter a date and valid start and end times.')
-        if supporter not in SUPPORTERS or day.weekday() != SUPPORTERS[supporter]['weekday']:
-            abort(400, 'Sungji appointments must be on Fridays and Marilena appointments on Sundays.')
+        if supporter not in SUPPORTERS:
+            abort(400, 'Choose Sungji or Marilena as the supporter.')
         first = datetime.combine(day, start, tzinfo=LONDON)
         last = datetime.combine(day, end, tzinfo=LONDON)
         hours = (last - first).total_seconds() / 3600
@@ -459,7 +459,7 @@ def register_student_support(app, db):
             abort(400, 'Online joining links must be HTTPS URLs without spaces.')
         in_person = supporter == 'sungji' and request.form.get('in_person') == 'yes'
         from app import get_room_schedule_ids, booking_deadline
-        if in_person and (not get_room_schedule_ids().get(day.isoformat()) or now_london() >= booking_deadline(day)):
+        if in_person and (day.weekday() != 4 or not get_room_schedule_ids().get(day.isoformat()) or now_london() >= booking_deadline(day)):
             abort(400, 'In-person appointments need a scheduled F@F Friday before Thursday at 10am.')
         for hour in range(int(hours)):
             hhmm = (first + timedelta(hours=hour)).strftime('%H:%M')
