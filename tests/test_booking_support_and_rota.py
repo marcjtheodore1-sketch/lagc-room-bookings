@@ -28,9 +28,9 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                         response = client.post('/api/book', json=dict(companion_body, companions=bad, companion_names='Jo (friend)'))
                         assert response.status_code == 400, response.get_json()
                     response = client.post('/api/book', json=dict(companion_body, email='companions@example.test',
-                        companions=[dict(first_name=' Sam ', last_name=' Smith '), dict(first_name='Jo', last_name='Jones')]))
+                        companions=[dict(first_name=' Sam ', last_name=' Smith ')]))
                     assert response.status_code == 200, response.get_json()
-                    assert Booking.query.filter_by(user_email='companions@example.test').one().companion_names == 'Sam Smith; Jo Jones'
+                    assert Booking.query.filter_by(user_email='companions@example.test').one().companion_names == 'Sam Smith'
                     carer = dict(body, mobility_needs=True, mobility_details='Step-free access',
                         accessibility_needs='Quiet space', bringing_others=True, companions=[dict(first_name='Jo', last_name='Smith')],
                         carer_attending=True, attendee_type='carer', carer_name='Legacy name', carer_organisation='Family',
@@ -69,10 +69,10 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 assert saved['Mobility needs'] == 'Yes' and saved['Mobility details'] == 'Step-free access'
                 assert next(r for r in rows if r['Name'] == 'Legacy')['Mobility needs'] == 'Not yet asked'
                 assert client.get('/api/admin/bookings/archive').status_code == 200
-                assert client.get('/api/open-booking-counts').json[0]['count'] == 7
-                assert client.get('/api/admin/booking-counts').json[0]['count'] == 7
+                assert client.get('/api/open-booking-counts').json[0]['count'] == 6
+                assert client.get('/api/admin/booking-counts').json[0]['count'] == 6
                 with patch('app.get_room_schedule_ids', return_value={'2099-01-02': [room.id]}):
-                    assert client.get('/api/rooms?date=2099-01-02').json[0]['booking_count'] == 7
+                    assert client.get('/api/rooms?date=2099-01-02').json[0]['booking_count'] == 6
                 old = Booking(bringing_others=True, carer_attending=True, companion_names='Jo (carer)')
                 assert attendee_count(old) == 2
                 old.companion_names = 'Jo Smith; Sam Jones'

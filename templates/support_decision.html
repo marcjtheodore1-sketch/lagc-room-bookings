@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Decision saved</h1>
+{% if delivered %}<p>The decision email was sent.</p>{% else %}<p role="alert">Email delivery could not be confirmed. Check the sent mailbox and contact the person if needed. The decision is saved; do not submit it again.</p>{% if approval_link %}<p>Private booking link to share directly with the person if needed:</p><p><a href="{{ approval_link }}">{{ approval_link }}</a></p>{% endif %}{% endif %}
+<p><a href="/admin/support-requests">Back to support requests</a></p>
+{% endblock %}

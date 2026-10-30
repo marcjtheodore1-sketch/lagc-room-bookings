@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Request additional support people | Fridays @ Farringdon{% endblock %}
+{% block content %}
+<div class="reminder-page">
+    <h1>Need more than one support person?</h1>
+    <p>You can normally bring <strong>one companion or carer</strong>. If you need more than one person to support you, explain what would help and we will review your request.</p>
+    <p><strong>This is a support request, not a booking.</strong> Wait for our decision, then use your approval link to book before Thursday at 10am (London time). We cannot guarantee a room will still be available.</p>
+    <p>This space is for autistic and neurodivergent adults attending through LAGC. Each person attending in their own right must book separately. It cannot be used for unrelated group or team meetings.</p>
+    {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
+    {% if notice %}<p class="notice-box" role="status">{{ notice }}</p>{% else %}
+    {% set values = values or {} %}
+    <form method="post" class="reminder-form">
+        <div class="form-group"><label for="support-date">Which Friday?</label><select id="support-date" name="date" required><option value="">Choose a Friday</option>{% for day in dates %}<option value="{{ day.date }}" {% if selected == day.date %}selected{% endif %}>{{ day.display }}</option>{% endfor %}</select></div>
+        <div class="form-group"><label for="support-name">Attending person's full first and last names</label><input id="support-name" name="name" autocomplete="name" maxlength="120" value="{{ values.get('name', '') }}" required></div>
+        <div class="form-group"><label for="support-email">Email for the decision and booking</label><input type="email" id="support-email" name="email" autocomplete="email" maxlength="120" value="{{ values.get('email', '') }}" required></div>
+        <div class="form-group"><label for="support-people">Full names of all support people, one per line</label><p class="hint">Put the lead carer first. Include everyone providing support, not people attending in their own right.</p><textarea id="support-people" name="supporters" rows="4" maxlength="4500" required>{{ values.get('supporters', '') }}</textarea></div>
+        <div class="form-group"><label for="support-reason">Why do you need more than one support person?</label><p class="hint">Explain the practical support you need. You do not need to give a diagnosis or medical history. Your explanation stays with LAGC and is not included in the venue's attendee list.</p><textarea id="support-reason" name="reason" rows="4" minlength="10" maxlength="2000" required>{{ values.get('reason', '') }}</textarea></div>
+        <button class="btn btn-primary" type="submit">Send support request</button>
+    </form>{% endif %}
+    <p><a href="/book">Back to room bookings</a></p>
+</div>
+{% endblock %}

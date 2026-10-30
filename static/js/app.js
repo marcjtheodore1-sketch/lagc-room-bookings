@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         showRegistrationClosed();
     }
 
+    initialiseSupportApproval();
+
     // A tab left open before the deadline must also stop offering registration.
     setInterval(refreshRegistrationDeadlines, 15000);
     window.addEventListener('focus', refreshRegistrationDeadlines);
@@ -653,6 +655,8 @@ function selectRoom(roomId) {
 // ============================================
 
 function showStep(stepName) {
+    const supportLink = document.getElementById('extra-support-link');
+    if (supportLink) supportLink.href = '/support-requests' + (state.selectedDate ? '?date=' + state.selectedDate : '');
     Object.keys(steps).forEach(key => {
         if (key === stepName) {
             steps[key].classList.remove('hidden');
@@ -866,6 +870,7 @@ function isCarerAttending() {
 
 function addCompanion() {
     const list = document.getElementById('companion-list');
+    if (list.children.length) return;
     const entry = document.getElementById('companion-template').content.cloneNode(true);
     entry.querySelector('.remove-companion').addEventListener('click', event => {
         event.target.closest('.companion-entry').remove();
@@ -885,7 +890,25 @@ function numberCompanions() {
 
 // The carer questions only appear once someone says a carer/support worker is
 // coming, so the form stays short for the common "just me" case.
+let supportApproval = null;
+function initialiseSupportApproval() {
+    supportApproval = JSON.parse(document.getElementById('support-approval-data').textContent);
+    if (!supportApproval) return;
+    const parts = supportApproval.name.split(' ');
+    elements.firstNameInput.value = parts.shift();
+    elements.lastNameInput.value = parts.join(' ');
+    elements.emailInput.value = supportApproval.email;
+    document.querySelector('input[name="bringing-others"][value="yes"]').checked = true;
+    document.querySelector('input[name="carer-attending"][value="yes"]').checked = true;
+    updateAttendeeFields();
+    const lead = supportApproval.people[0].split(' ');
+    document.getElementById('carer-first-name').value = lead.shift();
+    document.getElementById('carer-last-name').value = lead.join(' ');
+}
+
 function updateAttendeeFields() {
+    const link = document.getElementById('extra-support-link');
+    if (link) link.href = '/support-requests' + (state.selectedDate ? '?date=' + state.selectedDate : '');
     const bringing = isBringingOthers();
     const companions = document.getElementById('companions-field');
     const carerSection = document.getElementById('carer-section');
@@ -961,7 +984,6 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(renderMobilityHistory, 30000);
     document.querySelectorAll('input[name="bringing-others"], input[name="carer-attending"]')
         .forEach(radio => radio.addEventListener('change', updateAttendeeFields));
-    document.getElementById('add-companion').addEventListener('click', addCompanion);
     updateAttendeeFields();
 });
 
@@ -1151,6 +1173,7 @@ function resetAttendeeFields() {
         if (el) el.value = '';
     });
     updateAttendeeFields();
+    initialiseSupportApproval();
     resetYogaFields();
 }
 
@@ -1334,6 +1357,7 @@ async function submitBooking() {
     }
 
     const bookingData = {
+        support_approval_token: supportApproval?.token || '',
         room_id: state.selectedRoom.id,
         date: state.selectedDate,
         name: name,

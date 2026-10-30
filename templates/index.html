@@ -129,7 +129,11 @@
             </div>
 
             <div class="form-group">
-                <label>Will you be attending with anyone else (family member, carer, friend, etc.)?</label>
+                <label>Will you bring one companion or carer?</label>
+                <p class="hint"><strong>Book for one autistic or neurodivergent adult.</strong> You can bring one companion or carer. Anyone attending in their own right must make a separate booking. This space is not for unrelated group or team meetings.</p>
+                <p class="hint"><a id="extra-support-link" href="/support-requests">Need more than one support person? Request approval before booking.</a> Explain the practical support you need and LAGC will email its decision.</p>
+                {% if invalid_support_approval %}<p class="error-text" role="alert">This support approval link has expired or is invalid. Contact LAGC before booking with extra support people.</p>{% endif %}
+                {% if support_approval %}<div class="notice-box" id="approved-support-notice"><strong>Additional support approved for this Friday</strong><p>{{ support_approval.name }}: {{ support_approval.people|join(', ') }}. Enter the first named person as the lead carer. Approval does not reserve a room or extend the booking deadline.</p></div>{% endif %}
                 <p class="hint attending-hint">Our volunteers are hosts, not carers — they can't provide personal care, one-to-one support or supervision. <strong>If you need that kind of support during the day, you'll need to bring someone with you who provides it.</strong></p>
                 <div class="yoga-radio-group">
                     <label class="radio-option"><input type="radio" name="bringing-others" value="no" checked> No, just me</label>
@@ -144,9 +148,9 @@
                     <label class="radio-option"><input type="radio" name="carer-attending" value="yes" required> Carer or support worker</label>
                 </div>
                 <div id="companion-details" hidden>
-                <p class="hint">We need each companion's first and last name for the building's attendee list. This includes friends and family members.</p>
+                <p class="hint">Enter your companion's first and last names for the building's attendee list.</p>
                 <div id="companion-list"></div>
-                <button type="button" class="btn btn-secondary" id="add-companion">Add another companion</button>
+
                 <template id="companion-template">
                     <fieldset class="companion-entry form-group">
                         <legend>Companion</legend>
@@ -313,5 +317,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/app.js') }}?v=52"></script>
+<script type="application/json" id="support-approval-data">{{ support_approval|tojson }}</script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=53"></script>
 {% endblock %}

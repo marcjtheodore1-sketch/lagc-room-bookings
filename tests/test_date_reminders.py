@@ -16,10 +16,12 @@ class DateReminderTest(unittest.TestCase):
             from zoneinfo import ZoneInfo
             from app import app,db,Room,Booking,DateBookingReminder,ReminderSubscription
             from date_reminders import token_hash,run_date_reminders
+            from app import ROOM_SCHEDULE_BY_NAME
+            ROOM_SCHEDULE_BY_NAME['2099-01-02'] = ['Rose']
             with app.app_context(), patch('app.reminders_mail_ready',return_value=True), patch('app.send_confirmation_email',return_value=True) as confirmation, patch('date_reminders.send_date_reminder') as send:
                 db.session.add(Room(name='Rose',room_type='slot')); db.session.commit()
                 client=app.test_client()
-                body=dict(email=' Person@Example.test ',date='2026-10-30')
+                body=dict(email=' Person@Example.test ',date='2099-01-02')
                 response=client.post('/reminders/date/request',data=body)
                 assert response.status_code==200
                 record=DateBookingReminder.query.one()
@@ -155,13 +157,13 @@ class DateReminderTest(unittest.TestCase):
                 room=Room(name='Clerkenwell',room_type='open');db.session.add(room);db.session.commit()
                 client=app.test_client()
                 for index in range(21):
-                    assert client.post('/reminders/date/request',data=dict(email=f'{index}@example.test',date='2026-10-30')).status_code==200
+                    assert client.post('/reminders/date/request',data=dict(email=f'{index}@example.test',date='2099-01-02')).status_code==200
                 assert send.call_count==20 and DateBookingReminder.query.count()==20
                 response=client.post('/api/book',json=dict(room_id=room.id,date='2099-01-02',name='Test Person',email='booker@example.test',mobility_needs=False))
                 assert response.status_code==200,response.json
                 email=next(body for recipient,subject,body in queue.call_args.args[0] if recipient=='booker@example.test')
                 for phrase in ['community-guidelines','condition of attending','fire wardens','24 hours','suspension or a ban','relationship with Pan Macmillan','no automatic three-strikes rule']:
-                    assert phrase in email,phrase
+                    assert phrase.lower() in email.lower(),phrase
                 assert 'contact you privately' not in email
                 html=client.get('/book').text
                 assert 'community-guidelines' in html and 'condition of attending' in html

@@ -146,6 +146,23 @@ class Booking(db.Model):
 
     room = db.relationship('Room', backref='bookings')
 
+class SupportRequest(db.Model):
+    """Private, date-specific approval for named additional support people."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    email = db.Column(db.String(120), nullable=False, index=True)
+    session_date = db.Column(db.Date, nullable=False)
+    supporters_json = db.Column(db.Text, nullable=False)
+    reason = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    ip_hash = db.Column(db.String(64), nullable=False)
+    token_hash = db.Column(db.String(64), unique=True, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    decided_at = db.Column(db.DateTime, nullable=True)
+    decision_note = db.Column(db.Text, default='')
+    decision_email_sent = db.Column(db.Boolean, default=False)
+
+
 class Setting(db.Model):
     """Configurable settings"""
     key = db.Column(db.String(100), primary_key=True)
@@ -764,11 +781,14 @@ def send_confirmation_email(to_email, subject, message):
         return False
     
     try:
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = app.config['SMTP_FROM']
         msg['To'] = to_email
         msg['Subject'] = subject
-        msg.attach(MIMEText(message, 'plain'))
+        msg.attach(MIMEText(message, 'plain', 'utf-8'))
+        if subject.startswith(('Booking Confirmed:', 'Your Fridays @ Farringdon booking is tomorrow')):
+            from booking_emails import html_message
+            msg.attach(MIMEText(html_message(message), 'html', 'utf-8'))
         send_smtp_message(msg)
         print('[EMAIL] Message sent successfully')
         return True
@@ -1004,17 +1024,10 @@ def run_reminder_job(now=None):
                     continue
                 start, end = booking_time_display(booking)
                 subject = f'Your Fridays @ Farringdon booking is tomorrow, {reminder_date_display(tomorrow)}'
-                body = (
-                    f'Hello {booking.user_name},\n\nA reminder about your booking tomorrow, {reminder_date_display(tomorrow)}.\n\n'
-                    f'Room: {booking.room.name}\nTime: {start} to {end}\n'
-                    f'Location: {booking.room.building_location}\n\n'
-                    f'View or cancel this booking: {reminder_base_url()}/cancel/{booking.cancel_token}\n\n'
-                    f'Before you visit, read Kirsty\'s help sheet, including the building guidance and emergency procedures:\n{reminder_base_url()}/help-sheet\n\n'
-                    f'{ACCESS_PLANNING_NOTICE}\n\n'
-                    f'{COMMUNITY_GUIDELINES_NOTICE}\n\n'
-                    f'{ATTENDANCE_NOTICE}\n\n'
-                    'Warm wishes,\nLondon Autism Group Charity' + footer
-                )
+                from booking_emails import confirmation_text
+                body = confirmation_text(booking, reminder_base_url()).replace(
+                    'Your Fridays @ Farringdon booking is confirmed.',
+                    'A reminder: your Fridays @ Farringdon booking is tomorrow.') + footer
                 if send_confirmation_email(subscription.email, subject, body):
                     db.session.add(ReminderDelivery(subscription_id=subscription.id, kind='booking_day', reference=reference))
                     db.session.commit()
@@ -1301,7 +1314,16 @@ def yoga_cancel_page(token):
 @app.route('/book')
 def index():
     """Main booking page"""
-    return render_template('index.html', access_planning_notice=ACCESS_PLANNING_NOTICE, attendance_notice=ATTENDANCE_NOTICE)
+    from support_requests import approved_request
+    token = request.args.get('support', '')
+    approved = approved_request(token)
+    approval = None
+    if approved:
+        approval = dict(token=token, name=approved.name, email=approved.email,
+                        date=approved.session_date.isoformat(), people=json.loads(approved.supporters_json))
+    return render_template('index.html', access_planning_notice=ACCESS_PLANNING_NOTICE,
+                           attendance_notice=ATTENDANCE_NOTICE, support_approval=approval,
+                           invalid_support_approval=bool(token and not approved))
 
 
 def mobility_name(name):
@@ -1591,6 +1613,9 @@ register_date_reminder_routes(app)
 from room_requests import register_routes as register_room_request_routes
 register_room_request_routes(app, admin_required)
 
+from support_requests import register_routes as register_support_request_routes
+register_support_request_routes(app, admin_required)
+
 # Separate records and authentication from the shared F@F administrator login.
 from student_support import register_student_support
 register_student_support(app, db)
@@ -1855,7 +1880,12 @@ def create_booking():
         return jsonify({'error': 'Please choose companion or carer.'}), 400
     companion_names = ''
     additional_attendees = 0
-    if bringing_others and (not carer_attending or (attendee_type is None and data.get('companions'))):
+    # One companion OR carer, including cached forms and direct API calls.
+    submitted_companions = data.get('companions', [])
+    if isinstance(submitted_companions, list) and len(submitted_companions) > 1:
+        return jsonify({'error': 'You can bring one companion or carer. Request approval first if you need more than one support person.',
+                        'support_request_url': '/support-requests'}), 400
+    if bringing_others and not carer_attending:
         companions = data.get('companions')
         if not isinstance(companions, list) or not companions:
             return jsonify({'error': "Please enter each companion's first and last name in the separate fields. Refresh the page if you cannot see them."}), 400
@@ -1889,7 +1919,7 @@ def create_booking():
             return jsonify({'error': 'Please tick the box to confirm the carer or support worker remains responsible for supervision.'}), 400
 
 
-    if carer_attending and not companion_names:
+    if carer_attending:
         companion_names = carer_name
         additional_attendees = 1
 
@@ -1906,6 +1936,18 @@ def create_booking():
     if booking_registration_closed(booking_date):
         return jsonify({'error': closed_booking_message(booking_date), 'registration_closed': True}), 409
     
+    token = data.get('support_approval_token', '')
+    if token:
+        if not carer_attending:
+            return jsonify({'error': 'For an approved support request, select Carer or support worker and enter the lead carer details.'}), 400
+        from support_requests import approved_supporters
+        try:
+            approved_people = approved_supporters(token, email, name, booking_date, carer_name)
+        except ValueError as error:
+            return jsonify({'error': str(error)}), 400
+        companion_names = '; '.join(approved_people)
+        additional_attendees = len(approved_people)
+
     # Get room details
     room = Room.query.get(room_id)
     if not room:
@@ -2003,48 +2045,10 @@ def create_booking():
     db.session.add(booking)
     db.session.commit()
     
-    # Generate confirmation message
-    template = get_setting('confirmation_message', get_default_confirmation_message())
+    from booking_emails import confirmation_text
     start_time, end_time = booking_time_display(booking)
-
-    date_display = booking_date.strftime('%A, %B %d, %Y')
-    
-    confirmation_message = format_confirmation_message(
-        template,
-        name=name,
-        email=email,
-        room_name=room.name,
-        building_location=room.building_location,
-        date=date_display,
-        start_time=start_time,
-        end_time=end_time,
-        cancel_url=f"{request.host_url.rstrip('/')}/cancel/{cancel_token}"
-    )
-
-    # Repeat any admin note for this room/date — they saw it before booking,
-    # this is their written record of it. Appended rather than templated so
-    # existing saved confirmation templates keep working.
-    room_note = get_room_note(booking_date.isoformat(), room_id)
-    if room_note:
-        confirmation_message += (
-            f"\n\n---\nPlease note about {room.name} on this date:\n{room_note}\n"
-        )
-    if room.room_type == 'slot':
-        confirmation_message += (
-            f'\n\nThis booking gives you access to {room.name} only. '
-            'If you would like to use any other rooms, please book each room separately here:\n'
-            f"{request.host_url.rstrip('/')}/book?date={booking_date.isoformat()}\n"
-        )
-
-    confirmation_message += (
-        '\n\nBefore you visit, read Kirsty\'s help sheet for community members and volunteers, '
-        'including building guidance and emergency procedures:\n'
-        f"{request.host_url.rstrip('/')}/help-sheet\n"
-    )
-    confirmation_message += (
-        f'\n\n{BOOKING_DEADLINE_NOTICE}\n{ACCESS_PLANNING_NOTICE}\n\n'
-        f'{COMMUNITY_GUIDELINES_NOTICE}\n\n{ATTENDANCE_NOTICE}\n'
-    )
+    date_display = reminder_date_display(booking_date)
+    confirmation_message = confirmation_text(booking, request.host_url.rstrip('/'))
 
     # Queue all emails in the background so the person sees their on-screen
     # confirmation immediately, even if Gmail is slow or briefly down.
@@ -2085,12 +2089,7 @@ View all bookings at: {request.host_url.rstrip('/')}/admin
         )
     # Private links and copied answers must never appear in the public booking
     # response, or in My Bookings where email ownership is not verified.
-    email_confirmation = confirmation_message + (
-        '\n\nBook again:\n'
-        f'{reminder_base_url()}/book\n'
-        'To see or reuse an earlier mobility answer, request a short-lived private '
-        'link from the booking form. You can book normally without one.\n'
-    )
+    email_confirmation = confirmation_message
     send_emails_async([
         (email, f"Booking Confirmed: {room.name} on {date_display}", email_confirmation),
         ('londonautismgroupcharity@gmail.com', admin_subject, admin_message),

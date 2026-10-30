@@ -61,6 +61,39 @@ Repeated missed bookings without cancelling or repeated failure to follow bookin
 requirements or community guidelines may lead to suspension or a ban from F@F.
 There is no automatic three-strikes rule or automated exclusion action.
 
+## Companions and additional support
+
+Each room booking is for one autistic or neurodivergent adult, with at most
+one companion or carer. People attending in their own right book separately;
+the space is not for unrelated team or group meetings. The API enforces the
+limit even for cached forms.
+
+`/support-requests` lets someone explain why they need more than one support
+person and name everyone providing that support. This creates a private request,
+not a booking. Chris receives a notification containing a link to
+`/admin/support-requests`, where an administrator can approve or decline and
+include a message. Declining requires an explanation. A repeated decision cannot
+send duplicate email. Explanations remain with LAGC and are excluded from venue
+reports and notification emails.
+
+Approval emails contain a private booking link. Approval is bound to the
+participant's name, email, exact Friday and named support people, expires at the
+normal deadline and cannot bypass room availability. The lead carer's usual
+contact and responsibility fields are still required. All approved support names
+are counted and included in reception reports. Existing bookings are unchanged.
+No formal charity membership or sign-in requirement is introduced.
+
+## Concise booking emails
+
+Confirmation and day-before emails put the booking details and cancellation
+link first. Both plain text and HTML versions are sent, with a clear cancellation
+button in HTML. Building, health/safety and community links, reception directions,
+room/date access notes, advance mobility notice, carer responsibilities and
+attendance/conduct conditions are retained without repeated standard footers.
+The saved admin confirmation template is preserved; its additional venue
+instructions and links are included after removing recognised repeated text.
+No new reminder subscriptions or schedules are created.
+
 ## Room requests to the venue
 
 Admin → Room Requests prepares an email to Emma Perez and Martha Fisher, copying
