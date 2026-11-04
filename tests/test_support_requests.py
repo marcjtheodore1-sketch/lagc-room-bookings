@@ -16,7 +16,7 @@ class SupportRequestTest(unittest.TestCase):
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room); db.session.commit()
                 client = app.test_client()
-                body = dict(room_id=room.id, date='2099-01-02', name='Example Person',
+                body = dict(room_guidance_agreed=True, room_id=room.id, date='2099-01-02', name='Example Person',
                             email='person@example.test', mobility_needs=False,
                             bringing_others=True, attendee_type='companion',
                             companions=[dict(first_name='Sam', last_name='Smith'), dict(first_name='Alex', last_name='Jones')])

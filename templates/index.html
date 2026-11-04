@@ -4,42 +4,28 @@
 <div class="booking-page">
     <h1>London Autism Group Charity</h1>
     <h2>Room Bookings for Fridays @ Farringdon</h2>
-    {% include '_registration_required.html' %}
-    <p class="subtitle" id="booking-subtitle">Select a Friday to book your space. <strong>Time Slot</strong> rooms let you choose specific 30-minute slots (up to 3 hours). <strong>Open Booking</strong> rooms reserve the whole day — each room card shows its opening hours.</p>
-
-    <div class="notice-box info booking-ahead-note">
-        <p><strong>Booking deadline: Thursday at 10am each week (London time).</strong> You must complete your booking before then to attend the following Friday. Telling someone you plan to come or requesting a reminder does not reserve a place.</p>
-        <p>{{ access_planning_notice }}</p>
-        <p><strong>If you book, attend or cancel as soon as you know you cannot come.</strong> Missing bookings without cancelling can mean unnecessary fire-warden arrangements and put our agreement and relationship with Pan Macmillan at risk.</p>
-        <p>Closed dates stay visible. The session is still going ahead and existing bookings remain valid.</p>
-        <p><a href="{{ url_for('help_sheet') }}">Read Kirsty's help sheet before you visit</a> for building guidance and emergency procedures.</p>
-        <p><strong>Before attending, read our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a>.</strong> Following them is a condition of attending Fridays @ Farringdon. This includes treating other participants, staff and volunteers with kindness and respect.</p>
-    </div>
-
-    <div class="notice-box info space-expectations">
-        <p><strong>ℹ️ Before you book — what to expect from this space</strong></p>
-        <p>Fridays @ Farringdon is a relaxed, self-directed community space. Our volunteers are friendly hosts, not carers — they aren't able to provide personal care, one-to-one support, or supervision.</p>
-        <p><strong>If you need that kind of support during the day, you will need to bring someone with you who provides it</strong> — a carer, support worker, family member or friend. <strong>Please don't attend on your own if you need that level of support:</strong> we aren't equipped for it, and it isn't safe for you.</p>
-        <p>There's a question about this when you book, so we can plan numbers and be ready for you both.</p>
-    </div>
-
     <div class="booking-form">
         <p id="registration-closed-message" class="notice-box warning" role="alert" hidden></p>
         <!-- Step 1: Select Date -->
         <div class="form-step" id="step-date">
+            <section class="notice-box info" aria-label="Before you book">
+                <p><strong>Book each Friday before 10am on the preceding Thursday (London time).</strong> Pan Macmillan reception needs your name on the attendee list. Wait for your booking confirmation before coming. There are no bookings on the day.</p>
+                <p>Fridays @ Farringdon is a self-directed space. If you need personal care, one-to-one support or supervision, bring someone who can provide it. Our volunteers are hosts.</p>
+                <p>Before booking, read <a href="{{ url_for('help_sheet') }}" target="_blank" rel="noopener">Kirsty's help sheet</a> for access and emergencies, and our <a href="{{ community_guidelines_url }}" target="_blank" rel="noopener">community guidelines</a>. Links open in new tabs.</p>
+            </section>
             <h2>Step 1: Select a Friday</h2>
             <div class="date-grid" id="date-grid">
                 <p class="loading">Loading dates...</p>
             </div>
-            <p class="hint dates-note">📅 More Fridays are added as soon as our host confirms which rooms we have — usually a few weeks ahead. If the date you want isn't here yet, please check back nearer the time. We're still running as usual.</p>
-            <p class="hint dates-note">Want help remembering? <a href="/reminders">Sign up for email reminders</a> when booking opens and the day before a room booking you have made.</p>
-            <p class="hint dates-note">Thinking about one particular Friday? <a href="/reminders/date">Request a one-off reminder to book that date</a>. It does not reserve a place.</p>
+            <p class="hint dates-note">If booking is closed, the session still goes ahead and existing bookings stay valid. Check back for more Fridays as rooms are confirmed.</p>
+            <p class="hint dates-note"><a href="/reminders">Get regular email reminders</a> or <a href="/reminders/date">get a reminder for one Friday</a>. Reminders do not book a place.</p>
         </div>
 
         <!-- Step 2: Select Room -->
         <div class="form-step hidden" id="step-room">
             <h2>Step 2: Select a Room</h2>
             <p class="hint" id="room-step-date-label"></p>
+            <p class="hint"><strong>Time Slot:</strong> choose 30-minute slots, up to 3 hours. <strong>Open Booking:</strong> book for the full session. Check the room card for opening hours.</p>
             <div class="room-grid" id="room-grid">
                 <p class="loading">Loading rooms...</p>
             </div>
@@ -74,7 +60,7 @@
                     <input type="text" id="last-name" placeholder="Smith" minlength="3" maxlength="60" autocomplete="family-name" aria-describedby="booking-name-hint" required>
                 </div>
             </div>
-            <p class="hint" id="booking-name-hint">Enter your full first and last names, using at least 3 characters in each rather than initials. These names are used for the building's attendee list. If either name is shorter, contact us at <a href="mailto:londonautismgroupcharity@gmail.com">londonautismgroupcharity@gmail.com</a> so we can help with your booking.</p>
+            <p class="hint" id="booking-name-hint">Use full names for reception's attendee list, with at least 3 characters each. If either name is shorter, <a href="mailto:londonautismgroupcharity@gmail.com">email us for help booking</a>.</p>
             <div class="form-group">
                 <label for="email">Email Address:</label>
                 <input type="email" id="email" placeholder="your@email.com" required>
@@ -84,10 +70,7 @@
             <div id="room-fields">
             <fieldset class="form-group mobility-question">
                 <legend>Do you or anyone coming with you have any mobility needs? <span class="required">*</span></legend>
-                <p class="hint">For example, difficulty walking, using stairs or standing, or using a wheelchair or mobility aid. {{ access_planning_notice }} We tell the building team whether mobility needs have been reported for the session. Your written details stay with the LAGC team.</p>
-                <p class="hint"><strong>Attend or cancel:</strong> If you report mobility needs and cannot come, cancel as soon as you can using your cancellation link. Fire wardens may have been arranged specifically for you. Missing bookings without cancelling can mean unnecessary staffing and preparation, and put our agreement and relationship with Pan Macmillan at risk.</p>
-                <p class="hint">Repeatedly missing bookings without cancelling, or repeatedly failing to follow the booking requirements or community guidelines, may lead to <strong>suspension or a ban from Fridays @ Farringdon</strong>. There is no automatic three-strikes rule.</p>
-                <p class="hint">Choose what applies to you and anyone coming with you <strong>for this visit</strong>. If you want to see or reuse an earlier answer, you can request a private email link below. This is optional.</p>
+                <p class="hint">For example, difficulty walking, standing or using stairs, or using a wheelchair or mobility aid. Pan Macmillan needs at least 24 hours' notice to plan safe access and evacuation, including extra fire wardens if needed. We tell the building team whether anyone needs mobility support; your written details stay with LAGC.</p>
                 <div id="mobility-history" class="mobility-history" hidden>
                     <p id="mobility-history-heading"></p>
                     <blockquote id="mobility-history-details"></blockquote>
@@ -111,7 +94,7 @@
                 </div>
                 <details id="mobility-link-options" class="mobility-link-options">
                     <summary>See or reuse an earlier answer (optional)</summary>
-                    <p class="hint">We can email a private link to the address above. There is no password to remember, and you can keep booking without it. Opening it takes you to a fresh booking form. We match your name and email address, so people sharing an inbox have separate answers. Check that the earlier answer still applies to everyone coming this time.</p>
+                    <p class="hint">We email a private link to a fresh booking form. It matches your name and email, so people sharing an inbox have separate answers. Only reuse an answer if it still applies to everyone coming this time.</p>
                     <button type="button" class="btn btn-secondary btn-small" id="mobility-request-link">Email me a private link</button>
                     <div id="mobility-private-ready" hidden>
                         <p class="hint">Your private link is ready. Enter your name and email address above, then choose the button below. On a shared device, choose End private access when you finish.</p>
@@ -130,11 +113,11 @@
 
             <div class="form-group">
                 <label>Will you bring one companion or carer?</label>
-                <p class="hint"><strong>Book for one autistic or neurodivergent adult.</strong> You can bring one companion or carer. Anyone attending in their own right must make a separate booking. This space is not for unrelated group or team meetings.</p>
-                <p class="hint"><a id="extra-support-link" href="/support-requests">Need more than one support person? Request approval before booking.</a> Explain the practical support you need and LAGC will email its decision.</p>
+                <p class="hint">Each booking is for one autistic or neurodivergent adult, plus one companion or carer if needed. Anyone attending in their own right needs a separate booking. Please don't book for unrelated group or team meetings.</p>
+                <p class="hint"><a id="extra-support-link" href="/support-requests">Need more than one support person? Request approval before booking.</a> We’ll email you a decision.</p>
                 {% if invalid_support_approval %}<p class="error-text" role="alert">This support approval link has expired or is invalid. Contact LAGC before booking with extra support people.</p>{% endif %}
                 {% if support_approval %}<div class="notice-box" id="approved-support-notice"><strong>Additional support approved for this Friday</strong><p>{{ support_approval.name }}: {{ support_approval.people|join(', ') }}. Enter the first named person as the lead carer. Approval does not reserve a room or extend the booking deadline.</p></div>{% endif %}
-                <p class="hint attending-hint">Our volunteers are hosts, not carers — they can't provide personal care, one-to-one support or supervision. <strong>If you need that kind of support during the day, you'll need to bring someone with you who provides it.</strong></p>
+                <p class="hint attending-hint">If you need personal care, one-to-one support or supervision, bring someone who can provide it. Our volunteers are hosts.</p>
                 <div class="yoga-radio-group">
                     <label class="radio-option"><input type="radio" name="bringing-others" value="no" checked> No, just me</label>
                     <label class="radio-option"><input type="radio" name="bringing-others" value="yes"> Yes</label>
@@ -173,16 +156,7 @@
             <!-- Only shown when a carer or support worker is attending -->
             <div class="carer-section" id="carer-section" hidden>
                 <h3>🧑‍🤝‍🧑 Carer or support worker details</h3>
-                <p class="carer-intro">Because a carer or support worker is attending, we need their first and last names for the building team, along with contact details and confirmation of their responsibilities.</p>
-
-                <div class="notice-box warning carer-responsibility-note">
-                    <p><strong>Please read carefully:</strong></p>
-                    <ul>
-                        <li>LAGC volunteers <strong>cannot act as substitute carers</strong>. We cannot provide personal care or one-to-one supervision.</li>
-                        <li>Parents, carers and support workers <strong>remain responsible for actively supervising</strong> the person they attend with, for the whole time they are with us.</li>
-                        <li>Failure to disclose relevant supervision or risk information may affect whether someone can attend future events.</li>
-                    </ul>
-                </div>
+                <p class="hint">We need their full name for the attendee list. Tell us about any relevant supervision or risks, as leaving this out may affect future attendance.</p>
 
                 <div class="form-row">
                     <div class="form-group">
@@ -208,7 +182,7 @@
                 <div class="form-group checkbox-group">
                     <label class="checkbox-option">
                         <input type="checkbox" id="carer-supervision-agreed">
-                        <span>I confirm that the carer, support worker or parent attending <strong>remains responsible for actively supervising</strong> the person they are attending with, and I understand that LAGC volunteers cannot provide personal care or one-to-one supervision. <span class="required">*</span></span>
+                        <span>I confirm the carer, support worker or parent will actively supervise the person they come with throughout the visit. <span class="required">*</span></span>
                     </label>
                 </div>
             </div>
@@ -218,6 +192,17 @@
                 <small class="hint">Optional.</small>
                 <textarea id="other-info" rows="3" maxlength="4000" placeholder="Anything at all that would help us support you."></textarea>
             </div>
+            <section class="notice-box info" aria-label="Before you confirm">
+                <p><strong>Attend or cancel.</strong> If you cannot come, use the link in your confirmation email as soon as you can. This lets us update the attendee list and avoids unnecessary fire-warden arrangements.</p>
+                <p>Repeated missed bookings without cancelling or repeated breaches of booking rules or guidelines may lead to suspension or a ban. There is no automatic three-strikes rule.</p>
+                <p id="booking-rules-links">Read our <a href="{{ community_guidelines_url }}" target="_blank" rel="noopener">community guidelines</a> and <a href="{{ url_for('help_sheet') }}" target="_blank" rel="noopener">Kirsty's help sheet</a> (opens in new tabs).</p>
+                <div class="form-group checkbox-group">
+                    <label class="checkbox-option">
+                        <input type="checkbox" id="room-guidance-agreed" aria-describedby="booking-rules-links" required>
+                        <span>I’ve read and understood the help sheet and community guidelines. I agree to follow the guidelines and treat everyone with kindness and respect. <span class="required">*</span></span>
+                    </label>
+                </div>
+            </section>
             </div>
 
             <!-- Yoga registration questions (hidden unless booking yoga) -->
@@ -282,10 +267,9 @@
                         <span>I understand that this is a gentle yoga session. I can choose what to take part in and I should stop or rest if I feel pain, strain, dizziness, discomfort or distress. I understand that the information I provide will only be used for safety, accessibility and session planning purposes. <span class="required">*</span></span>
                     </label>
                 </div>
+                <p><strong>Following our <a href="{{ community_guidelines_url }}" target="_blank" rel="noopener">community guidelines</a> is a condition of attending.</strong> By booking, you agree to follow them, including treating staff, volunteers and other participants with kindness and respect.</p>
+                <p class="hint">{{ attendance_notice }}</p>
             </div>
-
-            <p><strong>Following our <a href="https://www.londonautismgroupcharity.org/community-guidelines" target="_blank" rel="noopener">community guidelines</a> is a condition of attending.</strong> By booking, you agree to follow them, including treating staff, volunteers and other participants with kindness and respect.</p>
-            <p class="hint">{{ attendance_notice }}</p>
             <div class="step-actions">
                 <button class="btn btn-secondary" onclick="showEmailStepBack()">← Back</button>
                 <button class="btn btn-primary" id="btn-confirm-booking" onclick="submitBooking()">Confirm Booking</button>
@@ -318,5 +302,5 @@
 
 {% block scripts %}
 <script type="application/json" id="support-approval-data">{{ support_approval|tojson }}</script>
-<script src="{{ url_for('static', filename='js/app.js') }}?v=53"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}?v=55"></script>
 {% endblock %}

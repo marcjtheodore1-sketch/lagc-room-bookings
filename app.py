@@ -1321,7 +1321,7 @@ def index():
     if approved:
         approval = dict(token=token, name=approved.name, email=approved.email,
                         date=approved.session_date.isoformat(), people=json.loads(approved.supporters_json))
-    return render_template('index.html', access_planning_notice=ACCESS_PLANNING_NOTICE,
+    return render_template('index.html', community_guidelines_url=COMMUNITY_GUIDELINES_URL,
                            attendance_notice=ATTENDANCE_NOTICE, support_approval=approval,
                            invalid_support_approval=bool(token and not approved))
 
@@ -2013,6 +2013,11 @@ def create_booking():
     # Recheck after validation in case someone kept the form open across 10am.
     if booking_registration_closed(booking_date):
         return jsonify({'error': closed_booking_message(booking_date), 'registration_closed': True}), 409
+
+    if 'room_guidance_agreed' not in data:
+        return jsonify({'error': 'The booking form has changed. Reload this page, then read the community guidelines and help sheet and tick the box before confirming.'}), 400
+    if data['room_guidance_agreed'] is not True:
+        return jsonify({'error': 'Read the community guidelines and help sheet, then tick the box before confirming your booking.'}), 400
 
     # Create booking
     cancel_token = secrets.token_urlsafe(32)

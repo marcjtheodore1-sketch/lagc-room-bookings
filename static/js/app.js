@@ -594,9 +594,6 @@ function selectYoga() {
         event.currentTarget.classList.add('selected');
     }
 
-    const subtitle = document.getElementById('booking-subtitle');
-    if (subtitle) subtitle.classList.add('hidden');
-
     showEmailStep();
 }
 
@@ -629,16 +626,6 @@ function selectRoom(roomId) {
     });
     event.currentTarget.classList.add('selected');
 
-    // Show/hide subtitle based on room type
-    const subtitle = document.getElementById('booking-subtitle');
-    if (subtitle) {
-        if (state.selectedRoom.room_type === 'open') {
-            subtitle.classList.add('hidden');
-        } else {
-            subtitle.classList.remove('hidden');
-        }
-    }
-
     // Open rooms book the whole day, so skip time selection
     if (state.selectedRoom.room_type === 'open') {
         showEmailStepForOpenRoom();
@@ -657,13 +644,21 @@ function selectRoom(roomId) {
 function showStep(stepName) {
     const supportLink = document.getElementById('extra-support-link');
     if (supportLink) supportLink.href = '/support-requests' + (state.selectedDate ? '?date=' + state.selectedDate : '');
-    Object.keys(steps).forEach(key => {
-        if (key === stepName) {
-            steps[key].classList.remove('hidden');
-        } else {
-            steps[key].classList.add('hidden');
-        }
+    const step = steps[stepName];
+    const changed = step.classList.contains('hidden');
+    Object.entries(steps).forEach(([key, element]) => {
+        element.classList.toggle('hidden', key !== stepName);
     });
+    if (changed) {
+        const closedNotice = document.getElementById('registration-closed-message');
+        const target = stepName === 'date' && !closedNotice.hidden
+            ? closedNotice
+            : step.querySelector('h2');
+        target.tabIndex = -1;
+        target.focus({preventScroll: true});
+        (stepName === 'date' && closedNotice.hidden ? step : target)
+            .scrollIntoView({block: 'start'});
+    }
 }
 
 function backToDate() {
@@ -671,12 +666,6 @@ function backToDate() {
     state.bookingType = 'room';
     state.selectedYoga = null;
     state.selectedSlots = [];
-
-    // Reset subtitle visibility
-    const subtitle = document.getElementById('booking-subtitle');
-    if (subtitle) {
-        subtitle.classList.remove('hidden');
-    }
 
     showStep('date');
 }
@@ -844,11 +833,8 @@ function resetBooking() {
     elements.emailInput.value = '';
     resetAttendeeFields();
 
-    // Reset subtitle visibility
-    const subtitle = document.getElementById('booking-subtitle');
-    if (subtitle) {
-        subtitle.classList.remove('hidden');
-    }
+    const guidanceAgreed = document.getElementById('room-guidance-agreed');
+    if (guidanceAgreed) guidanceAgreed.checked = false;
 
     showStep('date');
     renderDates();
@@ -1356,7 +1342,15 @@ async function submitBooking() {
         }
     }
 
+    const guidanceAgreed = document.getElementById('room-guidance-agreed');
+    if (!guidanceAgreed) {
+        alert('The booking form has changed. Reload this page, then read the community guidelines and help sheet and tick the box before confirming.');
+        return;
+    }
+    if (!guidanceAgreed.reportValidity()) return;
+
     const bookingData = {
+        room_guidance_agreed: guidanceAgreed.checked,
         support_approval_token: supportApproval?.token || '',
         room_id: state.selectedRoom.id,
         date: state.selectedDate,

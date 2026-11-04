@@ -159,7 +159,7 @@ class DateReminderTest(unittest.TestCase):
                 for index in range(21):
                     assert client.post('/reminders/date/request',data=dict(email=f'{index}@example.test',date='2099-01-02')).status_code==200
                 assert send.call_count==20 and DateBookingReminder.query.count()==20
-                response=client.post('/api/book',json=dict(room_id=room.id,date='2099-01-02',name='Test Person',email='booker@example.test',mobility_needs=False))
+                response=client.post('/api/book',json=dict(room_guidance_agreed=True, room_id=room.id,date='2099-01-02',name='Test Person',email='booker@example.test',mobility_needs=False))
                 assert response.status_code==200,response.json
                 email=next(body for recipient,subject,body in queue.call_args.args[0] if recipient=='booker@example.test')
                 for phrase in ['community-guidelines','condition of attending','fire wardens','24 hours','suspension or a ban','relationship with Pan Macmillan','no automatic three-strikes rule']:

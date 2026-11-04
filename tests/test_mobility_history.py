@@ -23,7 +23,7 @@ class MobilityHistoryTest(unittest.TestCase):
                 db.session.add(old)
                 db.session.commit()
                 client = app.test_client()
-                body = dict(room_id=room.id, date='2099-01-02', name='Test Person', email='PERSON@example.test')
+                body = dict(room_guidance_agreed=True, room_id=room.id, date='2099-01-02', name='Test Person', email='PERSON@example.test')
                 assert client.get('/api/mobility/history?email=person@example.test').json == {'verified': False}
                 with patch('app.send_emails_async') as emails:
                     # Ordinary No has no extra hurdle, but preserves history and alerts admins.
@@ -182,7 +182,7 @@ class MobilityHistoryTest(unittest.TestCase):
                     mobility_needs=True, mobility_details='First person private wording')
                 db.session.add(old)
                 db.session.commit()
-                body = dict(room_id=room.id, date='2099-01-02', email='shared@example.test')
+                body = dict(room_guidance_agreed=True, room_id=room.id, date='2099-01-02', email='shared@example.test')
                 client = app.test_client()
                 legacy = new_mobility_link(body['email'], 'book_again', timedelta(days=90))
                 expired = new_mobility_link(body['email'], 'request', timedelta(days=-2))

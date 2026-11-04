@@ -17,7 +17,7 @@ class BookingSupportAndRotaTest(unittest.TestCase):
                 db.session.add(room)
                 db.session.commit()
                 client = app.test_client()
-                body = dict(room_id=room.id, date='2099-01-02', name='Test Person', email='person@example.test')
+                body = dict(room_guidance_agreed=True, room_id=room.id, date='2099-01-02', name='Test Person', email='person@example.test')
                 with patch('app.send_confirmation_email', return_value=True):
                     assert client.post('/api/book', json=body).status_code == 400
                     assert client.post('/api/book', json=dict(body, mobility_needs='false')).status_code == 400

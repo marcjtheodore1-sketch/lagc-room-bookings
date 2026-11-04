@@ -14,7 +14,7 @@ class BookingNameTest(unittest.TestCase):
                 room = Room(name='Clerkenwell', room_type='open', building_location='Test')
                 db.session.add(room); db.session.commit()
                 client = app.test_client()
-                body = dict(room_id=room.id, date='2099-01-02', name='Helen Johnson',
+                body = dict(room_guidance_agreed=True, room_id=room.id, date='2099-01-02', name='Helen Johnson',
                             email='test@example.test', mobility_needs=False)
                 for name in ('H Johnson', 'He Johnson', 'Helen J', 'Helen Jo',
                              'Helen', '', 'H  Johnson', 'H \\t e Johnson', 12, None):
@@ -33,6 +33,28 @@ class BookingNameTest(unittest.TestCase):
                 assert Booking.query.count() == 4
                 assert Booking.query.filter_by(user_email='1@example.test').one().user_name == 'Ana Lee'
         ''')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_room_booking_requires_explicit_guidance_acknowledgement(self):
+        result = run_isolated("""
+            from unittest.mock import patch
+            from app import app, db, Room, Booking, ROOM_SCHEDULE_BY_NAME
+            ROOM_SCHEDULE_BY_NAME['2099-01-02'] = ['Clerkenwell']
+            with app.app_context(), patch('app.send_confirmation_email') as send:
+                room = Room(name='Clerkenwell', room_type='open', building_location='Test')
+                db.session.add(room); db.session.commit()
+                client = app.test_client()
+                body = dict(room_id=room.id, date='2099-01-02', name='Example Person',
+                            email='person@example.test', mobility_needs=False)
+                for answers in ({}, {'room_guidance_agreed': False}, {'room_guidance_agreed': 'true'}):
+                    response = client.post('/api/book', json=dict(body, **answers))
+                    assert response.status_code == 400 and 'tick the box' in response.json['error'], response.json
+                    assert ('Reload this page' in response.json['error']) == (not answers), response.json
+                assert Booking.query.count() == 0
+                send.assert_not_called()
+                response = client.post('/api/book', json=dict(body, room_guidance_agreed=True))
+                assert response.status_code == 200 and Booking.query.count() == 1, response.json
+        """)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
     def test_staff_correction_is_authenticated_preserves_booking_and_updates_report(self):

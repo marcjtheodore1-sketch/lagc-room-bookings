@@ -34,7 +34,7 @@ class BookingDeadlineTest(unittest.TestCase):
                 loft = Room(name='The Loft', room_type='open', building_location='Test')
                 db.session.add_all([rose,loft]); db.session.commit()
                 client = app.test_client()
-                body = dict(room_id=rose.id,date='2026-10-09',name='Test Person',email='one@example.test',
+                body = dict(room_guidance_agreed=True, room_id=rose.id,date='2026-10-09',name='Test Person',email='one@example.test',
                             mobility_needs=False,start_slot=0,end_slot=1)
                 available = client.get('/api/availability/2026-10-09/'+str(rose.id))
                 assert available.status_code == 200
