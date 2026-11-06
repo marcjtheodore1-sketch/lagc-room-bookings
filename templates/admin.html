@@ -186,6 +186,12 @@
             <p class="form-status" id="volunteer-status" role="status" aria-live="polite"></p>
         </div>
 
+        <details>
+            <summary>Email notifications to check</summary>
+            <p class="hint">These changes are saved, but their notification emails have not been confirmed. Check delivery with Florence before sending another email. The most recent 20 are shown.</p>
+            <div id="volunteer-notification-issues"></div>
+        </details>
+
         <h3 class="vol-coverage-title">📋 Coverage by date</h3>
         <div class="volunteer-coverage" id="volunteer-coverage">
             <p class="loading">Loading rota...</p>
@@ -340,6 +346,6 @@
         <p id="booking-name-status" role="status" aria-live="polite"></p>
     </div>
 </div>
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=53"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=54"></script>
 <script src="{{ url_for('static', filename='js/room_requests.js') }}?v=8"></script>
 {% endblock %}

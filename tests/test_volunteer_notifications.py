@@ -39,6 +39,15 @@ def text_of(message):
 
 
 class VolunteerNotificationsTest(unittest.TestCase):
+    def test_frontend_busy_and_error_states(self):
+        import os
+        import subprocess
+        result = subprocess.run(['/opt/homebrew/opt/node@24/bin/node', '--test',
+            'tests/test_volunteer_notifications.cjs'],
+            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def run_case(self, script):
         import textwrap
         result = run_isolated(SETUP + '\n' + textwrap.dedent(script))
@@ -87,7 +96,7 @@ class VolunteerNotificationsTest(unittest.TestCase):
                 record = VolunteerRotaNotification.query.order_by(VolunteerRotaNotification.id.desc()).first()
                 assert record.status == expected and record.error == type(error).__name__
                 calls = smtp.call_count
-                deliver_notification(record)
+                deliver_notification(record.id)
                 assert save([available()])['notification']['status'] == 'unchanged'
                 assert smtp.call_count == calls
                 save([dict(date='2099-01-02', status='clear')])
@@ -152,4 +161,135 @@ class VolunteerNotificationsTest(unittest.TestCase):
             assert len(sent) == 1
             assert VolunteerAvailability.query.count() == 1
             assert VolunteerRotaNotification.query.count() == 1
+        ''')
+
+    def test_unicode_names_and_conflicting_legacy_rows(self):
+        self.run_case('''
+            for name in ['Élodie Martin', 'ÉLODIE MARTIN', 'E\\u0301lodie Martin']:
+                save([available()], name=name)
+            assert VolunteerAvailability.query.count() == 1 and len(sent) == 1
+            save([dict(date='2099-01-02', status='clear')], name='élodie martin')
+            assert VolunteerAvailability.query.count() == 0
+            save([available()], name='Élodie Martin')
+            response = client.post('/api/admin/volunteers/remove', json={'name':'ÉLODIE MARTIN'})
+            assert response.status_code == 200 and VolunteerAvailability.query.count() == 0
+            assert len(sent) == 4
+
+            db.session.add_all([
+                VolunteerAvailability(name='Bob', booking_date=date(2099,1,2), start_time='10am', end_time='99:99'),
+                VolunteerAvailability(name='bob', booking_date=date(2099,1,2), unavailable=True)])
+            db.session.commit()
+            save([dict(date='2099-01-02', status='unavailable')], name='BOB')
+            assert VolunteerAvailability.query.count() == 1
+            body = text_of(sent[-1][0])
+            assert 'Conflicting saved entries' in body
+            assert 'Available (10am to 99:99)' in body and 'Not available' in body
+            assert VolunteerRotaNotification.query.order_by(VolunteerRotaNotification.id.desc()).first().status == 'sent'
+        ''')
+
+    def test_post_commit_database_locks_preserve_response_and_surface_history(self):
+        self.run_case('''
+            import sqlite3
+            from sqlalchemy import event
+            @event.listens_for(db.engine, 'checkout')
+            def shorten_test_wait(connection, *_):
+                connection.execute('PRAGMA busy_timeout=30')
+            for route in ['/api/admin/volunteers', '/api/admin/volunteers/remove']:
+                for stage in ['claim', 'outcome']:
+                    VolunteerAvailability.query.delete()
+                    VolunteerRotaNotification.query.delete()
+                    db.session.add(VolunteerAvailability(name='Test Volunteer', booking_date=date(2099,1,2)))
+                    db.session.commit()
+                    before_count = len(sent)
+                    blocker = sqlite3.connect(db.engine.url.database, timeout=.1)
+                    commits = []
+                    original_commit = db.session.commit
+                    def commit_and_lock():
+                        original_commit()
+                        commits.append(True)
+                        if len(commits) == 1 and stage == 'claim':
+                            blocker.execute('BEGIN IMMEDIATE')
+                    def capture_and_lock(message, recipients=None):
+                        capture(message, recipients)
+                        if stage == 'outcome':
+                            blocker.execute('BEGIN IMMEDIATE')
+                    smtp.side_effect = capture_and_lock
+                    with patch.object(db.session, 'commit', side_effect=commit_and_lock):
+                        response = client.post(route, json=dict(name='Test Volunteer',
+                            entries=[dict(date='2099-01-02', status='unavailable')]))
+                    blocker.rollback()
+                    blocker.close()
+                    assert response.status_code == 200, response.get_data(as_text=True)
+                    assert response.json['notification']['warning']
+                    assert response.json['notification']['status'] == 'uncertain'
+                    if route.endswith('/remove'):
+                        assert VolunteerAvailability.query.count() == 0
+                        assert response.json['volunteers'] == []
+                    else:
+                        assert VolunteerAvailability.query.one().unavailable
+                        assert response.json['volunteers'][0]['unavailable_dates'] == ['2099-01-02']
+                    record = VolunteerRotaNotification.query.one()
+                    assert record.status == ('pending' if stage == 'claim' else 'sending')
+                    assert len(sent) == before_count + (stage == 'outcome')
+                    issues = client.get('/api/admin/volunteer-notifications').json
+                    assert issues == [dict(id=record.id, name=record.name, status=record.status,
+                        created_at=record.created_at.isoformat()+'Z')]
+                    calls = smtp.call_count
+                    if route.endswith('/remove'):
+                        client.post(route,json={'name':'Test Volunteer'})
+                    else:
+                        save([dict(date='2099-01-02', status='unavailable')])
+                    assert smtp.call_count == calls
+            assert app.test_client().get('/api/admin/volunteer-notifications').status_code == 302
+        ''')
+
+    def test_concurrent_save_and_removal_keep_both_transitions(self):
+        self.run_case('''
+            from concurrent.futures import ThreadPoolExecutor
+            from threading import Barrier
+            db.session.add(VolunteerAvailability(name='Test Volunteer',booking_date=date(2099,1,2)))
+            db.session.commit()
+            db.session.remove()
+            barrier = Barrier(2)
+            def submit(remove):
+                local = app.test_client()
+                with local.session_transaction() as session:
+                    session['admin_logged_in'] = True
+                barrier.wait(timeout=5)
+                response = local.post('/api/admin/volunteers' + ('/remove' if remove else ''),
+                    json=dict(name='Test Volunteer', entries=[dict(date='2099-01-02',status='unavailable')]))
+                assert response.status_code == 200, response.get_data(as_text=True)
+                return response.json
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                list(pool.map(submit, [False, True]))
+            assert len(sent) == 2
+            records = VolunteerRotaNotification.query.order_by(VolunteerRotaNotification.id).all()
+            first, second = [json.loads(r.changes)[0] for r in records]
+            assert first['before'][0] == 'available'
+            assert second['before'] == first['after']
+            rows = VolunteerAvailability.query.all()
+            assert (not rows and second['after'][0]=='clear') or (len(rows)==1 and rows[0].unavailable)
+        ''')
+
+    def test_real_scheduled_friday_without_mocking_rota_dates(self):
+        self.run_case('''
+            import app as module
+            from datetime import datetime
+            from app import init_default_data
+            class Clock(datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return cls(2026, 11, 6, 15, tzinfo=tz)
+            patch.stopall()
+            module.send_smtp_message = capture
+            init_default_data()
+            with patch('app.datetime', Clock):
+                days = client.get('/api/admin/volunteers').json['fridays']
+                assert '2026-11-20' in [day['date'] for day in days]
+                result = save([available('2026-11-20')])
+                assert result['notification']['status'] == 'sent'
+                assert 'Friday 20th November 2026' in text_of(sent[-1][0])
+                response = client.post('/api/admin/volunteers/remove',json={'name':'Test Volunteer'})
+                assert response.status_code == 200 and len(sent) == 2
+                assert VolunteerAvailability.query.count() == 0
         ''')

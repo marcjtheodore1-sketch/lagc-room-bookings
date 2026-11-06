@@ -204,6 +204,7 @@ async function deleteYogaBooking(id, name) {
 let volunteerRota = { fridays: [], volunteers: [] };
 
 async function loadVolunteers() {
+    loadVolunteerNotificationIssues();
     const coverage = document.getElementById('volunteer-coverage');
     const entries = document.getElementById('vol-date-entries');
     coverage.innerHTML = '<p class="loading">Loading rota...</p>';
@@ -459,6 +460,7 @@ function maybeLoadExistingVolunteer() {
 }
 
 function editVolunteer(encodedName) {
+    if (volunteerSaveBusy) return;
     const name = decodeURIComponent(encodedName);
     const v = volunteerRota.volunteers.find(x => x.name === name);
     if (!v) return;
@@ -478,9 +480,36 @@ function finishVolunteerSave(message) {
 
 function setVolunteerSaveBusy(busy) {
     volunteerSaveBusy = busy;
+    document.querySelector('.volunteer-form').inert = busy;
+    document.getElementById('volunteer-coverage').inert = busy;
+    document.querySelectorAll('.volunteer-form input, .volunteer-form select, .volunteer-form textarea').forEach(field => {
+        field.disabled = busy;
+    });
     const button = document.getElementById('vol-save-btn');
     button.disabled = busy;
     button.textContent = busy ? 'Saving and notifying Florence...' : 'Save my availability';
+    if (!busy) updateVolunteerTimeFields();
+}
+
+async function loadVolunteerNotificationIssues() {
+    const container = document.getElementById('volunteer-notification-issues');
+    try {
+        const response = await fetch('/api/admin/volunteer-notifications');
+        if (!response.ok) throw new Error('History unavailable');
+        const issues = await response.json();
+        const labels = {pending: 'Not yet sent', sending: 'Check delivery', failed: 'Not sent',
+            unavailable: 'Email unavailable', uncertain: 'Check delivery'};
+        container.replaceChildren();
+        if (!issues.length) { container.textContent = 'No unconfirmed notifications recorded.'; return; }
+        for (const issue of issues) {
+            const entry = document.createElement('p');
+            entry.textContent = `${issue.name}: ${labels[issue.status] || 'Check delivery'} · ` +
+                new Date(issue.created_at).toLocaleString('en-GB', {timeZone: 'Europe/London'});
+            container.append(entry);
+        }
+    } catch (error) {
+        container.textContent = 'Notification history could not be loaded. Check again later.';
+    }
 }
 
 async function saveVolunteer() {
@@ -526,7 +555,9 @@ async function saveVolunteer() {
         });
         if (!res.ok) {
             const err = await res.json().catch(() => ({}));
-            volunteerStatus(err.error || 'Failed to save. Please try again.', true);
+            volunteerStatus(res.status >= 500 ?
+                'We could not confirm whether your changes were saved. Check the rota before trying again.' :
+                err.error || 'Your changes were not accepted. Check the form and try again.', true);
             return;
         }
         volunteerRota = await res.json();
@@ -541,6 +572,7 @@ async function saveVolunteer() {
         volunteerStatus('We could not confirm whether your changes were saved. Check the rota before trying again.', true);
     } finally {
         setVolunteerSaveBusy(false);
+        loadVolunteerNotificationIssues();
     }
 }
 
@@ -555,7 +587,12 @@ async function removeVolunteer(encodedName) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
         });
-        if (!res.ok) { volunteerStatus('Failed to remove. Please try again.', true); return; }
+        if (!res.ok) {
+            volunteerStatus(res.status >= 500 ?
+                'We could not confirm whether the volunteer was removed. Check the rota before trying again.' :
+                'The removal was not accepted. Refresh the rota and try again.', true);
+            return;
+        }
         volunteerRota = await res.json();
         renderVolunteerCoverage();
         finishVolunteerSave(`${name} removed from the rota.`);
@@ -563,6 +600,7 @@ async function removeVolunteer(encodedName) {
         volunteerStatus('We could not confirm whether the volunteer was removed. Check the rota before trying again.', true);
     } finally {
         setVolunteerSaveBusy(false);
+        loadVolunteerNotificationIssues();
     }
 }
 

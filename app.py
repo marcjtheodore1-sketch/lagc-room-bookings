@@ -2657,11 +2657,10 @@ def admin_set_volunteer():
     # Serialise SQLite writers before reading the old status, so simultaneous
     # saves of the same change produce only one notification.
     db.session.execute(db.text('BEGIN IMMEDIATE'))
-    existing = VolunteerAvailability.query.filter(
-        db.func.lower(VolunteerAvailability.name) == name.lower(),
-    ).all()
-    from volunteer_notifications import availability_state, entry_state, prepare_notification, deliver_notification
-    before = {row.booking_date.isoformat(): availability_state(row) for row in existing}
+    from volunteer_notifications import (matching_availability, availability_snapshot,
+                                         entry_state, prepare_notification, saved_rota_response)
+    existing = matching_availability(name)
+    before = availability_snapshot(existing)
     notification = prepare_notification(name, before, {entry['date']: entry_state(entry) for entry in entries})
     for row in existing:
         if row.booking_date.isoformat() in seen:
@@ -2682,34 +2681,39 @@ def admin_set_volunteer():
             end_time=entry.get('end_time', '') if status == 'available' and entry.get('shift_type') == 'specific' else '',
             unavailable=(status == 'unavailable'),
         ))
-    db.session.commit()
-
-    delivery = deliver_notification(notification)
-    return jsonify({**get_volunteer_rota(), 'notification': delivery})
+    return jsonify(saved_rota_response(notification))
 
 @app.route('/api/admin/volunteers/remove', methods=['POST'])
 @admin_required
 def admin_remove_volunteer():
     """Remove a volunteer entirely from the upcoming rota."""
     data = request.get_json(silent=True) or {}
-    name = (data.get('name') or '').strip()
-    if not name:
+    raw_name = data.get('name')
+    if not isinstance(raw_name, str) or not raw_name.strip():
         return jsonify({'error': 'Missing name.'}), 400
+    name = raw_name.strip()
 
     today = datetime.now().date()
     db.session.execute(db.text('BEGIN IMMEDIATE'))
-    rows = VolunteerAvailability.query.filter(
-        db.func.lower(VolunteerAvailability.name) == name.lower(),
-        VolunteerAvailability.booking_date >= today,
-    ).all()
-    from volunteer_notifications import availability_state, prepare_notification, deliver_notification
-    before = {row.booking_date.isoformat(): availability_state(row) for row in rows}
+    from volunteer_notifications import (matching_availability, availability_snapshot,
+                                         prepare_notification, saved_rota_response)
+    rows = matching_availability(name, VolunteerAvailability.query.filter(
+        VolunteerAvailability.booking_date >= today))
+    before = availability_snapshot(rows)
     notification = prepare_notification(name, before, {day: ('clear', '', '') for day in before})
     for row in rows:
         db.session.delete(row)
-    db.session.commit()
-    delivery = deliver_notification(notification)
-    return jsonify({**get_volunteer_rota(), 'notification': delivery})
+    return jsonify(saved_rota_response(notification))
+
+@app.get('/api/admin/volunteer-notifications')
+@admin_required
+def admin_volunteer_notifications():
+    """Make interrupted and failed deliveries visible without offering a resend."""
+    rows = VolunteerRotaNotification.query.filter(
+        VolunteerRotaNotification.status != 'sent').order_by(
+        VolunteerRotaNotification.id.desc()).limit(20).all()
+    return jsonify([{'id': row.id, 'name': row.name, 'status': row.status,
+                     'created_at': row.created_at.isoformat() + 'Z'} for row in rows])
 
 @app.route('/api/admin/volunteers/archive', methods=['POST'])
 @admin_required

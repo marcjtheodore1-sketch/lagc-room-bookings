@@ -112,6 +112,20 @@ then warns the person saving to contact Florence directly. The table records
 pending/sending/sent/failed/uncertain/unavailable outcomes for investigation.
 The existing SMTP configuration is used; no new credentials or task are needed.
 
+The saved rota response is captured before its transaction commits. Database
+errors during the subsequent delivery claim or outcome update are rolled back
+and logged, and return that saved result with a warning. Admin → Volunteer Rota
+has an "Email notifications to check" section showing the latest 20 unconfirmed
+records, including interrupted pending/sending attempts; it never resends them.
+Fields and rota editing are locked while a save is in progress. Unexpected
+server errors are reported as unconfirmed saves/removals rather than definite
+failures, and the entered form is preserved.
+
+Names are matched in Python with Unicode normalisation and casefold, including
+accented capitals. All distinct legacy states for a name/date are compared;
+conflicting duplicates are reported in the notification when replaced or cleared.
+Unexpected old time strings are shown as stored instead of preventing delivery.
+
 ## Room requests to the venue
 
 Admin → Room Requests prepares an email to Emma Perez and Martha Fisher, copying

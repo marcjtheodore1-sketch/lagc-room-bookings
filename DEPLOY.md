@@ -1,5 +1,14 @@
 # Deploy to Render (Free Hosting)
 
+**Current production uses PythonAnywhere WSGI**, at
+`https://milestheodore.pythonanywhere.com`, with source and virtualenv under
+`/home/MilesTheodore/lagc-room-bookings`. This was checked in the hosting dashboard
+on 6th November 2026. Use the existing PythonAnywhere deployment process in
+`VISUAL_REFRESH_ROLLBACK.md`; the Render instructions below are an alternative,
+not the current production configuration. PythonAnywhere documents a
+[five-minute web-request timeout](https://help.pythonanywhere.com/pages/AsyncInWebApps),
+so an assumed 30-second Gunicorn default does not describe this deployment.
+
 ## Quick Deploy Steps
 
 ### 1. Create a GitHub Repository
