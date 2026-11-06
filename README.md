@@ -94,6 +94,24 @@ The saved admin confirmation template is preserved; its additional venue
 instructions and links are included after removing recognised repeated text.
 No new reminder subscriptions or schedules are created.
 
+## Volunteer rota notifications
+
+Saving changed availability emails Florence at `florence.perdriel@gmail.com`.
+One email summarises all changed Fridays, with previous/new status and shift
+times. New entries, changes in either direction, changed arrival/leaving times,
+cleared dates and removal from the upcoming rota are included. Unchanged saves,
+note-only edits and archiving past dates do not send mail. Notes are excluded
+from notifications. The recipient is fixed on the server.
+
+Changes and a `volunteer_rota_notification` delivery record are committed
+together before email is attempted. SQLite serialises rota saves so concurrent
+identical submissions do not both notify. A notification is claimed once, and
+failed, uncertain or interrupted attempts are never automatically resent.
+The rota save remains successful if email is unavailable or fails; the form
+then warns the person saving to contact Florence directly. The table records
+pending/sending/sent/failed/uncertain/unavailable outcomes for investigation.
+The existing SMTP configuration is used; no new credentials or task are needed.
+
 ## Room requests to the venue
 
 Admin → Room Requests prepares an email to Emma Perez and Martha Fisher, copying

@@ -268,6 +268,16 @@ class VolunteerAvailability(db.Model):
     unavailable = db.Column(db.Boolean, default=False)  # True = can't make it
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+class VolunteerRotaNotification(db.Model):
+    """Saved rota changes and their one-attempt notification outcome."""
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    changes = db.Column(db.Text, nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    error = db.Column(db.String(120), nullable=False, default='')
+
 class YogaBooking(db.Model):
     """A registration for a Gentle Yoga with Marlijn session (capacity-limited)"""
     id = db.Column(db.Integer, primary_key=True)
@@ -2613,9 +2623,10 @@ def admin_set_volunteer():
     'available', 'unavailable', or 'clear'. Only submitted Fridays change;
     other saved dates are retained."""
     data = request.get_json(silent=True) or {}
-    name = (data.get('name') or '').strip()
-    if not name:
-        return jsonify({'error': 'Please enter your name.'}), 400
+    raw_name = data.get('name')
+    if not isinstance(raw_name, str) or not raw_name.strip() or len(raw_name.strip()) > 120 or any(c in raw_name for c in '\r\n\x00'):
+        return jsonify({'error': 'Please enter your name on one line (up to 120 characters).'}), 400
+    name = raw_name.strip()
 
     upcoming = {f['date'] for f in get_rota_fridays()}
 
@@ -2643,9 +2654,15 @@ def admin_set_volunteer():
             return jsonify({'error': 'Notes must be text.'}), 400
 
     # Replace only the dates explicitly submitted. Blank dates remain saved.
+    # Serialise SQLite writers before reading the old status, so simultaneous
+    # saves of the same change produce only one notification.
+    db.session.execute(db.text('BEGIN IMMEDIATE'))
     existing = VolunteerAvailability.query.filter(
         db.func.lower(VolunteerAvailability.name) == name.lower(),
     ).all()
+    from volunteer_notifications import availability_state, entry_state, prepare_notification, deliver_notification
+    before = {row.booking_date.isoformat(): availability_state(row) for row in existing}
+    notification = prepare_notification(name, before, {entry['date']: entry_state(entry) for entry in entries})
     for row in existing:
         if row.booking_date.isoformat() in seen:
             db.session.delete(row)
@@ -2667,7 +2684,8 @@ def admin_set_volunteer():
         ))
     db.session.commit()
 
-    return jsonify(get_volunteer_rota())
+    delivery = deliver_notification(notification)
+    return jsonify({**get_volunteer_rota(), 'notification': delivery})
 
 @app.route('/api/admin/volunteers/remove', methods=['POST'])
 @admin_required
@@ -2679,14 +2697,19 @@ def admin_remove_volunteer():
         return jsonify({'error': 'Missing name.'}), 400
 
     today = datetime.now().date()
+    db.session.execute(db.text('BEGIN IMMEDIATE'))
     rows = VolunteerAvailability.query.filter(
         db.func.lower(VolunteerAvailability.name) == name.lower(),
         VolunteerAvailability.booking_date >= today,
     ).all()
+    from volunteer_notifications import availability_state, prepare_notification, deliver_notification
+    before = {row.booking_date.isoformat(): availability_state(row) for row in rows}
+    notification = prepare_notification(name, before, {day: ('clear', '', '') for day in before})
     for row in rows:
         db.session.delete(row)
     db.session.commit()
-    return jsonify(get_volunteer_rota())
+    delivery = deliver_notification(notification)
+    return jsonify({**get_volunteer_rota(), 'notification': delivery})
 
 @app.route('/api/admin/volunteers/archive', methods=['POST'])
 @admin_required

@@ -468,7 +468,23 @@ function editVolunteer(encodedName) {
     volunteerStatus(`Editing ${v.name}'s availability — make changes and save.`, false);
 }
 
+let volunteerSaveBusy = false;
+
+function finishVolunteerSave(message) {
+    const delivery = volunteerRota.notification || {};
+    volunteerStatus(delivery.warning || message +
+        (delivery.status === 'sent' ? ' Florence has been emailed about the changes.' : ''), Boolean(delivery.warning));
+}
+
+function setVolunteerSaveBusy(busy) {
+    volunteerSaveBusy = busy;
+    const button = document.getElementById('vol-save-btn');
+    button.disabled = busy;
+    button.textContent = busy ? 'Saving and notifying Florence...' : 'Save my availability';
+}
+
 async function saveVolunteer() {
+    if (volunteerSaveBusy) return;
     const name = document.getElementById('vol-name').value.trim();
     if (!name) {
         volunteerStatus('Please enter your name.', true);
@@ -500,6 +516,8 @@ async function saveVolunteer() {
         }
     }
 
+    setVolunteerSaveBusy(true);
+    volunteerStatus('Saving your availability...', false);
     try {
         const res = await fetch('/api/admin/volunteers', {
             method: 'POST',
@@ -518,16 +536,19 @@ async function saveVolunteer() {
         document.querySelectorAll('.vol-entry-status').forEach(sel => { sel.value = ''; });
         document.querySelectorAll('.vol-entry-note, .vol-entry-start, .vol-entry-end').forEach(inp => { inp.value = ''; });
         updateVolunteerTimeFields();
-        const availCount = entries.filter(e => e.status === 'available').length;
-        volunteerStatus(`Thanks ${name}! Your changes are saved. Other saved dates have been kept. Check the rota below.`, false);
+        finishVolunteerSave(`Thanks ${name}! Your changes are saved. Other saved dates have been kept. Check the rota below.`);
     } catch (e) {
-        volunteerStatus('Failed to save. Please try again.', true);
+        volunteerStatus('We could not confirm whether your changes were saved. Check the rota before trying again.', true);
+    } finally {
+        setVolunteerSaveBusy(false);
     }
 }
 
 async function removeVolunteer(encodedName) {
+    if (volunteerSaveBusy) return;
     const name = decodeURIComponent(encodedName);
     if (!confirm(`Remove ${name} from the upcoming rota?`)) return;
+    setVolunteerSaveBusy(true);
     try {
         const res = await fetch('/api/admin/volunteers/remove', {
             method: 'POST',
@@ -537,9 +558,11 @@ async function removeVolunteer(encodedName) {
         if (!res.ok) { volunteerStatus('Failed to remove. Please try again.', true); return; }
         volunteerRota = await res.json();
         renderVolunteerCoverage();
-        volunteerStatus(`${name} removed from the rota.`, false);
+        finishVolunteerSave(`${name} removed from the rota.`);
     } catch (e) {
-        volunteerStatus('Failed to remove. Please try again.', true);
+        volunteerStatus('We could not confirm whether the volunteer was removed. Check the rota before trying again.', true);
+    } finally {
+        setVolunteerSaveBusy(false);
     }
 }
 
