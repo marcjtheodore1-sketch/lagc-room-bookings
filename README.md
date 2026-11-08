@@ -97,11 +97,13 @@ No new reminder subscriptions or schedules are created.
 ## Volunteer rota notifications
 
 Saving changed availability emails Florence at `florence.perdriel@gmail.com`.
-One email summarises all changed Fridays, with previous/new status and shift
-times. New entries, changes in either direction, changed arrival/leaving times,
-cleared dates and removal from the upcoming rota are included. Unchanged saves,
-note-only edits and archiving past dates do not send mail. Notes are excluded
-from notifications. The recipient is fixed on the server.
+One email summarises changes to previously saved Fridays, with previous/new
+status and shift times. Changes in either direction, changed arrival/leaving
+times, cleared dates and removal from the upcoming rota are included. First
+entries for a Friday, unchanged saves, note-only edits and archiving past dates
+do not send mail. A save with both new and changed dates lists only the changed
+dates in the email. Notes are excluded from notifications. The recipient is
+fixed on the server.
 
 Changes and a `volunteer_rota_notification` delivery record are committed
 together before email is attempted. SQLite serialises rota saves so concurrent

@@ -487,7 +487,7 @@ function setVolunteerSaveBusy(busy) {
     });
     const button = document.getElementById('vol-save-btn');
     button.disabled = busy;
-    button.textContent = busy ? 'Saving and notifying Florence...' : 'Save my availability';
+    button.textContent = busy ? 'Saving availability...' : 'Save my availability';
     if (!busy) updateVolunteerTimeFields();
 }
 

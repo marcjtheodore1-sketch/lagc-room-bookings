@@ -16,7 +16,8 @@ app.config.update(ENABLE_EMAIL=True, SMTP_USER='sender@example.test',
     SMTP_FROM='sender@example.test', SMTP_PASSWORD='dummy')
 patch('app.get_rota_fridays', return_value=[
     {'date':'2099-01-02', 'display':'First Friday'},
-    {'date':'2099-01-09', 'display':'Second Friday'}]).start()
+    {'date':'2099-01-09', 'display':'Second Friday'},
+    {'date':'2099-01-16', 'display':'Third Friday'}]).start()
 client = app.test_client()
 with client.session_transaction() as session:
     session['admin_logged_in'] = True
@@ -55,23 +56,34 @@ class VolunteerNotificationsTest(unittest.TestCase):
 
     def test_transitions_summary_times_noops_and_note_privacy(self):
         self.run_case('''
-            result = save([available('2099-01-09', note='Private note'), available()])
+            result = save([available(), dict(date='2099-01-16', status='unavailable')])
+            assert result['notification']['status'] == 'unchanged'
+            assert VolunteerAvailability.query.count() == 2
+            assert not sent and VolunteerRotaNotification.query.count() == 0
+
+            result = save([available('2099-01-09', note='New Friday'),
+                           available(start='10:00', note='Private note'),
+                           available('2099-01-16')])
             assert result['notification']['status'] == 'sent'
+            assert VolunteerAvailability.query.count() == 3
+            assert VolunteerAvailability.query.filter_by(booking_date=date(2099,1,9)).one().note == 'New Friday'
             assert len(sent) == 1
             message, recipients = sent[0]
             assert recipients == ['florence.perdriel@gmail.com']
             assert message['To'] == recipients[0] and message['Cc'] is None
             assert message['From'] == 'sender@example.test'
             body = text_of(message)
-            assert 'Friday 2nd January 2099: Not recorded → Available (9am to 5pm)' in body
-            assert body.index('2nd January') < body.index('9th January')
+            assert 'Friday 2nd January 2099: Available (9am to 5pm) → Available (10am to 5pm)' in body
+            assert 'Friday 16th January 2099: Not available → Available (9am to 5pm)' in body
+            assert body.index('2nd January') < body.index('16th January')
+            assert '9th January' not in body and 'New Friday' not in body
             assert 'Private note' not in body
             assert message.get_payload()[1].get_content_type() == 'text/html'
-            assert save([available(note='New private note')], name=' test volunteer ')['notification']['status'] == 'unchanged'
+            assert save([available(start='10:00', note='New private note')], name=' test volunteer ')['notification']['status'] == 'unchanged'
             assert len(sent) == 1
             assert VolunteerAvailability.query.filter_by(booking_date=date(2099,1,2)).one().note == 'New private note'
             save([dict(date='2099-01-02', status='unavailable')])
-            assert 'Available (9am to 5pm) → Not available' in text_of(sent[-1][0])
+            assert 'Available (10am to 5pm) → Not available' in text_of(sent[-1][0])
             assert VolunteerAvailability.query.filter_by(booking_date=date(2099,1,2)).one().unavailable
             save([available(start='10:30', end='14:45')])
             assert 'Not available → Available (10.30am to 2.45pm)' in text_of(sent[-1][0])
@@ -79,7 +91,7 @@ class VolunteerNotificationsTest(unittest.TestCase):
             assert 'Available (10.30am to 2.45pm) → Available (11am to 2.45pm)' in text_of(sent[-1][0])
             save([dict(date='2099-01-02', status='clear')])
             assert 'Available (11am to 2.45pm) → Not recorded' in text_of(sent[-1][0])
-            assert VolunteerAvailability.query.one().booking_date == date(2099,1,9)
+            assert {row.booking_date for row in VolunteerAvailability.query.all()} == {date(2099,1,9), date(2099,1,16)}
             assert save([dict(date='2099-01-02', status='clear')])['notification']['status'] == 'unchanged'
             assert len(sent) == 5 and VolunteerRotaNotification.query.count() == 5
         ''')
@@ -88,6 +100,7 @@ class VolunteerNotificationsTest(unittest.TestCase):
         self.run_case('''
             for error, expected in [(smtplib.SMTPAuthenticationError(535, b'no'), 'failed'),
                                     (EmailDeliveryUncertain('unknown'), 'uncertain')]:
+                save([available(start='10:00')])
                 smtp.side_effect = error
                 result = save([available()])
                 assert result['notification']['status'] == expected
@@ -102,7 +115,8 @@ class VolunteerNotificationsTest(unittest.TestCase):
                 save([dict(date='2099-01-02', status='clear')])
             app.config['ENABLE_EMAIL'] = False
             calls = smtp.call_count
-            result = save([available()])
+            assert save([available()])['notification']['status'] == 'unchanged'
+            result = save([available(start='10:00')])
             assert result['notification']['status'] == 'unavailable'
             assert result['notification']['warning']
             assert smtp.call_count == calls
@@ -154,6 +168,7 @@ class VolunteerNotificationsTest(unittest.TestCase):
                 response = local.post('/api/admin/volunteers',json=dict(name='Concurrent Volunteer',entries=[available()]))
                 assert response.status_code == 200, response.get_data(as_text=True)
                 return response.json['notification']['status']
+            save([available(start='10:00')], name='Concurrent Volunteer')
             db.session.remove()
             with ThreadPoolExecutor(max_workers=2) as pool:
                 results = list(pool.map(submit, range(2)))
@@ -167,13 +182,13 @@ class VolunteerNotificationsTest(unittest.TestCase):
         self.run_case('''
             for name in ['Élodie Martin', 'ÉLODIE MARTIN', 'E\\u0301lodie Martin']:
                 save([available()], name=name)
-            assert VolunteerAvailability.query.count() == 1 and len(sent) == 1
+            assert VolunteerAvailability.query.count() == 1 and not sent
             save([dict(date='2099-01-02', status='clear')], name='élodie martin')
             assert VolunteerAvailability.query.count() == 0
             save([available()], name='Élodie Martin')
             response = client.post('/api/admin/volunteers/remove', json={'name':'ÉLODIE MARTIN'})
             assert response.status_code == 200 and VolunteerAvailability.query.count() == 0
-            assert len(sent) == 4
+            assert len(sent) == 2
 
             db.session.add_all([
                 VolunteerAvailability(name='Bob', booking_date=date(2099,1,2), start_time='10am', end_time='99:99'),
@@ -262,13 +277,19 @@ class VolunteerNotificationsTest(unittest.TestCase):
                 return response.json
             with ThreadPoolExecutor(max_workers=2) as pool:
                 list(pool.map(submit, [False, True]))
-            assert len(sent) == 2
             records = VolunteerRotaNotification.query.order_by(VolunteerRotaNotification.id).all()
-            first, second = [json.loads(r.changes)[0] for r in records]
-            assert first['before'][0] == 'available'
-            assert second['before'] == first['after']
+            changes = [json.loads(record.changes)[0] for record in records]
+            assert len(sent) == len(changes)
+            assert changes[0]['before'][0] == 'available'
             rows = VolunteerAvailability.query.all()
-            assert (not rows and second['after'][0]=='clear') or (len(rows)==1 and rows[0].unavailable)
+            if rows:
+                # Removal won the lock first, so the later save is a new entry.
+                assert len(rows) == 1 and rows[0].unavailable
+                assert len(changes) == 1 and changes[0]['after'][0] == 'clear'
+            else:
+                assert len(changes) == 2 and changes[0]['after'][0] == 'unavailable'
+                assert changes[1]['before'] == changes[0]['after']
+                assert changes[1]['after'][0] == 'clear'
         ''')
 
     def test_real_scheduled_friday_without_mocking_rota_dates(self):
@@ -286,7 +307,8 @@ class VolunteerNotificationsTest(unittest.TestCase):
             with patch('app.datetime', Clock):
                 days = client.get('/api/admin/volunteers').json['fridays']
                 assert '2026-11-20' in [day['date'] for day in days]
-                result = save([available('2026-11-20')])
+                assert save([available('2026-11-20')])['notification']['status'] == 'unchanged'
+                result = save([available('2026-11-20', start='10:00')])
                 assert result['notification']['status'] == 'sent'
                 assert 'Friday 20th November 2026' in text_of(sent[-1][0])
                 response = client.post('/api/admin/volunteers/remove',json={'name':'Test Volunteer'})

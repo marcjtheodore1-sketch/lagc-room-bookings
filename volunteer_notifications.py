@@ -55,8 +55,9 @@ def prepare_notification(name, before, after):
     from app import db, VolunteerRotaNotification
     changes = []
     for day, state in sorted(after.items()):
-        old_states = before.get(day, [('clear', '', '')])
-        if old_states == [state]:
+        # A first entry for this Friday is a normal submission, not a change.
+        old_states = before.get(day)
+        if not old_states or old_states == [state]:
             continue
         change = {'date': day, 'before': old_states[0], 'after': state}
         if len(old_states) > 1:

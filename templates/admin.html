@@ -181,7 +181,7 @@
                     <p class="loading">Loading dates...</p>
                 </div>
             </div>
-            <p class="hint">Florence receives an email when saved availability or shift times change, including when dates are cleared or a volunteer is removed. Notes are kept in the rota.</p>
+            <p class="hint">Florence receives an email when existing availability or shift times change, including when dates are cleared or a volunteer is removed. First entries for a Friday and edits to notes alone are saved without an email.</p>
             <button class="btn btn-primary" id="vol-save-btn" onclick="saveVolunteer()">Save my availability</button>
             <p class="form-status" id="volunteer-status" role="status" aria-live="polite"></p>
         </div>
@@ -346,6 +346,6 @@
         <p id="booking-name-status" role="status" aria-live="polite"></p>
     </div>
 </div>
-<script src="{{ url_for('static', filename='js/admin.js') }}?v=54"></script>
+<script src="{{ url_for('static', filename='js/admin.js') }}?v=55"></script>
 <script src="{{ url_for('static', filename='js/room_requests.js') }}?v=8"></script>
 {% endblock %}
