@@ -103,6 +103,7 @@ class SeptemberScheduleTest(unittest.TestCase):
                 '2026-10-30': rose_and_clerkenwell,
                 '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
                 '2026-11-20': rose_and_clerkenwell,
+                '2026-11-27': rose_and_clerkenwell,
             },
             'yoga': [
                 '2026-09-04', '2026-09-11',
@@ -115,6 +116,52 @@ class SeptemberScheduleTest(unittest.TestCase):
             source = script.read()
         self.assertNotIn("Room bookings for this Friday aren't open yet", source)
         self.assertNotIn('roomsPendingNotice', source)
+
+    def test_winter_room_hours_and_booking_boundaries(self):
+        from test_attendee_booking_experience import run_isolated
+        result = run_isolated('''
+            from datetime import datetime
+            from unittest.mock import patch
+            from app import app, Booking, booking_time_display, init_default_data
+
+            class Clock(datetime):
+                @classmethod
+                def now(cls, tz=None):
+                    return cls(2026, 11, 10, 12, tzinfo=tz)
+
+            expected = {
+                '2026-11-27': {'Room 4.4 "Rose"': '3:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
+                '2026-12-04': {'Room 4.4 "Rose"': '6:00 PM', 'The Loft': '6:00 PM'},
+                '2026-12-11': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
+                '2026-12-18': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
+            }
+            with app.app_context(), patch('app.datetime', Clock), patch('app.send_emails_async'):
+                init_default_data()
+                client = app.test_client()
+                assert set(expected) <= {day['date'] for day in client.get('/api/fridays').json}
+                for day, closes in expected.items():
+                    rooms = client.get('/api/rooms', query_string={'date': day}).json
+                    assert {room['name']: room['override_end'] for room in rooms} == closes
+                    assert all(room['override_start'] == '9:30 AM' for room in rooms)
+                    rose = next(room for room in rooms if room['room_type'] == 'slot')
+                    slots = client.get(f"/api/availability/{day}/{rose['id']}").json
+                    assert slots[-1]['display'] == closes[rose['name']]
+                    assert not slots[-1]['available'] and slots[-2]['available']
+                    start, end = slots[-2]['index'], slots[-1]['index']
+                    booking = dict(room_id=rose['id'], date=day, name='Test Person',
+                                   email='test@example.test', mobility_needs=False,
+                                   room_guidance_agreed=True, start_slot=start, end_slot=end)
+                    assert client.post('/api/book', json={**booking, 'end_slot': end + 1}).status_code == 400
+                    response = client.post('/api/book', json=booking)
+                    assert response.status_code == 200, response.json
+                    saved = Booking.query.filter_by(room_id=rose['id']).order_by(Booking.id.desc()).first()
+                    assert booking_time_display(saved) == (slots[-2]['display'], closes[rose['name']])
+                homepage = client.get('/').get_data(as_text=True)
+                assert '27th November (9.30am to 3pm)' in homepage
+                assert '27th November (9.30am to 6pm)' in homepage
+                assert client.get('/api/slots').json[-1]['time'] == '17:00'
+        ''')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 if __name__ == '__main__':

@@ -47,7 +47,7 @@ class DateReminderTest(unittest.TestCase):
                 assert record.status=='stopped'
                 assert run_date_reminders(datetime(2026,10,28,9,tzinfo=ZoneInfo('Europe/London')))['sent']==0
                 assert client.get('/reminders/date/confirm/not-a-token').status_code==404
-                assert client.post('/reminders/date/request',data=dict(body,date='2026-11-27')).status_code==409
+                assert client.post('/reminders/date/request',data=dict(body,date='2026-12-25')).status_code==409
                 assert client.post('/reminders/date/request',data=dict(body,date='2026-10-09')).status_code==409
                 assert client.post('/reminders/date/request',data=dict(body,email='bad\\n@example.test')).status_code==400
                 assert client.post('/reminders/date/request',data=dict(body,email='zara.lagc@gmail.com')).status_code==200

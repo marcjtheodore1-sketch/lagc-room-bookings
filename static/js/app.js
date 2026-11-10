@@ -243,7 +243,7 @@ function renderRooms() {
             : '9:30am - 5pm';
         const typeHint = room.room_type === 'open'
             ? `<small class="room-hint">${escapeHtml(openHours)}</small>`
-            : '<small class="room-hint">30 min slots</small>';
+            : `<small class="room-hint">${room.override_end ? escapeHtml(openHours) + ' · ' : ''}30 min slots</small>`;
         const photoUrl = getRoomPhotoUrl(room);
         const photoHtml = photoUrl
             ? `<div class="room-card-image"><img src="${escapeHtml(photoUrl)}" alt="${escapeHtml(room.name)}" loading="lazy"></div>`
@@ -377,7 +377,8 @@ function renderTimeSlots() {
     slotsContainer.className = 'time-slots-grid';
     slotsContainer.id = 'slots-grid';
     
-    slotsContainer.innerHTML = state.availability.map(slot => {
+    // The last boundary closes the room and cannot start a booking.
+    slotsContainer.innerHTML = state.availability.slice(0, -1).map(slot => {
         const isSelected = state.selectedSlots.includes(slot.index);
         const isBooked = !slot.available;
         
@@ -532,9 +533,8 @@ function updateSelectionInfo() {
         return;
     }
     
-    const startTime = state.timeSlots[startSlot]?.display;
-    const endTimeIndex = Math.min(endSlot + 1, state.timeSlots.length - 1);
-    const endTime = state.timeSlots[endSlot + 1]?.display || state.timeSlots[state.timeSlots.length - 1]?.display || '5:00 PM';
+    const startTime = state.availability[startSlot]?.display;
+    const endTime = state.availability[endSlot + 1]?.display;
 
     elements.selectionInfo.innerHTML = `
         <strong>✓ Selected:</strong> ${escapeHtml(startTime)} - ${escapeHtml(endTime)} 
@@ -752,8 +752,8 @@ function showEmailStep() {
         const sortedSlots = [...state.selectedSlots].sort((a, b) => a - b);
         const startSlot = sortedSlots[0];
         const endSlot = sortedSlots[sortedSlots.length - 1];
-        startTime = state.timeSlots[startSlot]?.display;
-        endTime = state.timeSlots[endSlot + 1]?.display || state.timeSlots[state.timeSlots.length - 1]?.display || '5:00 PM';
+        startTime = state.availability[startSlot]?.display;
+        endTime = state.availability[endSlot + 1]?.display;
     }
     
     const dateDisplay = state.fridays.find(f => f.date === state.selectedDate)?.display;

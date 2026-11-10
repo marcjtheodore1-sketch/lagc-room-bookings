@@ -118,7 +118,7 @@ class Booking(db.Model):
     user_name = db.Column(db.String(100), nullable=False)
     user_email = db.Column(db.String(120), nullable=False)
     booking_date = db.Column(db.Date, nullable=False)  # The Friday being booked
-    start_slot = db.Column(db.Integer, nullable=False)  # 0-15 (09:30-17:00 in 30min slots)
+    start_slot = db.Column(db.Integer, nullable=False)  # 30-minute intervals from 09:30
     end_slot = db.Column(db.Integer, nullable=False)    # exclusive end slot
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     cancelled_at = db.Column(db.DateTime, nullable=True)
@@ -300,15 +300,15 @@ class YogaBooking(db.Model):
 # CONSTANTS
 # ============================================================================
 
-# Friday time slots: 09:30 - 17:00 (30 min intervals)
-# Slot 0 = 09:30, Slot 1 = 10:00, ..., Slot 15 = 17:00 (end marker)
-# Rooms are open 9:30am–5pm. This grid was re-based from 11:00 to 09:30 in
+# Friday time slots: 09:30 - 18:00 (30 min intervals), with a usual 17:00 close.
+# This grid was re-based from 11:00 to 09:30 in
 # June 2026; existing bookings are shifted +3 slots once (see run_migrations)
 # so their real times are preserved.
 START_HOUR = 9
 START_MINUTE = 30
 END_HOUR = 17    # 5 PM
 END_MINUTE = 0
+LATEST_END_HOUR = 18
 SLOT_MINUTES = 30
 MAX_SLOTS = 6    # 3 hours = 6 x 30 min slots
 
@@ -316,7 +316,7 @@ def get_time_slots():
     """Generate all available time slots"""
     slots = []
     current = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", "%H:%M")
-    end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", "%H:%M")
+    end = datetime.strptime(f"{LATEST_END_HOUR:02d}:00", "%H:%M")
 
     slot_index = 0
     while current <= end:
@@ -331,6 +331,7 @@ def get_time_slots():
     return slots
 
 TIME_SLOTS = get_time_slots()
+DEFAULT_END_SLOT = (END_HOUR * 60 + END_MINUTE - START_HOUR * 60 - START_MINUTE) // SLOT_MINUTES
 # Volunteer shifts include preparation and closing time, beyond public room hours.
 VOLUNTEER_TIME_OPTIONS = [
     {'time': f'{minute // 60:02d}:{minute % 60:02d}',
@@ -338,13 +339,20 @@ VOLUNTEER_TIME_OPTIONS = [
     for minute in range(8 * 60, 18 * 60 + 1, 15)
 ]
 # Display time used when an open room is booked through to the end of the day.
-LAST_SLOT_DISPLAY = TIME_SLOTS[-1]['display']  # '5:00 PM'
+LAST_SLOT_DISPLAY = TIME_SLOTS[DEFAULT_END_SLOT]['display']  # '5:00 PM'
 
 # ============================================================================
 # ROOM AVAILABILITY SCHEDULE
 # Format: 'YYYY-MM-DD': ['Room Name', 'Room Name', ...]
 # Room names are matched against the database
 # ============================================================================
+WINTER_CONTRACT_ROOM_ENDS = {
+    '2026-11-27': {'Room 4.4 "Rose"': '15:00', 'Room 4.7 "Clerkenwell"': '18:00'},
+    '2026-12-04': {'Room 4.4 "Rose"': '18:00', 'The Loft': '18:00'},
+    '2026-12-11': {'Room 4.4 "Rose"': '18:00', 'Room 4.7 "Clerkenwell"': '18:00'},
+    '2026-12-18': {'Room 4.4 "Rose"': '18:00', 'Room 4.7 "Clerkenwell"': '18:00'},
+}
+
 ROOM_SCHEDULE_BY_NAME = {
     '2026-03-06': ['Room 4.7 "Clerkenwell"', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
     '2026-03-13': ['The Loft', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
@@ -378,6 +386,7 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
     # 2026-11-13 withdrawn from the booking schedule.
     '2026-11-20': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
+    **{day: list(rooms) for day, rooms in WINTER_CONTRACT_ROOM_ENDS.items()},
 }
 
 def get_room_schedule_ids():
@@ -497,13 +506,16 @@ def get_room_note(date_str, room_id):
 
 def get_effective_room_hours(date_str, room):
     """Resolve a room's hours for a date: a one-day change (override) wins,
-    then the room's own default hours, then the global 9:30-5 day.
+    then the contracted hours, the room's own defaults and the global 9:30-5 day.
 
     Returns (start_hhmm, end_hhmm, source) with source in
-    ('override', 'room', 'global')."""
+    ('override', 'contract', 'room', 'global')."""
     ov = get_room_time_override(date_str, room.id)
     if ov and ov.get('start') and ov.get('end'):
         return ov['start'], ov['end'], 'override'
+    contract_end = WINTER_CONTRACT_ROOM_ENDS.get(date_str, {}).get(room.name)
+    if contract_end:
+        return '09:30', contract_end, 'contract'
     if room.default_start and room.default_end:
         return room.default_start, room.default_end, 'room'
     return f"{START_HOUR:02d}:{START_MINUTE:02d}", f"{END_HOUR:02d}:{END_MINUTE:02d}", 'global'
@@ -514,13 +526,17 @@ def booking_time_display(booking):
     Slot-room bookings always reflect the actual slots the person chose; only
     open (whole-day) rooms take on the admin's custom hours (per-date change
     or the room's default hours)."""
-    if booking.room and booking.room.room_type == 'open':
+    display_end_slot = booking.end_slot
+    if booking.room:
         start, end, source = get_effective_room_hours(
             booking.booking_date.isoformat(), booking.room)
-        if source != 'global':
+        if booking.room.room_type == 'open' and source != 'global':
             return fmt_hhmm(start), fmt_hhmm(end)
+        # Older whole-day bookings used the index after 5pm as an end marker.
+        if source == 'global':
+            display_end_slot = min(display_end_slot, DEFAULT_END_SLOT)
     start = TIME_SLOTS[booking.start_slot]['display']
-    end = TIME_SLOTS[booking.end_slot]['display'] if booking.end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
+    end = TIME_SLOTS[display_end_slot]['display'] if display_end_slot < len(TIME_SLOTS) else LAST_SLOT_DISPLAY
     return start, end
 
 # ============================================================================
@@ -1230,11 +1246,11 @@ def get_room_email_description(room_name):
             return desc
     return 'a comfortable space available on Fridays'
 
-def get_free_time_ranges(room_id, booking_date):
+def get_free_time_ranges(room, booking_date):
     """Return human-readable free time ranges for a slot room on a date,
     e.g. ['11:00 AM – 1:00 PM', '2:30 PM – 4:00 PM']"""
     bookings = Booking.query.filter(
-        Booking.room_id == room_id,
+        Booking.room_id == room.id,
         Booking.booking_date == booking_date,
         Booking.cancelled_at.is_(None)
     ).all()
@@ -1243,8 +1259,8 @@ def get_free_time_ranges(room_id, booking_date):
         for s in range(b.start_slot, b.end_slot):
             booked.add(s)
 
-    # Bookable half-hour slots run 0..9 (last starts 3:30 PM, day ends 4:00 PM)
-    free = [i for i in range(len(TIME_SLOTS) - 1) if i not in booked]
+    start, end, _ = get_effective_room_hours(booking_date.isoformat(), room)
+    free = [i for i in range(override_start_slot(start), override_end_slot(end)) if i not in booked]
 
     ranges = []
     start = prev = None
@@ -1278,9 +1294,15 @@ def landing():
             display = f"{day.day}{suffix} {day.strftime('%B')}"
             for room in active_rooms:
                 if room.id in schedule.get(friday['date'], []):
+                    room_display = display
+                    if friday['date'] in WINTER_CONTRACT_ROOM_ENDS:
+                        start, end, _ = get_effective_room_hours(friday['date'], room)
+                        hours = [fmt_hhmm(value).lower().replace(' ', '').replace(':00', '').replace(':', '.')
+                                 for value in (start, end)]
+                        room_display = f"{display} ({hours[0]} to {hours[1]})"
                     for key in room_dates:
-                        if key in room.name.lower() and display not in room_dates[key]:
-                            room_dates[key].append(display)
+                        if key in room.name.lower() and room_display not in room_dates[key]:
+                            room_dates[key].append(room_display)
     except Exception:
         db.session.rollback()
         app.logger.exception('Unable to load homepage room schedule')
@@ -1735,7 +1757,7 @@ def get_fridays():
 @app.route('/api/slots')
 def get_slots():
     """Get time slot definitions"""
-    return jsonify(TIME_SLOTS)
+    return jsonify(TIME_SLOTS[:DEFAULT_END_SLOT + 1])
 
 @app.route('/api/availability/<date>/<int:room_id>')
 def get_availability(date, room_id):
@@ -1797,26 +1819,20 @@ def get_availability(date, room_id):
         for slot_idx in [0, 1, 2]:  # 11:00am, 11:30am, 12:00pm
             booked_slots.add(slot_idx)
 
-    # Admin custom hours (per-date change or room default): block any slots
-    # outside the window
+    # Include the closing boundary for displaying the end of the last slot.
     room_obj = db.session.get(Room, room_id)
-    if room_obj:
-        win_start_hhmm, win_end_hhmm, source = get_effective_room_hours(date_str, room_obj)
-        if source != 'global':
-            win_start = override_start_slot(win_start_hhmm)
-            win_end = override_end_slot(win_end_hhmm)
-            for slot in TIME_SLOTS:
-                if slot['index'] < win_start or slot['index'] >= win_end:
-                    booked_slots.add(slot['index'])
+    win_start_hhmm, win_end_hhmm, _ = get_effective_room_hours(date_str, room_obj)
+    win_start = override_start_slot(win_start_hhmm)
+    win_end = override_end_slot(win_end_hhmm)
 
     # Build availability array
     availability = []
-    for slot in TIME_SLOTS:
+    for slot in TIME_SLOTS[:win_end + 1]:
         availability.append({
             'index': slot['index'],
             'time': slot['time'],
             'display': slot['display'],
-            'available': slot['index'] not in booked_slots
+            'available': win_start <= slot['index'] < win_end and slot['index'] not in booked_slots
         })
 
     return jsonify(availability)
@@ -1978,11 +1994,14 @@ def create_booking():
     if duplicate:
         return jsonify({'error': 'You already have a booking for this room on this date. Check "My Bookings" below to view or cancel it.'}), 409
 
+    win_start_hhmm, win_end_hhmm, _ = get_effective_room_hours(booking_date.isoformat(), room)
+    win_start = override_start_slot(win_start_hhmm)
+    win_end = override_end_slot(win_end_hhmm)
     # Determine slots based on room type
     if room.room_type == 'open':
-        # Open rooms: book the entire day (9:30am - 5pm)
-        start_slot = 0
-        end_slot = len(TIME_SLOTS)  # Exclusive end (covers all slots 0-10)
+        # Open rooms reserve their full advertised window.
+        start_slot = win_start
+        end_slot = win_end
 
         # Special case: May 8th, 2026 - Rooms 4.2 and 4.7 start at 12:30pm
         date_str = booking_date.isoformat()
@@ -2007,14 +2026,8 @@ def create_booking():
         if num_slots > MAX_SLOTS:
             return jsonify({'error': f'Maximum booking duration is 3 hours ({MAX_SLOTS} slots)'}), 400
 
-        # Enforce the room's custom hours (per-date change or room default)
-        win_start_hhmm, win_end_hhmm, source = get_effective_room_hours(
-            booking_date.isoformat(), room)
-        if source != 'global':
-            win_start = override_start_slot(win_start_hhmm)
-            win_end = override_end_slot(win_end_hhmm)
-            if start_slot < win_start or end_slot > win_end:
-                return jsonify({'error': f'This room is only available {fmt_hhmm(win_start_hhmm)}–{fmt_hhmm(win_end_hhmm)} on this date. Please pick a time within those hours.'}), 400
+        if start_slot < win_start or end_slot > win_end:
+            return jsonify({'error': f'This room is only available {fmt_hhmm(win_start_hhmm)}–{fmt_hhmm(win_end_hhmm)} on this date. Please pick a time within those hours.'}), 400
 
     # Check availability (only for slot rooms - open rooms allow multiple bookings)
     if room.room_type == 'slot' and not check_availability(room_id, booking_date, start_slot, end_slot):
@@ -3273,7 +3286,7 @@ def admin_availability_email_draft(date):
             continue
         desc = get_room_email_description(room.name)
         if room.room_type == 'slot':
-            free_ranges = get_free_time_ranges(room.id, booking_date)
+            free_ranges = get_free_time_ranges(room, booking_date)
             if not free_ranges:
                 continue  # fully booked — leave it out of the email
             room_lines.append(f"• {room.name} — {desc}.\n   Times still available: {', '.join(free_ranges)}")
@@ -3461,7 +3474,7 @@ def admin_get_room_times():
                 'start': start,
                 'end': end,
                 'is_override': bool(ov),
-                'source': source,  # 'override' | 'room' | 'global'
+                'source': source,
                 'note': get_room_note(ds, rid),
             })
         if rooms:
@@ -3495,7 +3508,7 @@ def _validate_hhmm_window(start, end):
     if t_start >= t_end:
         return jsonify({'error': 'The start time must be before the end time'}), 400
     day_start = datetime.strptime(f"{START_HOUR:02d}:{START_MINUTE:02d}", '%H:%M')
-    day_end = datetime.strptime(f"{END_HOUR:02d}:{END_MINUTE:02d}", '%H:%M')
+    day_end = datetime.strptime(f"{LATEST_END_HOUR:02d}:00", '%H:%M')
     if t_start < day_start or t_end > day_end:
         return jsonify({'error': f'Times must be between {fmt_hhmm(day_start.strftime("%H:%M"))} and {fmt_hhmm(day_end.strftime("%H:%M"))}.'}), 400
     return None
