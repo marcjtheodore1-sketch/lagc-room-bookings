@@ -386,7 +386,12 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
     # 2026-11-13 withdrawn from the booking schedule.
     '2026-11-20': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
-    **{day: list(rooms) for day, rooms in WINTER_CONTRACT_ROOM_ENDS.items()},
+    # 2026-11-27 cancelled. Keep the original hours for existing booking records.
+    **{
+        day: list(rooms)
+        for day, rooms in WINTER_CONTRACT_ROOM_ENDS.items()
+        if day != '2026-11-27'
+    },
 }
 
 def get_room_schedule_ids():

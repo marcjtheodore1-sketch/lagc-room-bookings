@@ -11,7 +11,7 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class SeptemberScheduleTest(unittest.TestCase):
-    def test_withdrawn_november_date_rejects_stale_forms(self):
+    def test_withdrawn_november_dates_reject_stale_forms(self):
         from test_attendee_booking_experience import run_isolated
         result = run_isolated('''
             from datetime import datetime
@@ -27,16 +27,19 @@ class SeptemberScheduleTest(unittest.TestCase):
                 rota_rooms = {day['date']: day['rooms'] for day in get_volunteer_rota()['fridays']}
                 assert rota_rooms['2026-10-30'] == ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"']
                 assert rota_rooms['2026-11-06'] == ['Room 4.4 "Rose"', 'The Loft']
-                assert '2026-11-13' not in rota_rooms
-                assert '2026-11-13' not in [day['date'] for day in client.get('/api/fridays').json]
-                for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'):
-                    room = Room.query.filter_by(name=name).one()
-                    response = client.post('/api/book', json=dict(
-                        room_id=room.id, date='2026-11-13', name='Test Person',
-                        email='test@example.test', mobility_needs=False,
-                        start_slot=0, end_slot=1))
-                    assert response.status_code == 409, response.json
-                    assert 'no longer available' in response.json['error']
+                published_days = {day['date'] for day in client.get('/api/fridays').json}
+                for day in ('2026-11-13', '2026-11-27'):
+                    assert day not in rota_rooms
+                    assert day not in published_days
+                    assert client.get('/api/rooms', query_string={'date': day}).json == []
+                    for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'):
+                        room = Room.query.filter_by(name=name).one()
+                        response = client.post('/api/book', json=dict(
+                            room_id=room.id, date=day, name='Test Person',
+                            email='test@example.test', mobility_needs=False,
+                            start_slot=0, end_slot=1))
+                        assert response.status_code == 409, response.json
+                        assert 'no longer available' in response.json['error']
                 assert Booking.query.count() == 0
                 send.assert_not_called()
         ''')
@@ -103,7 +106,6 @@ class SeptemberScheduleTest(unittest.TestCase):
                 '2026-10-30': rose_and_clerkenwell,
                 '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
                 '2026-11-20': rose_and_clerkenwell,
-                '2026-11-27': rose_and_clerkenwell,
             },
             'yoga': [
                 '2026-09-04', '2026-09-11',
@@ -130,7 +132,6 @@ class SeptemberScheduleTest(unittest.TestCase):
                     return cls(2026, 11, 10, 12, tzinfo=tz)
 
             expected = {
-                '2026-11-27': {'Room 4.4 "Rose"': '3:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
                 '2026-12-04': {'Room 4.4 "Rose"': '6:00 PM', 'The Loft': '6:00 PM'},
                 '2026-12-11': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
                 '2026-12-18': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
@@ -157,8 +158,8 @@ class SeptemberScheduleTest(unittest.TestCase):
                     saved = Booking.query.filter_by(room_id=rose['id']).order_by(Booking.id.desc()).first()
                     assert booking_time_display(saved) == (slots[-2]['display'], closes[rose['name']])
                 homepage = client.get('/').get_data(as_text=True)
-                assert '27th November (9.30am to 3pm)' in homepage
-                assert '27th November (9.30am to 6pm)' in homepage
+                assert '27th November' not in homepage
+                assert '4th December (9.30am to 6pm)' in homepage
                 assert client.get('/api/slots').json[-1]['time'] == '17:00'
         ''')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
