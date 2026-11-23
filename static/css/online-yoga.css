@@ -1,0 +1,125 @@
+.online-yoga .yoga-charity-link {
+    align-items: center;
+    color: inherit;
+    display: inline-flex;
+    font-weight: 650;
+    gap: .8rem;
+    text-decoration: none;
+}
+
+.online-yoga .yoga-charity-link .nav-logo {
+    height: auto;
+    width: 3rem;
+}
+
+.online-yoga .yoga-intro-text .btn {
+    margin-top: .8rem;
+}
+
+.online-yoga .yoga-form-card {
+    margin: 1.5rem auto;
+    max-width: 52rem;
+}
+
+.online-yoga .yoga-date-list,
+.online-yoga .yoga-participants {
+    list-style: none;
+    margin: 1rem 0;
+    padding: 0;
+}
+
+.online-yoga .yoga-date-list li,
+.online-yoga .yoga-admin-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: .7rem 1rem;
+    justify-content: space-between;
+}
+
+.online-yoga .yoga-date-list li,
+.online-yoga .yoga-participants li {
+    border-top: 1px solid #d9dce8;
+    padding: .8rem 0;
+}
+
+.online-yoga summary {
+    cursor: pointer;
+    font-weight: 650;
+    padding: .5rem 0;
+}
+
+.online-yoga .yoga-form {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.online-yoga .yoga-form-row {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.online-yoga .yoga-form label {
+    display: grid;
+    font-weight: 600;
+    gap: .25rem;
+}
+
+.online-yoga .yoga-form input:not([type="checkbox"]),
+.online-yoga .yoga-form select,
+.online-yoga .yoga-form textarea {
+    background: white;
+    border: 1px solid #72768b;
+    border-radius: .45rem;
+    color: #22273b;
+    font: inherit;
+    font-weight: 400;
+    padding: .55rem .65rem;
+    width: 100%;
+    min-width: 0;
+}
+
+.online-yoga .yoga-form .yoga-check {
+    align-items: start;
+    display: flex;
+    gap: .65rem;
+    font-weight: 400;
+}
+
+.online-yoga .yoga-check input {
+    flex: 0 0 auto;
+    margin-top: .3rem;
+}
+
+.online-yoga .yoga-form .btn {
+    justify-self: start;
+}
+
+.online-yoga .yoga-hint {
+    font-size: .92rem;
+    font-weight: 400;
+}
+
+.online-yoga .yoga-error {
+    background: #fff1f1;
+    border: 1px solid #9e3232;
+    border-radius: .45rem;
+    color: #711c1c;
+    padding: .75rem;
+}
+
+.online-yoga .yoga-notes {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+}
+
+.online-yoga .yoga-admin-session {
+    border-top: 1px solid #d9dce8;
+    padding: .7rem 0;
+}
+
+.online-yoga .yoga-admin-cancel {
+    margin: 1rem 0;
+}

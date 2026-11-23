@@ -1,0 +1,82 @@
+{% extends "online_yoga/base.html" %}
+{% block content %}
+<div class="landing-page">
+    <header class="landing-header">
+        <h1>🧘 Gentle Yoga with Marlijn</h1>
+        <p class="subtitle">Free online yoga for autistic adults, with Marlijn.</p>
+    </header>
+    <div class="landing-content">
+        <div class="info-section yoga-intro-layout">
+            <figure class="yoga-instructor-photo">
+                <img src="{{ url_for('static', filename='images/yoga-marlijn.jpg') }}" alt="Marlijn seated on a chair in a light room with plants.">
+                <figcaption>Your instructor, Marlijn</figcaption>
+            </figure>
+            <div class="yoga-intro-text">
+                <h2>The same gentle approach</h2>
+                <p class="intro-text">Gentle, neurodivergent-friendly yoga with Marlijn.</p>
+                <p>Sessions are beginner-friendly and low-pressure. You can choose how much to take part and rest whenever you like. Have a little space to move comfortably and a stable chair nearby if you’d like to practise seated.</p>
+                <a class="btn btn-primary" href="#register">See dates and book</a>
+            </div>
+        </div>
+        <section class="info-card yoga-form-card" id="register" aria-labelledby="register-heading">
+            <h2 id="register-heading">Book an online session</h2>
+            <p>Choose a date and register for a place. We’ll show you the Google Meet link after you book and send it by email.</p>
+            {% if error %}<p class="yoga-error" role="alert">{{ error }}</p>{% endif %}
+            {% if upcoming %}
+            <ul class="yoga-date-list">
+                {% for item, count in upcoming %}
+                <li>
+                    <div>
+                        <strong>{{ item.when }}</strong>
+                        {% if item.public_notes %}<p class="yoga-notes">{{ item.public_notes }}</p>{% endif %}
+                    </div>
+                    {% if not item.meet_url %}<span>Bookings opening soon</span>
+                    {% elif count >= item.capacity %}<span>Fully booked</span>
+                    {% else %}<a href="{{ url_for('online_yoga.registration', date=item.day.isoformat(), _anchor='registration-form') }}">Book this session</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}<p>New dates will appear here once they’re confirmed.</p>{% endif %}
+            {% if bookable or error %}
+            <details id="registration-form" {% if selected or error %}open{% endif %}>
+                <summary>Registration form</summary>
+                <form class="yoga-form" method="post" action="{{ url_for('online_yoga.book', _anchor='register') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <label>Session date
+                        <select name="date" required>
+                            <option value="">Choose a date</option>
+                            {% for item in bookable %}
+                            <option value="{{ item.day.isoformat() }}" {% if selected == item.day.isoformat() %}selected{% endif %}>{{ item.when }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <div class="yoga-form-row">
+                        <label>Your name <input name="name" autocomplete="name" required maxlength="120" value="{{ values.get('name', '') }}"></label>
+                        <label>Email address <input type="email" name="email" autocomplete="email" required maxlength="254" value="{{ values.get('email', '') }}"></label>
+                    </div>
+                    <label>Have you done yoga before? (optional)
+                        <select name="experience">
+                            <option value="">Prefer not to say</option>
+                            {% for answer in experience_options %}
+                            <option value="{{ answer }}" {% if values.get('experience') == answer %}selected{% endif %}>{{ answer }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label>Is there anything Marlijn can do to make the online session more comfortable for you? (optional)
+                        <span class="yoga-hint">For example, seated options, a movement you’d like to avoid or a way of giving instructions that works for you. Share only what Marlijn needs to adapt the session.</span>
+                        <textarea name="adjustments" maxlength="1200" rows="3">{{ values.get('adjustments', '') }}</textarea>
+                    </label>
+                    <label class="yoga-check">
+                        <input type="checkbox" name="agree" value="yes" required {% if values.get('agree') == 'yes' %}checked{% endif %}>
+                        <span>I understand I can choose what to take part in and stop or rest if anything feels uncomfortable. I’ll respect other participants’ privacy and keep the session free of recordings and screenshots.</span>
+                    </label>
+                    <p class="yoga-hint">We use your details to manage your booking and help Marlijn adapt the session. <a href="https://www.londonautismgroupcharity.org/privacy">Read our privacy notice</a>.</p>
+                    <button class="btn btn-primary" type="submit" {% if not bookable %}disabled{% endif %}>Confirm my place</button>
+                </form>
+            </details>
+            {% endif %}
+        </section>
+    </div>
+</div>
+{% endblock %}

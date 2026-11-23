@@ -1,20 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}Gentle Yoga with Marlijn - Temporarily Paused{% endblock %}
+{% block title %}Gentle Yoga with Marlijn has moved online{% endblock %}
 
 {% block content %}
 <div class="landing-page">
     <div class="landing-header">
         <h1>🧘 Gentle Yoga with Marlijn</h1>
-        <p class="subtitle">Temporarily paused while we find a new home.</p>
+        <p class="subtitle">Gentle Yoga with Marlijn is now a standalone online activity.</p>
     </div>
     <div class="landing-content">
         <div class="info-card venue-card" id="yoga-register">
-            <h2>Yoga is temporarily paused</h2>
-            <p>With the weather changing, the outdoor terrace at Pan Macmillan is no longer a suitable place for our yoga sessions. We are pausing yoga while we actively look for a new venue.</p>
-            <p><strong>The sessions on 18th and 25th September will not take place. Sign-ups are currently closed.</strong></p>
-            <p>We plan to continue the same gentle yoga with <strong>Marlijn</strong> in a new location. Sessions will still last <strong>one hour in the morning</strong>, although the day may change.</p>
-            <p>We will share the new venue, day and restart date here once they are confirmed. Thank you for your patience while we find the right space.</p>
+            <h2>Yoga has moved online</h2>
+            <p>Visit our online yoga page for upcoming sessions, information about joining on Google Meet and registration.</p>
+            <a class="btn btn-primary" href="{{ url_for('online_yoga.registration') }}">Go to online yoga</a>
         </div>
         <div class="info-section yoga-intro-layout">
             <figure class="yoga-instructor-photo">
@@ -26,7 +24,7 @@
                 <p class="intro-text">Gentle, neurodivergent-friendly yoga with Marlijn.</p>
                 <div class="initiative-description">
                     <p>Our sessions are beginner-friendly, accessible and low-pressure. You do not need previous yoga experience, and Marlijn adapts the session as much as possible around the needs of those attending.</p>
-                    <p>We look forward to welcoming you back when our new home is ready.</p>
+                    <p>We look forward to welcoming you online.</p>
                 </div>
             </div>
         </div>

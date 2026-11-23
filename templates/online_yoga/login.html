@@ -1,0 +1,13 @@
+{% extends "online_yoga/base.html" %}
+{% block title %}Yoga organiser sign-in | London Autism Group Charity{% endblock %}
+{% block content %}
+<section class="info-card yoga-form-card yoga-sign-in">
+    <h1>Yoga organiser sign-in</h1>
+    {% if error %}<p class="yoga-error" role="alert">{{ error }}</p>{% endif %}
+    <form class="yoga-form" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <label>Password <input name="password" type="password" autocomplete="current-password" maxlength="1024" required></label>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+    </form>
+</section>
+{% endblock %}

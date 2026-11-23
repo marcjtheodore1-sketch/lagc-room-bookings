@@ -1,0 +1,28 @@
+{% extends "online_yoga/base.html" %}
+{% block title %}Your yoga booking | London Autism Group Charity{% endblock %}
+{% block content %}
+<section class="info-card yoga-form-card">
+    {% if item.status == 'cancelled' %}
+    <h1>Session cancelled</h1>
+    <p>The online yoga session on {{ item.when }} has been cancelled.</p>
+    {% elif booking.cancelled %}
+    <h1>Your place has been cancelled</h1>
+    <p>Thank you for letting us know.</p>
+    {% else %}
+    <h1>Your place is confirmed</h1>
+    <p>{{ item.when }} (UK time)</p>
+    {% if can_join %}
+    <p><a class="btn btn-primary" href="{{ item.meet_url }}" rel="noreferrer">Join on Google Meet</a></p>
+    {% if item.joining_notes %}<p class="yoga-notes">{{ item.joining_notes }}</p>{% endif %}
+    <p>Keep this page or your confirmation email for the joining details.</p>
+    {% endif %}
+    {% if item.upcoming %}
+    <form action="{{ url_for('online_yoga.receipt', token=request.view_args.token) }}" method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <button class="btn btn-secondary" type="submit">Cancel my place</button>
+    </form>
+    {% endif %}
+    {% endif %}
+    <p><a href="{{ url_for('online_yoga.registration') }}">See upcoming yoga dates</a></p>
+</section>
+{% endblock %}

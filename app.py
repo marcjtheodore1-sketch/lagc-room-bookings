@@ -1657,6 +1657,9 @@ register_support_request_routes(app, admin_required)
 from student_support import register_student_support
 register_student_support(app, db)
 
+from online_yoga import register_online_yoga
+seed_online_yoga = register_online_yoga(app, db, send_emails_async)
+
 @app.route('/admin')
 def admin():
     """Admin configuration page - requires login"""
@@ -3857,6 +3860,7 @@ def ensure_schema(context='startup'):
                 db.engine.dispose()
             db.create_all()
             run_migrations()
+            seed_online_yoga()
         _schema_ready = True
         return True
     except Exception as e:

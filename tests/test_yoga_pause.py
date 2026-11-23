@@ -20,9 +20,7 @@ class YogaPauseTest(unittest.TestCase):
                 assert YogaBooking.query.count() == before
                 send.assert_not_called()
             page = client.get('/yoga').text
-            assert 'Sign-ups are currently closed' in page
-            assert 'one hour in the morning' in page
-            assert 'See dates &amp; book' not in page
-            assert 'Temporarily paused' in client.get('/').text
+            assert '/online-yoga' in page and 'Yoga has moved online' in page
+            assert '/online-yoga' in client.get('/').text
         """)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)

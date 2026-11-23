@@ -1,0 +1,91 @@
+{% extends "online_yoga/base.html" %}
+{% macro fields(item=none, values={}) %}
+    <div class="yoga-form-row">
+        <label>Start time <input type="time" name="start" required value="{{ item.start.strftime('%H:%M') if item else values.get('start', '09:00') }}"></label>
+        <label>Finish time <input type="time" name="end" required value="{{ item.end.strftime('%H:%M') if item else values.get('end', '10:00') }}"></label>
+        <label>Places <input type="number" name="capacity" min="1" max="100" required value="{{ item.capacity if item else values.get('capacity', '10') }}"></label>
+    </div>
+    <label>{{ 'Private Google Meet link' if item else 'Private Google Meet link for all these dates' }}
+        <input type="url" name="meet_url" maxlength="160" value="{{ item.meet_url if item else values.get('meet_url', '') }}">
+        <span class="yoga-hint">Leave blank to show the date with bookings opening soon.</span>
+    </label>
+    <label>Public session notes (optional)
+        <textarea name="public_notes" maxlength="500" rows="2">{{ item.public_notes if item else values.get('public_notes', '') }}</textarea>
+    </label>
+    <label>Joining instructions for booked participants (optional)
+        <textarea name="joining_notes" maxlength="1200" rows="2">{{ item.joining_notes if item else values.get('joining_notes', '') }}</textarea>
+    </label>
+{% endmacro %}
+{% block title %}Manage online yoga | London Autism Group Charity{% endblock %}
+{% block content %}
+<div class="landing-page">
+    <header class="landing-header">
+        <h1>Manage online yoga</h1>
+        <p class="subtitle">Published dates appear on the yoga page and the charity calendar.</p>
+    </header>
+    <div class="landing-content">
+        <div class="yoga-admin-actions">
+            <a href="{{ url_for('online_yoga.registration') }}">View registration page</a>
+            <form method="post" action="{{ url_for('online_yoga.logout') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <button class="btn btn-secondary">Sign out</button>
+            </form>
+        </div>
+        {% if error %}<p class="yoga-error" role="alert">{{ error }}</p>{% endif %}
+        <section class="info-card yoga-form-card">
+            <h2>Add dates</h2>
+            <form class="yoga-form" method="post" action="{{ url_for('online_yoga.add_sessions') }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                <label>Dates
+                    <span class="yoga-hint">Enter one date per line as YYYY-MM-DD. If a date has its own Meet link, paste it on the same line after a space. Times are UK local time.</span>
+                    <textarea name="dates" required maxlength="6000" rows="4" placeholder="2027-01-06">{{ values.get('dates', '') }}</textarea>
+                </label>
+                {{ fields(values=values) }}
+                <label class="yoga-check"><input type="checkbox" name="publish" value="yes" {% if values.get('publish') == 'yes' %}checked{% endif %}> Publish these dates</label>
+                <button class="btn btn-primary" type="submit">Add dates</button>
+            </form>
+        </section>
+        <section class="info-card yoga-form-card">
+            <h2>Upcoming sessions</h2>
+            {% for item, bookings in classes %}
+            <details class="yoga-admin-session">
+                <summary>{{ item.when }} · {{ item.status|capitalize }}{% if bookings and item.status != 'cancelled' %} · {{ bookings|length }}/{{ item.capacity }} booked{% endif %}</summary>
+                {% if item.status != 'cancelled' %}
+                <form class="yoga-form" method="post" action="{{ url_for('online_yoga.edit_session', class_id=item.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    {{ fields(item) }}
+                    <label>Visibility
+                        <select name="status">
+                            <option value="draft" {% if item.status == 'draft' %}selected{% endif %}>Draft</option>
+                            <option value="published" {% if item.status == 'published' %}selected{% endif %}>Published</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-primary" type="submit">Save session</button>
+                </form>
+                <details class="yoga-admin-cancel">
+                    <summary>Cancel this session</summary>
+                    <p>This will close bookings and email everyone with a confirmed place.</p>
+                    <form method="post" action="{{ url_for('online_yoga.edit_session', class_id=item.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                        <button class="btn btn-secondary" type="submit" name="action" value="cancel">Confirm cancellation</button>
+                    </form>
+                </details>
+                {% endif %}
+                {% if bookings and item.status != 'cancelled' %}
+                <h3>Registered participants</h3>
+                <ul class="yoga-participants">
+                    {% for booking in bookings %}
+                    <li>
+                        <strong>{{ booking.name }}</strong>
+                        {% if booking.experience %}<p>Previous yoga experience: {{ booking.experience }}</p>{% endif %}
+                        {% if booking.adjustments %}<p class="yoga-notes">{{ booking.adjustments }}</p>{% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </details>
+            {% else %}<p>No sessions scheduled.</p>{% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}
