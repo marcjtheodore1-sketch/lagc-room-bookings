@@ -1009,6 +1009,10 @@ def run_reminder_job(now=None):
     except Exception:
         db.session.rollback()
         app.logger.exception('Could not process queued online yoga confirmations.')
+    try:
+        run_arts_club_alerts()
+    except Exception:
+        app.logger.warning('Arts Club alerts could not be processed on this run.')
     now = now or datetime.now(ZoneInfo('Europe/London'))
     today = now.date()
     schedule = get_room_schedule_ids()
@@ -1675,6 +1679,9 @@ from online_yoga import register_online_yoga
 seed_online_yoga, run_online_yoga_mail_job = register_online_yoga(
     app, db, send_online_yoga_email, EmailDeliveryUncertain
 )
+
+from arts_club_alerts import register_arts_club_alerts
+run_arts_club_alerts = register_arts_club_alerts(app, send_online_yoga_email, EmailDeliveryUncertain)
 
 @app.route('/admin')
 def admin():
