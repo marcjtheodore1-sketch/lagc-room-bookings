@@ -1,4 +1,5 @@
 import base64
+from contextlib import closing
 import json
 from pathlib import Path
 import sqlite3
@@ -34,7 +35,7 @@ class ArtsClubAlertTests(unittest.TestCase):
         self.sent.append(args)
 
     def state(self):
-        with sqlite3.connect(self.db) as connection:
+        with closing(sqlite3.connect(self.db)) as connection:
             return connection.execute('SELECT state,payload FROM alerts').fetchone()
 
     def test_formats_details_for_the_fixed_charity_inbox(self):
