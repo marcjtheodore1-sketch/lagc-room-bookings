@@ -22,7 +22,7 @@ from werkzeug.security import check_password_hash
 from online_yoga_mail import confirmation_body
 from online_yoga_questions import (
     ANSWER_LIMITS, DEFAULT_QUESTIONS, MAX_QUESTIONS, QUESTION_TYPES,
-    parse_answers, parse_editor_question,
+    parse_answers, parse_editor_question, reusable_answers,
 )
 
 LONDON = ZoneInfo('Europe/London')
@@ -237,7 +237,7 @@ def register_online_yoga(app, db, deliver, delivery_uncertain):
             response.headers['Cache-Control'] = 'no-store'
         response.headers['Referrer-Policy'] = 'no-referrer'
         response.headers['X-Content-Type-Options'] = 'nosniff'
-        if request.endpoint in {'online_yoga.receipt', 'online_yoga.login', 'online_yoga.organiser'}:
+        if request.endpoint in {'online_yoga.receipt', 'online_yoga.book_again', 'online_yoga.login', 'online_yoga.organiser'}:
             response.headers['X-Robots-Tag'] = 'noindex, nofollow'
             response.headers['X-Frame-Options'] = 'DENY'
         return response
@@ -268,13 +268,13 @@ def register_online_yoga(app, db, deliver, delivery_uncertain):
         # Reserving a place and changing capacity share the same SQLite write lock.
         db.session.execute(text('BEGIN IMMEDIATE'))
 
-    def booking_page(error='', status=200, values=None):
-        day = (values or request.args).get('date', '')
+    def booking_page(error='', status=200, values=None, reuse_token=None):
+        day = request.args.get('date', '') if request.method == 'GET' else (values or {}).get('date', '')
         upcoming = [(item, count) for item, count in scheduled() if item.upcoming]
         bookable = [item for item, count in upcoming if item.meet_url and count < item.capacity]
         revision, questions = form_settings()
         return page('registration.html', upcoming=upcoming, bookable=bookable, selected=day,
-                    error=error, values=values or {}, form_revision=revision,
+                    error=error, values=values or {}, form_revision=revision, reuse_token=reuse_token,
                     questions=[field for field in questions if field['enabled']], answer_limits=ANSWER_LIMITS), status
 
     @yoga.get('')
@@ -300,37 +300,75 @@ def register_online_yoga(app, db, deliver, delivery_uncertain):
 
     @yoga.post('/register')
     def book():
+        return register_booking()
+
+    def private_booking(token):
+        if len(token) != 43 or not token.isascii():
+            abort(404)
+        booking = db.session.scalar(select(Registration).filter_by(token_hash=digest(token)))
+        if not booking:
+            abort(404)
+        return booking
+
+    @yoga.route('/booking/<token>/book-again', methods=['GET', 'POST'])
+    def book_again(token):
+        if request.method == 'POST':
+            return register_booking(token)
+        previous = private_booking(token)
+        saved = db.session.get(FormAnswers, previous.id)
+        _, questions = form_settings()
+        values = reusable_answers(questions, saved.answers if saved else [])
+        if not saved and previous.experience:
+            values.update(reusable_answers(questions, [
+                {'question': DEFAULT_QUESTIONS[0]['label'], 'value': previous.experience},
+            ]))
+        return booking_page(values={**values, 'name': previous.name, 'email': previous.email},
+                            reuse_token=token)
+
+    def register_booking(reuse_token=None):
         form = request.form
+
+        def reject(message, code):
+            return booking_page(message, code, form, reuse_token)
+
         name = form.get('name', '').strip()
         email = form.get('email', '').strip().lower()
         if not (0 < len(name) <= 120 and len(email) <= 254 and EMAIL.fullmatch(email)):
-            return booking_page('Enter your name and a valid email address.', 400, form)
+            return reject('Enter your name and a valid email address.', 400)
         try:
             day = date.fromisoformat(form.get('date', ''))
         except ValueError:
-            return booking_page('Choose a session date.', 400, form)
+            return reject('Choose a session date.', 400)
 
         begin_write()
+        if reuse_token:
+            previous = private_booking(reuse_token)
+            if email != previous.email:
+                db.session.rollback()
+                return booking_page('Use a fresh registration to book with another email address.', 400)
         revision, questions = form_settings()
         if form.get('form_revision') != str(revision):
             db.session.rollback()
-            return booking_page('The registration questions have changed. Check your answers before booking.', 409, form)
+            # Be explicit about the changes. Display the new version and ask
+            # the participant to re-enter the questions they see.
+            return booking_page('The registration questions have changed. Please enter your answers on the updated form.',
+                                409, {key: form.get(key, '') for key in ('name', 'email', 'date')}, reuse_token)
         try:
             answers = parse_answers(questions, form)
         except ValueError as error:
             db.session.rollback()
-            return booking_page(str(error), 400, form)
+            return reject(str(error), 400)
         class_session = db.session.scalar(select(YogaSession).where(YogaSession.day == day))
         if not class_session or class_session.status != 'published' or not class_session.meet_url or not class_session.upcoming:
             db.session.rollback()
-            return booking_page('Bookings are closed for that session. Choose another date.', 409, form)
+            return reject('Bookings are closed for that session. Choose another date.', 409)
         booking = db.session.scalar(select(Registration).filter_by(session_id=class_session.id, email=email))
         if booking and not booking.cancelled:
             db.session.rollback()
-            return booking_page('This email already has a place for that date. Use the link in your confirmation email.', 409, form)
+            return reject('This email already has a place for that date. Use the link in your confirmation email.', 409)
         if len(active_bookings(class_session)) >= class_session.capacity:
             db.session.rollback()
-            return booking_page('That session is now full. Choose another date.', 409, form)
+            return reject('That session is now full. Choose another date.', 409)
 
         token = secrets.token_urlsafe(32)
         if booking is None:
@@ -353,13 +391,9 @@ def register_online_yoga(app, db, deliver, delivery_uncertain):
 
     @yoga.route('/booking/<token>', methods=['GET', 'POST'])
     def receipt(token):
-        if len(token) != 43 or not token.isascii():
-            abort(404)
         if request.method == 'POST':
             begin_write()
-        booking = db.session.scalar(select(Registration).filter_by(token_hash=digest(token)))
-        if not booking:
-            abort(404)
+        booking = private_booking(token)
         class_session = booking.yoga_session
         if request.method == 'POST':
             if class_session.status == 'published' and class_session.upcoming:

@@ -30,6 +30,6 @@
     </form>
     {% endif %}
     {% endif %}
-    <p><a href="{{ url_for('online_yoga.registration') }}">See upcoming yoga dates</a></p>
+    <p><a href="{{ url_for('online_yoga.book_again', token=request.view_args.token, _anchor='register') }}">Book another class using my previous answers</a></p>
 </section>
 {% endblock %}

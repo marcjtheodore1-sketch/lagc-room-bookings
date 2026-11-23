@@ -30,6 +30,8 @@ def confirmation_body(name, when, meet_url, joining_notes, booking_url):
         'You can choose how much to take part and rest whenever you like. '
         'Have a little space to move comfortably and a stable chair nearby if you’d like to practise seated.\n\n'
         f'View your booking or cancel your place: {booking_url}\n\n'
+        f'Book another class using your previous answers: {booking_url}/book-again\n'
+        'Keep these booking links private. You can review or change your answers each time you book.\n\n'
         'If you can’t come, please cancel to free your place for someone else.\n\n'
         'London Autism Group Charity'
     )

@@ -21,6 +21,11 @@
         <section class="info-card yoga-form-card" id="register" aria-labelledby="register-heading">
             <h2 id="register-heading">Book an online session</h2>
             <p>Choose a date and register for a place. We’ll show you the Google Meet link after you book and send it by email.</p>
+            {% if reuse_token %}
+            <p class="yoga-notice">Your previous answers are filled in where the questions are the same. Review or change them before you book, and tick the agreement again. <a href="{{ url_for('online_yoga.registration', _anchor='register') }}">Start a fresh registration</a>.</p>
+            {% else %}
+            <p>Booked before? Use the private link in your confirmation email to reuse your answers.</p>
+            {% endif %}
             {% if error %}<p class="yoga-error" role="alert">{{ error }}</p>{% endif %}
             {% if upcoming %}
             <ul class="yoga-date-list">
@@ -32,16 +37,16 @@
                     </div>
                     {% if not item.meet_url %}<span>Bookings opening soon</span>
                     {% elif count >= item.capacity %}<span>Fully booked</span>
-                    {% else %}<a href="{{ url_for('online_yoga.registration', date=item.day.isoformat(), _anchor='registration-form') }}">Book this session</a>
+                    {% else %}<a href="{{ url_for('online_yoga.book_again', token=reuse_token, date=item.day.isoformat(), _anchor='registration-form') if reuse_token else url_for('online_yoga.registration', date=item.day.isoformat(), _anchor='registration-form') }}">Book this session</a>
                     {% endif %}
                 </li>
                 {% endfor %}
             </ul>
             {% else %}<p>New dates will appear here once they’re confirmed.</p>{% endif %}
             {% if bookable or error %}
-            <details id="registration-form" {% if selected or error %}open{% endif %}>
+            <details id="registration-form" {% if selected or error or reuse_token %}open{% endif %}>
                 <summary>Registration form</summary>
-                <form class="yoga-form" method="post" action="{{ url_for('online_yoga.book', _anchor='register') }}">
+                <form class="yoga-form" method="post" action="{{ url_for('online_yoga.book_again', token=reuse_token, _anchor='register') if reuse_token else url_for('online_yoga.book', _anchor='register') }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                     <label>Session date
                         <select name="date" required>
@@ -53,7 +58,7 @@
                     </label>
                     <div class="yoga-form-row">
                         <label>Your name <input name="name" autocomplete="name" required maxlength="120" value="{{ values.get('name', '') }}"></label>
-                        <label>Email address <input type="email" name="email" autocomplete="email" required maxlength="254" value="{{ values.get('email', '') }}"></label>
+                        <label>Email address <input type="email" name="email" autocomplete="email" required maxlength="254" value="{{ values.get('email', '') }}" {% if reuse_token %}readonly{% endif %}></label>
                     </div>
                     <input type="hidden" name="form_revision" value="{{ form_revision }}">
                     {% for field in questions %}
@@ -86,7 +91,7 @@
                         </label>
                         {% endif %}
                     {% endfor %}
-                    <p class="yoga-hint">We use your details to manage your booking and help Marlijn adapt the session. <a href="https://www.londonautismgroupcharity.org/privacy">Read our privacy notice</a>.</p>
+                    <p class="yoga-hint">We use your details to manage your booking and help Marlijn adapt the session. You can reuse your answers through the private link in your confirmation. <a href="https://www.londonautismgroupcharity.org/privacy">Read our privacy notice</a>.</p>
                     <button class="btn btn-primary" type="submit" {% if not bookable %}disabled{% endif %}>Confirm my place</button>
                 </form>
             </details>

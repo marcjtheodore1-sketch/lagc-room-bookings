@@ -105,6 +105,7 @@ class YogaEditorMailTest(unittest.TestCase):
                     assert '9am to 10am' in content and 'Join 5 minutes early' in content
                     assert new_link in content and original_link not in content
                     assert receipt in content and 'cancel your place' in content
+                    assert receipt + '/book-again' in content
                     assert 'Seated options only' not in content
             assert 'We sent your confirmation from miles.lagc@gmail.com' in member.get(receipt).text
             assert member.post(receipt,data={'csrf_token':member_csrf}).status_code==303

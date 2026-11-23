@@ -1,5 +1,8 @@
 """Editable online yoga registration questions and submitted-answer validation."""
 
+from hashlib import sha256
+import json
+
 QUESTION_TYPES = {
     'choice': 'Multiple choice (one answer)',
     'short': 'Short answer',
@@ -43,6 +46,44 @@ def parse_editor_question(form, key):
                     form.get('required') == 'yes', form.get('enabled') == 'yes')
 
 
+def answer_signature(field):
+    # A question keeps its key when edited. Its wording and answer type still
+    # need to match before an earlier answer can be used in a new booking.
+    definition = [field[name] for name in ('label', 'kind', 'help_text', 'choices')]
+    return sha256(json.dumps(definition, ensure_ascii=False).encode('utf-8')).hexdigest()
+
+
+def reusable_answers(questions, previous):
+    """Return values for unchanged questions, never carrying over an agreement."""
+    by_key = {answer['key']: answer for answer in previous if 'key' in answer}
+    older_defaults = {field['key']: answer_signature(field) for field in DEFAULT_QUESTIONS}
+    values = {}
+    for field in questions:
+        key = field['key']
+        kind = field['kind']
+        if not field['enabled'] or kind == 'checkbox' or key == 'agree':
+            continue
+        signature = answer_signature(field)
+        prior = by_key.get(key)
+        value = ''
+        if prior and prior.get('signature') == signature:
+            value = prior['value']
+        elif not prior and older_defaults.get(key) == signature:
+            # Early versions recorded only the question label. Reuse those
+            # answers only where the known original question remains unchanged.
+            matches = [answer['value'] for answer in previous
+                       if 'key' not in answer and answer['question'] == field['label']]
+            if len(matches) == 1:
+                value = matches[0]
+        if kind == 'choice' and value not in field['choices']:
+            continue
+        if kind in ANSWER_LIMITS and len(value) > ANSWER_LIMITS[kind]:
+            continue
+        if value:
+            values['answer_' + key] = value
+    return values
+
+
 def parse_answers(questions, form):
     answers = []
     for field in questions:
@@ -63,5 +104,8 @@ def parse_answers(questions, form):
             raise ValueError('Please choose one of the available answers.')
         if kind in ANSWER_LIMITS and len(value) > ANSWER_LIMITS[kind]:
             raise ValueError('An answer is too long. Check the limits shown on the form.')
-        answers.append({'question': field['label'], 'value': 'Yes' if kind == 'checkbox' else value})
+        answers.append({
+            'key': field['key'], 'signature': answer_signature(field),
+            'question': field['label'], 'value': 'Yes' if kind == 'checkbox' else value,
+        })
     return answers
