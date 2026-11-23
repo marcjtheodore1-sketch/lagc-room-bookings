@@ -123,3 +123,17 @@
 .online-yoga .yoga-admin-cancel {
     margin: 1rem 0;
 }
+
+.online-yoga .yoga-notice {
+    background: #eef8ee;
+    border: 1px solid #527753;
+    border-radius: .45rem;
+    color: #264a28;
+    margin: 1rem auto;
+    padding: .75rem;
+    max-width: 52rem;
+}
+
+.online-yoga .yoga-check .yoga-hint {
+    display: block;
+}

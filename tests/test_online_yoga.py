@@ -65,10 +65,10 @@ class OnlineYogaTest(unittest.TestCase):
                 token = csrf(client, root)
                 return client.post(root + '/register', data={
                     'csrf_token': token, 'date': day, 'email': email, 'name': 'Example Participant',
-                    'experience': 'No', 'adjustments': 'Seated options', 'agree': 'yes',
+                    'form_revision': '1', 'answer_experience': 'No', 'answer_adapt': 'Seated options', 'answer_agree': 'yes',
                 })
 
-            with patch('app.send_confirmation_email'):
+            with patch('app.send_smtp_message'):
                 with ThreadPoolExecutor(max_workers=2) as pool:
                     submissions = [
                         pool.submit(book, app.test_client(), 'attendee1@example.test'),

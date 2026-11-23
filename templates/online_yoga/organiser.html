@@ -1,20 +1,55 @@
 {% extends "online_yoga/base.html" %}
 {% macro fields(item=none, values={}) %}
+    {% set prefer_item = item and values.get('session_id') != item.id %}
     <div class="yoga-form-row">
-        <label>Start time <input type="time" name="start" required value="{{ item.start.strftime('%H:%M') if item else values.get('start', '09:00') }}"></label>
-        <label>Finish time <input type="time" name="end" required value="{{ item.end.strftime('%H:%M') if item else values.get('end', '10:00') }}"></label>
-        <label>Places <input type="number" name="capacity" min="1" max="100" required value="{{ item.capacity if item else values.get('capacity', '10') }}"></label>
+        <label>Start time <input type="time" name="start" required value="{{ item.start.strftime('%H:%M') if prefer_item else values.get('start', '09:00') }}"></label>
+        <label>Finish time <input type="time" name="end" required value="{{ item.end.strftime('%H:%M') if prefer_item else values.get('end', '10:00') }}"></label>
+        <label>Places <input type="number" name="capacity" min="1" max="100" required value="{{ item.capacity if prefer_item else values.get('capacity', '10') }}"></label>
     </div>
     <label>{{ 'Private Google Meet link' if item else 'Private Google Meet link for all these dates' }}
-        <input type="url" name="meet_url" maxlength="160" value="{{ item.meet_url if item else values.get('meet_url', '') }}">
+        <input type="url" name="meet_url" maxlength="160" value="{{ item.meet_url if prefer_item else values.get('meet_url', '') }}">
         <span class="yoga-hint">Leave blank to show the date with bookings opening soon.</span>
     </label>
     <label>Public session notes (optional)
-        <textarea name="public_notes" maxlength="500" rows="2">{{ item.public_notes if item else values.get('public_notes', '') }}</textarea>
+        <textarea name="public_notes" maxlength="500" rows="2">{{ item.public_notes if prefer_item else values.get('public_notes', '') }}</textarea>
     </label>
     <label>Joining instructions for booked participants (optional)
-        <textarea name="joining_notes" maxlength="1200" rows="2">{{ item.joining_notes if item else values.get('joining_notes', '') }}</textarea>
+        <textarea name="joining_notes" maxlength="1200" rows="2">{{ item.joining_notes if prefer_item else values.get('joining_notes', '') }}</textarea>
     </label>
+{% endmacro %}
+{% macro question_form(key, field, posted={}) %}
+    {% set use_posted = posted.get('key') == key %}
+    {% set kind = posted.get('kind', '') if use_posted else field.kind %}
+    <form class="yoga-form" method="post" action="{{ url_for('online_yoga.edit_questions', _anchor='registration-questions') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <input type="hidden" name="key" value="{{ key }}">
+        <input type="hidden" name="form_revision" value="{{ form_revision }}">
+        <label>Question
+            <textarea name="label" required maxlength="500" rows="2">{{ posted.get('label', '') if use_posted else field.label }}</textarea>
+        </label>
+        <label>Answer type
+            <select name="kind" required>
+                {% for value, description in question_types.items() %}
+                <option value="{{ value }}" {% if value == kind %}selected{% endif %}>{{ description }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <label>Choices (for multiple choice only)
+            <textarea name="choices" rows="3" maxlength="1500"
+                      placeholder="Enter one choice per line">{{ posted.get('choices', '') if use_posted else field.choices|join('
+') }}</textarea>
+        </label>
+        <label>Help text (optional)
+            <textarea name="help_text" maxlength="600" rows="2">{{ posted.get('help_text', '') if use_posted else field.help_text }}</textarea>
+        </label>
+        <div class="yoga-form-row">
+            <label class="yoga-check"><input name="enabled" type="checkbox" value="yes"
+                   {% if (posted.get('enabled') == 'yes' if use_posted else field.enabled) %}checked{% endif %}> Show on the registration form</label>
+            <label class="yoga-check"><input name="required" type="checkbox" value="yes"
+                   {% if (posted.get('required') == 'yes' if use_posted else field.required) %}checked{% endif %}> Require an answer</label>
+        </div>
+        <button class="btn btn-primary" type="submit">{{ 'Add question' if key == 'new' else 'Save question' }}</button>
+    </form>
 {% endmacro %}
 {% block title %}Manage online yoga | London Autism Group Charity{% endblock %}
 {% block content %}
@@ -26,12 +61,18 @@
     <div class="landing-content">
         <div class="yoga-admin-actions">
             <a href="{{ url_for('online_yoga.registration') }}">View registration page</a>
+            <a href="#registration-questions">Registration questions</a>
+            <a href="#upcoming-sessions">Upcoming sessions</a>
             <form method="post" action="{{ url_for('online_yoga.logout') }}">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
                 <button class="btn btn-secondary">Sign out</button>
             </form>
         </div>
         {% if error %}<p class="yoga-error" role="alert">{{ error }}</p>{% endif %}
+        {% if saved == 'questions' %}<p class="yoga-notice" role="status">Registration questions updated.</p>
+        {% elif saved == 'email' %}<p class="yoga-notice" role="status">Confirmation email queued.</p>
+        {% elif saved == 'session' %}<p class="yoga-notice" role="status">Session saved.</p>
+        {% elif saved == 'dates' %}<p class="yoga-notice" role="status">Dates added.</p>{% endif %}
         <section class="info-card yoga-form-card">
             <h2>Add dates</h2>
             <form class="yoga-form" method="post" action="{{ url_for('online_yoga.add_sessions') }}">
@@ -40,25 +81,24 @@
                     <span class="yoga-hint">Enter one date per line as YYYY-MM-DD. If a date has its own Meet link, paste it on the same line after a space. Times are UK local time.</span>
                     <textarea name="dates" required maxlength="6000" rows="4" placeholder="2027-01-06">{{ values.get('dates', '') }}</textarea>
                 </label>
-                {{ fields(values=values) }}
-                <label class="yoga-check"><input type="checkbox" name="publish" value="yes" {% if values.get('publish') == 'yes' %}checked{% endif %}> Publish these dates</label>
+                {{ fields(values=values if not values.get('session_id') else {}) }}
+                <label class="yoga-check"><input type="checkbox" name="publish" value="yes" {% if values.get('publish') == 'yes' %}checked{% endif %}> Publish these dates on the charity calendar and registration page</label>
+                <p class="yoga-hint">Dates are saved as drafts if you leave this unticked. Published dates open for booking once they have a Meet link.</p>
                 <button class="btn btn-primary" type="submit">Add dates</button>
             </form>
         </section>
-        <section class="info-card yoga-form-card">
+        <section class="info-card yoga-form-card" id="upcoming-sessions">
             <h2>Upcoming sessions</h2>
             {% for item, bookings in classes %}
-            <details class="yoga-admin-session">
-                <summary>{{ item.when }} · {{ item.status|capitalize }}{% if bookings and item.status != 'cancelled' %} · {{ bookings|length }}/{{ item.capacity }} booked{% endif %}</summary>
+            <details class="yoga-admin-session" id="session-{{ item.id }}" {% if values.get('session_id') == item.id %}open{% endif %}>
+                <summary>{{ item.when }} · {{ item.status|capitalize }}{% if item.status == 'published' and not item.meet_url %} · Needs Meet link{% endif %}{% if bookings and item.status != 'cancelled' %} · {{ bookings|length }}/{{ item.capacity }} booked{% endif %}</summary>
                 {% if item.status != 'cancelled' %}
                 <form class="yoga-form" method="post" action="{{ url_for('online_yoga.edit_session', class_id=item.id) }}">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
-                    {{ fields(item) }}
-                    <label>Visibility
-                        <select name="status">
-                            <option value="draft" {% if item.status == 'draft' %}selected{% endif %}>Draft</option>
-                            <option value="published" {% if item.status == 'published' %}selected{% endif %}>Published</option>
-                        </select>
+                    {{ fields(item, values) }}
+                    <label class="yoga-check">
+                        <input type="checkbox" name="status" value="published" {% if (values.get('status') == 'published' if values.get('session_id') == item.id else item.status == 'published') %}checked{% endif %}>
+                        Publish on the charity calendar and registration page
                     </label>
                     <button class="btn btn-primary" type="submit">Save session</button>
                 </form>
@@ -77,14 +117,46 @@
                     {% for booking in bookings %}
                     <li>
                         <strong>{{ booking.name }}</strong>
+                        {% for answer in snapshots.get(booking.id, []) %}
+                        <p class="yoga-notes"><strong>{{ answer.question }}</strong> {{ answer.value }}</p>
+                        {% endfor %}
                         {% if booking.experience %}<p>Previous yoga experience: {{ booking.experience }}</p>{% endif %}
                         {% if booking.adjustments %}<p class="yoga-notes">{{ booking.adjustments }}</p>{% endif %}
+                        {% set delivery = confirmations.get(booking.token_hash) %}
+                        {% if delivery %}
+                        {% set labels = {'sent':'sent','queued':'queued','sending':'sending','failed':'failed','uncertain':'delivery unconfirmed'} %}
+                        <p>Confirmation email: {{ labels.get(delivery[1], delivery[1]) }}</p>
+                        {% if delivery[1] in ('failed', 'uncertain') %}
+                        <form method="post" action="{{ url_for('online_yoga.retry_confirmation', job_id=delivery[0]) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            {% if delivery[1] == 'uncertain' %}<p class="yoga-hint">Check with the participant first in case the original arrived.</p>{% endif %}
+                            <button class="btn btn-secondary">Retry confirmation email</button>
+                        </form>
+                        {% endif %}
+                        {% endif %}
                     </li>
                     {% endfor %}
                 </ul>
                 {% endif %}
             </details>
             {% else %}<p>No sessions scheduled.</p>{% endfor %}
+        </section>
+        <section class="info-card yoga-form-card" id="registration-questions">
+            <h2>Registration questions</h2>
+            <p>Saving a question updates the public form straight away. Bookings already made keep their original answers.</p>
+            <p><strong>Session date, name and email address</strong> are always required so we can reserve the right class and send joining details.</p>
+            {% for field in questions %}
+            <details class="yoga-admin-session" {% if values.get('key') == field.key %}open{% endif %}>
+                <summary>{{ field.label }}{% if not field.enabled %} · Hidden{% elif field.required %} · Required{% else %} · Optional{% endif %}</summary>
+                {{ question_form(field.key, field, values) }}
+            </details>
+            {% endfor %}
+            {% if can_add_question %}
+            <details class="yoga-admin-session" {% if values.get('key') == 'new' %}open{% endif %}>
+                <summary>Add a question</summary>
+                {{ question_form('new', {'kind':'short','label':'','help_text':'','choices':[],'enabled':true,'required':false}, values) }}
+            </details>
+            {% endif %}
         </section>
     </div>
 </div>

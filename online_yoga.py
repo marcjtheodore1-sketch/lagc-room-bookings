@@ -7,6 +7,8 @@ import hmac
 import os
 import re
 import secrets
+import threading
+from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from flask import (
@@ -14,15 +16,20 @@ from flask import (
     session, url_for,
 )
 from itsdangerous import BadSignature, URLSafeTimedSerializer
-from sqlalchemy import func, select, text
+from sqlalchemy import func, select, text, update
 from werkzeug.security import check_password_hash
 
+from online_yoga_mail import confirmation_body
+from online_yoga_questions import (
+    ANSWER_LIMITS, DEFAULT_QUESTIONS, MAX_QUESTIONS, QUESTION_TYPES,
+    parse_answers, parse_editor_question,
+)
 
 LONDON = ZoneInfo('Europe/London')
 CONFIRMED_DATES = ('2026-12-09', '2026-12-16')
 MEET_URL = re.compile(r'https://meet\.google\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}/?')
 EMAIL = re.compile(r'[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+')
-EXPERIENCE = ('Yes', 'A little', 'No')
+CONFIRMATION_SUBJECT = 'Your online Gentle Yoga booking'
 
 
 def digest(value):
@@ -42,7 +49,21 @@ def clock_label(value):
     return (value.strftime('%I.%M') if value.minute else value.strftime('%I')).lstrip('0') + value.strftime('%p').lower()
 
 
-def register_online_yoga(app, db, send_mail):
+def meet_link(value):
+    if not value:
+        return ''
+    parts = urlsplit(value)
+    canonical = f'{parts.scheme}://{parts.netloc.lower()}{parts.path}'
+    if not MEET_URL.fullmatch(canonical):
+        raise ValueError('Enter a Google Meet link in the format https://meet.google.com/abc-defg-hij.')
+    return canonical.rstrip('/')
+
+
+def utc_now():
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def register_online_yoga(app, db, deliver, delivery_uncertain):
     app.config['ONLINE_YOGA_PASSWORD_HASH'] = os.environ.get('ONLINE_YOGA_PASSWORD_HASH', '')
     app.config['ONLINE_YOGA_ORIGIN'] = os.environ.get(
         'ONLINE_YOGA_ORIGIN', 'https://milestheodore.pythonanywhere.com'
@@ -83,6 +104,104 @@ def register_online_yoga(app, db, send_mail):
         token_hash = db.Column(db.String(64), unique=True, nullable=False)
         cancelled = db.Column(db.Boolean, nullable=False, default=False)
         yoga_session = db.relationship(YogaSession)
+
+    class FormSettings(db.Model):
+        __tablename__ = 'online_yoga_form'
+        id = db.Column(db.Integer, primary_key=True)
+        revision = db.Column(db.Integer, nullable=False)
+        questions = db.Column(db.JSON, nullable=False)
+
+    class FormAnswers(db.Model):
+        __tablename__ = 'online_yoga_answers'
+        registration_id = db.Column(db.Integer, db.ForeignKey('online_yoga_registration.id'), primary_key=True)
+        answers = db.Column(db.JSON, nullable=False)
+
+    class Confirmation(db.Model):
+        __tablename__ = 'online_yoga_confirmation'
+        id = db.Column(db.Integer, primary_key=True)
+        registration_id = db.Column(db.Integer, db.ForeignKey('online_yoga_registration.id'), nullable=False)
+        token_hash = db.Column(db.String(64), nullable=False, unique=True)
+        token = db.Column(db.String(43), nullable=False)
+        status = db.Column(db.String(12), nullable=False, default='queued')
+        attempts = db.Column(db.Integer, nullable=False, default=0)
+        updated_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+        retry_at = db.Column(db.DateTime, nullable=False, default=utc_now)
+
+    def form_settings():
+        config = db.session.get(FormSettings, 1)
+        return (config.revision, config.questions) if config else (1, DEFAULT_QUESTIONS)
+
+    def confirmation_status(item):
+        if item and item.status == 'sending' and item.updated_at <= utc_now() - timedelta(minutes=5):
+            return 'uncertain'
+        return item.status if item else 'untracked'
+
+    def work_confirmations(ids=None):
+        # The booking and its jobs are committed together. Claim each attempt
+        # before SMTP so parallel requests and the reminder job cannot duplicate it.
+        jobs = select(Confirmation.id).where(
+            Confirmation.status.in_(('queued', 'failed')),
+            Confirmation.attempts < 3, Confirmation.retry_at <= utc_now()
+        )
+        if ids is not None:
+            jobs = jobs.where(Confirmation.id.in_(ids))
+        counts = {'sent': 0, 'failed': 0, 'uncertain': 0, 'cancelled': 0}
+        for job_id in db.session.scalars(jobs.order_by(Confirmation.id).limit(50)).all():
+            now = utc_now()
+            claimed = db.session.execute(update(Confirmation).where(
+                Confirmation.id == job_id, Confirmation.status.in_(('queued', 'failed')),
+                Confirmation.attempts < 3, Confirmation.retry_at <= now,
+            ).values(status='sending', attempts=Confirmation.attempts + 1, updated_at=now)).rowcount
+            db.session.commit()
+            if not claimed:
+                continue
+            job = db.session.get(Confirmation, job_id)
+            booking = db.session.get(Registration, job.registration_id)
+            item = booking.yoga_session
+            if booking.cancelled or booking.token_hash != job.token_hash or item.status != 'published' or not item.upcoming:
+                status = 'cancelled'
+            else:
+                private_url = app.config['ONLINE_YOGA_ORIGIN'] + '/online-yoga/booking/' + job.token
+                message = confirmation_body(booking.name, item.when, item.meet_url, item.joining_notes, private_url)
+                try:
+                    deliver(booking.email, CONFIRMATION_SUBJECT, message)
+                    status = 'sent'
+                except delivery_uncertain:
+                    status = 'uncertain'
+                except Exception:
+                    status = 'failed'
+            job.status = status
+            job.updated_at = utc_now()
+            job.retry_at = job.updated_at + timedelta(minutes=5)
+            if status in ('sent', 'cancelled'):
+                job.token = ''
+            db.session.commit()
+            counts[status] += 1
+            if status in ('failed', 'uncertain'):
+                app.logger.warning('Online yoga confirmation %s: %s', job_id, status)
+        return counts
+
+    def start_mail_job(job_id):
+        def run():
+            with app.app_context():
+                work_confirmations([job_id])
+        try:
+            threading.Thread(target=run, daemon=True).start()
+        except RuntimeError:
+            app.logger.warning('Online yoga confirmation %s remains queued.', job_id)
+
+    def send_session_update(recipients, subject, body):
+        if not recipients:
+            return
+
+        def run():
+            with app.app_context():
+                for recipient in recipients:
+                    try:
+                        deliver(recipient, subject, body)
+                    except Exception:
+                        app.logger.warning('Could not send online yoga session update.')
+        threading.Thread(target=run, daemon=True).start()
 
     class LoginFailure(db.Model):
         __tablename__ = 'online_yoga_login_failure'
@@ -153,8 +272,10 @@ def register_online_yoga(app, db, send_mail):
         day = (values or request.args).get('date', '')
         upcoming = [(item, count) for item, count in scheduled() if item.upcoming]
         bookable = [item for item, count in upcoming if item.meet_url and count < item.capacity]
+        revision, questions = form_settings()
         return page('registration.html', upcoming=upcoming, bookable=bookable, selected=day,
-                    error=error, values=values or {}, experience_options=EXPERIENCE), status
+                    error=error, values=values or {}, form_revision=revision,
+                    questions=[field for field in questions if field['enabled']], answer_limits=ANSWER_LIMITS), status
 
     @yoga.get('')
     def registration():
@@ -182,18 +303,23 @@ def register_online_yoga(app, db, send_mail):
         form = request.form
         name = form.get('name', '').strip()
         email = form.get('email', '').strip().lower()
-        experience = form.get('experience', '')
-        adjustments = form.get('adjustments', '').strip()
         if not (0 < len(name) <= 120 and len(email) <= 254 and EMAIL.fullmatch(email)):
             return booking_page('Enter your name and a valid email address.', 400, form)
-        if experience not in ('', *EXPERIENCE) or len(adjustments) > 1200 or form.get('agree') != 'yes':
-            return booking_page('Check your answers and tick the agreement before booking.', 400, form)
         try:
             day = date.fromisoformat(form.get('date', ''))
         except ValueError:
             return booking_page('Choose a session date.', 400, form)
 
         begin_write()
+        revision, questions = form_settings()
+        if form.get('form_revision') != str(revision):
+            db.session.rollback()
+            return booking_page('The registration questions have changed. Check your answers before booking.', 409, form)
+        try:
+            answers = parse_answers(questions, form)
+        except ValueError as error:
+            db.session.rollback()
+            return booking_page(str(error), 400, form)
         class_session = db.session.scalar(select(YogaSession).where(YogaSession.day == day))
         if not class_session or class_session.status != 'published' or not class_session.meet_url or not class_session.upcoming:
             db.session.rollback()
@@ -211,22 +337,19 @@ def register_online_yoga(app, db, send_mail):
             booking = Registration(session_id=class_session.id, email=email)
             db.session.add(booking)
         booking.name = name
-        booking.experience = experience
-        booking.adjustments = adjustments
+        booking.experience = ''
+        booking.adjustments = ''
         booking.token_hash = digest(token)
         booking.cancelled = False
-        receipt_path = url_for('.receipt', token=token)
-        receipt_url = app.config['ONLINE_YOGA_ORIGIN'] + receipt_path
-        message = (
-            f'Hi {name},\n\nYour place for online Gentle Yoga with Marlijn is confirmed.\n'
-            f'{class_session.when} (UK time)\n\nJoin on Google Meet: {class_session.meet_url}\n'
-            f'{class_session.joining_notes}\n\n'
-            f'For the latest joining details or to cancel your place, use your private booking link:\n{receipt_url}\n\n'
-            'London Autism Group Charity'
-        )
+        db.session.flush()
+        db.session.merge(FormAnswers(registration_id=booking.id, answers=answers))
+        job = Confirmation(registration_id=booking.id, token_hash=booking.token_hash, token=token)
+        db.session.add(job)
+        db.session.flush()
+        job_id = job.id
         db.session.commit()
-        send_mail([(email, 'Your online Gentle Yoga booking', message)])
-        return redirect(receipt_path, code=303)
+        start_mail_job(job_id)
+        return redirect(url_for('.receipt', token=token), code=303)
 
     @yoga.route('/booking/<token>', methods=['GET', 'POST'])
     def receipt(token):
@@ -247,7 +370,9 @@ def register_online_yoga(app, db, send_mail):
             not booking.cancelled and class_session.status == 'published'
             and datetime.combine(class_session.day, class_session.end, LONDON) > datetime.now(LONDON)
         )
-        return page('receipt.html', booking=booking, item=class_session, can_join=can_join)
+        job = db.session.scalar(select(Confirmation).filter_by(token_hash=booking.token_hash))
+        return page('receipt.html', booking=booking, item=class_session, can_join=can_join,
+                    mail_status=confirmation_status(job))
 
     def signer():
         return URLSafeTimedSerializer(app.secret_key, salt='online-yoga:' + digest(app.config['ONLINE_YOGA_PASSWORD_HASH']))
@@ -306,25 +431,77 @@ def register_online_yoga(app, db, send_mail):
 
     def organiser_page(error='', status=200, values=None):
         upcoming = db.session.scalars(select(YogaSession).where(YogaSession.day >= today()).order_by(YogaSession.day)).all()
-        return page('organiser.html', classes=[(item, active_bookings(item)) for item in upcoming],
-                    error=error, values=values or {}), status
+        revision, questions = form_settings()
+        registrations = [(item, active_bookings(item)) for item in upcoming]
+        participant_ids = [booking.id for _, rows in registrations for booking in rows]
+        snapshots = {entry.registration_id: entry.answers for entry in db.session.scalars(
+            select(FormAnswers).where(FormAnswers.registration_id.in_(participant_ids))
+        ).all()}
+        tokens = [booking.token_hash for _, rows in registrations for booking in rows]
+        confirmations = {job.token_hash: (job.id, confirmation_status(job)) for job in db.session.scalars(
+            select(Confirmation).where(Confirmation.token_hash.in_(tokens))
+        ).all()}
+        return page('organiser.html', classes=registrations, snapshots=snapshots,
+                    confirmations=confirmations, questions=questions, form_revision=revision,
+                    question_types=QUESTION_TYPES, can_add_question=len(questions) < MAX_QUESTIONS,
+                    error=error, values=values or {}, saved=request.args.get('saved', '')), status
 
     @yoga.get('/admin')
     @organiser_required
     def organiser():
         return organiser_page()
 
+    @yoga.post('/admin/questions')
+    @organiser_required
+    def edit_questions():
+        form = request.form
+        key = form.get('key', '')
+        begin_write()
+        revision, questions = form_settings()
+        if form.get('form_revision') != str(revision):
+            db.session.rollback()
+            return organiser_page('The form was updated in another tab. Check the latest questions before saving.', 409)
+        try:
+            if key == 'new':
+                if len(questions) >= MAX_QUESTIONS:
+                    raise ValueError('The form already has the maximum number of questions.')
+                questions = [*questions, parse_editor_question(form, secrets.token_hex(8))]
+            else:
+                if not any(q['key'] == key for q in questions):
+                    abort(404)
+                replacement = parse_editor_question(form, key)
+                questions = [replacement if q['key'] == key else q for q in questions]
+        except ValueError as error:
+            db.session.rollback()
+            return organiser_page(str(error), 400, form)
+        db.session.merge(FormSettings(id=1, revision=revision + 1, questions=questions))
+        db.session.commit()
+        return redirect(url_for('.organiser', saved='questions', _anchor='registration-questions'), code=303)
+
+    @yoga.post('/admin/confirmations/<int:job_id>/retry')
+    @organiser_required
+    def retry_confirmation(job_id):
+        begin_write()
+        job = db.get_or_404(Confirmation, job_id)
+        if confirmation_status(job) not in ('failed', 'uncertain'):
+            db.session.rollback()
+            return organiser_page('This confirmation has already been sent or is still being handled.', 409)
+        job.status = 'queued'
+        job.attempts = 0
+        job.updated_at = job.retry_at = utc_now()
+        db.session.commit()
+        start_mail_job(job_id)
+        return redirect(url_for('.organiser', saved='email', _anchor='upcoming-sessions'), code=303)
+
     def shared_details(form):
         start, end = (time.fromisoformat(form.get(key, '')) for key in ('start', 'end'))
         capacity = int(form.get('capacity', ''))
         public_notes, joining_notes = (form.get(key, '').strip() for key in ('public_notes', 'joining_notes'))
-        join_url = form.get('meet_url', '').strip()
+        join_url = meet_link(form.get('meet_url', '').strip())
         if start >= end or any(value.tzinfo or value.second or value.microsecond for value in (start, end)):
             raise ValueError('Enter UK start and finish times, with the finish after the start.')
         if not 1 <= capacity <= 100 or len(public_notes) > 500 or len(joining_notes) > 1200:
             raise ValueError('Choose 1 to 100 places and keep notes within the limits shown.')
-        if join_url and not MEET_URL.fullmatch(join_url):
-            raise ValueError('Enter a Google Meet link in the format https://meet.google.com/abc-defg-hij.')
         if re.search(r'meet\.google\.com', public_notes, re.IGNORECASE):
             raise ValueError('Put the Meet link in the private Google Meet field.')
         return dict(start=start, end=end, capacity=capacity, public_notes=public_notes, joining_notes=joining_notes, meet_url=join_url)
@@ -342,8 +519,8 @@ def register_online_yoga(app, db, send_mail):
                     continue
                 fields = line.split()
                 day = date.fromisoformat(fields[0])
-                meet_url = fields[1] if len(fields) > 1 else details['meet_url']
-                if len(fields) > 2 or (meet_url and not MEET_URL.fullmatch(meet_url)):
+                meet_url = meet_link(fields[1]) if len(fields) > 1 else details['meet_url']
+                if len(fields) > 2:
                     raise ValueError('Use one date per line, optionally followed by its Google Meet link.')
                 if day in dates_and_links or datetime.combine(day, details['start'], LONDON) <= datetime.now(LONDON):
                     raise ValueError('Enter distinct future dates.')
@@ -364,7 +541,7 @@ def register_online_yoga(app, db, send_mail):
         for day, meet_url in dates_and_links.items():
             db.session.add(YogaSession(day=day, status=status, **{**details, 'meet_url': meet_url}))
         db.session.commit()
-        return redirect(url_for('.organiser'), code=303)
+        return redirect(url_for('.organiser', saved='dates', _anchor='upcoming-sessions'), code=303)
 
     @yoga.post('/admin/sessions/<int:class_id>')
     @organiser_required
@@ -382,12 +559,11 @@ def register_online_yoga(app, db, send_mail):
         if action == 'cancel':
             class_session.status = 'cancelled'
             db.session.commit()
-            send_mail([(email, 'Online Gentle Yoga session cancelled',
-                        f'The online Gentle Yoga session on {class_label} has been cancelled.\n\nLondon Autism Group Charity')
-                       for email in emails])
+            send_session_update(emails, 'Online Gentle Yoga session cancelled',
+                                f'The online Gentle Yoga session on {class_label} has been cancelled.\n\nLondon Autism Group Charity')
             return redirect(url_for('.organiser'), code=303)
 
-        new_status = form.get('status')
+        new_status = form.get('status', 'draft')
         try:
             if new_status not in ('published', 'draft'):
                 raise ValueError('Choose whether the date is a draft or published.')
@@ -400,7 +576,7 @@ def register_online_yoga(app, db, send_mail):
                 raise ValueError('This session has bookings. Keep it published or cancel it.')
         except ValueError as exc:
             db.session.rollback()
-            return organiser_page(str(exc), 400)
+            return organiser_page(str(exc), 400, {**form.to_dict(), 'session_id': class_id})
         changed_joining = any(getattr(class_session, key) != details[key]
                               for key in ('start', 'end', 'meet_url', 'joining_notes'))
         for key, value in details.items():
@@ -411,8 +587,8 @@ def register_online_yoga(app, db, send_mail):
             message = (f'Your online Gentle Yoga session has been updated.\n\n{class_session.when} (UK time)\n'
                        f'Join on Google Meet: {class_session.meet_url}\n{class_session.joining_notes}\n\n'
                        'Your existing booking link will also show the latest details.\n\nLondon Autism Group Charity')
-            send_mail([(email, 'Updated online Gentle Yoga joining details', message) for email in emails])
-        return redirect(url_for('.organiser'), code=303)
+            send_session_update(emails, 'Updated online Gentle Yoga joining details', message)
+        return redirect(url_for('.organiser', saved='session', _anchor='session-' + str(class_id)), code=303)
 
     app.register_blueprint(yoga)
-    return seed_sessions
+    return seed_sessions, work_confirmations

@@ -55,22 +55,37 @@
                         <label>Your name <input name="name" autocomplete="name" required maxlength="120" value="{{ values.get('name', '') }}"></label>
                         <label>Email address <input type="email" name="email" autocomplete="email" required maxlength="254" value="{{ values.get('email', '') }}"></label>
                     </div>
-                    <label>Have you done yoga before? (optional)
-                        <select name="experience">
-                            <option value="">Prefer not to say</option>
-                            {% for answer in experience_options %}
-                            <option value="{{ answer }}" {% if values.get('experience') == answer %}selected{% endif %}>{{ answer }}</option>
-                            {% endfor %}
-                        </select>
-                    </label>
-                    <label>Is there anything Marlijn can do to make the online session more comfortable for you? (optional)
-                        <span class="yoga-hint">For example, seated options, a movement you’d like to avoid or a way of giving instructions that works for you. Share only what Marlijn needs to adapt the session.</span>
-                        <textarea name="adjustments" maxlength="1200" rows="3">{{ values.get('adjustments', '') }}</textarea>
-                    </label>
-                    <label class="yoga-check">
-                        <input type="checkbox" name="agree" value="yes" required {% if values.get('agree') == 'yes' %}checked{% endif %}>
-                        <span>I understand I can choose what to take part in and stop or rest if anything feels uncomfortable. I’ll respect other participants’ privacy and keep the session free of recordings and screenshots.</span>
-                    </label>
+                    <input type="hidden" name="form_revision" value="{{ form_revision }}">
+                    {% for field in questions %}
+                        {% set field_name = 'answer_' ~ field.key %}
+                        {% set answer = values.get(field_name, '') %}
+                        {% if field.kind == 'checkbox' %}
+                        <label class="yoga-check">
+                            <input type="checkbox" name="{{ field_name }}" value="yes"
+                                   {% if field.required %}required{% endif %} {% if answer == 'yes' %}checked{% endif %}>
+                            <span>{{ field.label }}{% if not field.required %} (optional){% endif %}
+                                {% if field.help_text %}<span class="yoga-hint">{{ field.help_text }}</span>{% endif %}</span>
+                        </label>
+                        {% else %}
+                        <label>{{ field.label }}{% if not field.required %} (optional){% endif %}
+                            {% if field.help_text %}<span class="yoga-hint">{{ field.help_text }}</span>{% endif %}
+                            {% if field.kind == 'choice' %}
+                            <select name="{{ field_name }}" {% if field.required %}required{% endif %}>
+                                <option value="">{{ 'Choose an answer' if field.required else 'Prefer not to say' }}</option>
+                                {% for option in field.choices %}
+                                <option value="{{ option }}" {% if answer == option %}selected{% endif %}>{{ option }}</option>
+                                {% endfor %}
+                            </select>
+                            {% elif field.kind == 'short' %}
+                            <input name="{{ field_name }}" maxlength="{{ answer_limits.short }}" value="{{ answer }}"
+                                   {% if field.required %}required{% endif %}>
+                            {% else %}
+                            <textarea name="{{ field_name }}" maxlength="{{ answer_limits.long }}" rows="3"
+                                      {% if field.required %}required{% endif %}>{{ answer }}</textarea>
+                            {% endif %}
+                        </label>
+                        {% endif %}
+                    {% endfor %}
                     <p class="yoga-hint">We use your details to manage your booking and help Marlijn adapt the session. <a href="https://www.londonautismgroupcharity.org/privacy">Read our privacy notice</a>.</p>
                     <button class="btn btn-primary" type="submit" {% if not bookable %}disabled{% endif %}>Confirm my place</button>
                 </form>

@@ -867,6 +867,15 @@ def send_bulk_email(recipients, subject, message):
         print(f"[ERROR] Failed to send bulk email: {error}")
         return False, error
 
+def send_online_yoga_email(recipient, subject, body):
+    from online_yoga_mail import YOGA_SENDER, make_message
+    if (not app.config['ENABLE_EMAIL'] or not app.config['SMTP_PASSWORD']
+            or app.config['SMTP_USER'].casefold() != YOGA_SENDER
+            or is_blocked_email_recipient(recipient)):
+        raise RuntimeError('Online yoga email is unavailable.')
+    send_smtp_message(make_message(recipient, subject, body), recipients=[recipient])
+
+
 def send_emails_async(emails):
     """Send a batch of (to, subject, body) emails in a background thread so
     booking requests return instantly. Email sending was previously inline in
@@ -995,6 +1004,11 @@ def run_reminder_job(now=None):
     """
     if not reminders_mail_ready():
         raise RuntimeError('Reminder email is not configured; no reminders were marked sent')
+    try:
+        run_online_yoga_mail_job()
+    except Exception:
+        db.session.rollback()
+        app.logger.exception('Could not process queued online yoga confirmations.')
     now = now or datetime.now(ZoneInfo('Europe/London'))
     today = now.date()
     schedule = get_room_schedule_ids()
@@ -1658,7 +1672,9 @@ from student_support import register_student_support
 register_student_support(app, db)
 
 from online_yoga import register_online_yoga
-seed_online_yoga = register_online_yoga(app, db, send_emails_async)
+seed_online_yoga, run_online_yoga_mail_job = register_online_yoga(
+    app, db, send_online_yoga_email, EmailDeliveryUncertain
+)
 
 @app.route('/admin')
 def admin():

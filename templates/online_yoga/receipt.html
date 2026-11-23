@@ -14,7 +14,14 @@
     {% if can_join %}
     <p><a class="btn btn-primary" href="{{ item.meet_url }}" rel="noreferrer">Join on Google Meet</a></p>
     {% if item.joining_notes %}<p class="yoga-notes">{{ item.joining_notes }}</p>{% endif %}
-    <p>Keep this page or your confirmation email for the joining details.</p>
+    <p>Keep this page for your joining details and cancellation link.</p>
+    {% if mail_status == 'sent' %}
+    <p>We sent your confirmation from miles.lagc@gmail.com. Check your junk folder if it hasn’t appeared.</p>
+    {% elif mail_status == 'failed' %}
+    <p>Your place is confirmed. If your email hasn’t arrived, keep this page for the joining link.</p>
+    {% elif mail_status != 'untracked' %}
+    <p>Your confirmation email may take a moment to arrive from miles.lagc@gmail.com.</p>
+    {% endif %}
     {% endif %}
     {% if item.upcoming %}
     <form action="{{ url_for('online_yoga.receipt', token=request.view_args.token) }}" method="post">

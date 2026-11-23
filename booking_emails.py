@@ -95,7 +95,7 @@ def confirmation_text(booking, base_url):
     return message
 
 
-def html_message(message):
+def html_message(message, *, room_cancellation_button=True):
     """Ordinary spaces, fluid paragraphs and one clear cancellation button."""
     def links(text):
         def label(url):
@@ -121,7 +121,7 @@ def html_message(message):
         lines = paragraph.splitlines()
         if not lines:
             continue
-        if "CAN'T COME? CANCEL HERE" in lines[0]:
+        if room_cancellation_button and len(lines) > 1 and "CAN'T COME? CANCEL HERE" in lines[0]:
             url = lines[1]
             blocks.append('<p><a href="' + escape(url, quote=True) + '" style="display:inline-block;padding:12px 18px;'
                           'background:#315ea8;color:white;text-decoration:none;border-radius:6px;font-weight:bold">'
