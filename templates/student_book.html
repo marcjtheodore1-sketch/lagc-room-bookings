@@ -54,8 +54,12 @@
         <p>Share only what you feel comfortable sharing and what will help with your session. This is informal peer support, rather than professional or crisis support.</p>
     </div>
     <label class="student-check"><input type="checkbox" name="privacy" value="yes" required><span>I have read how my information will be used and understand that I must confirm my appointment by email.</span></label>
-    <button type="submit" class="btn btn-primary btn-large">Email me a confirmation link</button>
-    <p class="student-muted">Your selected time is held for 20 minutes. Your appointment is confirmed only after you follow the email link and press Confirm appointment.</p>
+    <section class="student-confirmation" aria-labelledby="student-confirmation-title">
+        <h3 id="student-confirmation-title">Confirm your appointment by email</h3>
+        <p id="student-confirmation-help">After you press the button, we’ll hold your chosen time for <strong>20 minutes</strong>. To finish booking, open the link in your email and press <strong>Confirm appointment</strong>.</p>
+        <p>Check your junk or spam folder if you can’t find the email.</p>
+        <button type="submit" class="btn btn-primary student-confirmation-button" aria-describedby="student-confirmation-help">Email me a confirmation link</button>
+    </section>
 </form>
 <aside class="student-sidebar">
     <section class="student-card"><h2>Meet your supporters</h2><h3>Sungji</h3><p>Online on published dates, or in person on selected Fridays.</p><h3>Marilena</h3><p>Online on published dates.</p><p class="student-muted">Only dates the supporters have published appear in the appointment list.</p></section>
