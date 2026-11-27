@@ -353,6 +353,9 @@ WINTER_CONTRACT_ROOM_ENDS = {
     '2026-12-18': {'Room 4.4 "Rose"': '18:00', 'Room 4.7 "Clerkenwell"': '18:00'},
 }
 
+# Keep the original room hours available to interpret historical bookings.
+CANCELLED_WINTER_FRIDAYS = {'2026-11-27', '2026-12-04'}
+
 ROOM_SCHEDULE_BY_NAME = {
     '2026-03-06': ['Room 4.7 "Clerkenwell"', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
     '2026-03-13': ['The Loft', 'Room 4.2 "Indigo"', 'Room 4.4 "Rose"'],
@@ -386,11 +389,10 @@ ROOM_SCHEDULE_BY_NAME = {
     '2026-11-06': ['Room 4.4 "Rose"', 'The Loft'],
     # 2026-11-13 withdrawn from the booking schedule.
     '2026-11-20': ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'],
-    # 2026-11-27 cancelled. Keep the original hours for existing booking records.
     **{
         day: list(rooms)
         for day, rooms in WINTER_CONTRACT_ROOM_ENDS.items()
-        if day != '2026-11-27'
+        if day not in CANCELLED_WINTER_FRIDAYS
     },
 }
 
@@ -923,6 +925,8 @@ def booking_registration_closed(day, now=None):
     return now >= booking_deadline(day)
 
 def closed_booking_message(day):
+    if day.isoformat() in CANCELLED_WINTER_FRIDAYS:
+        return f'Fridays at Farringdon on {reminder_date_display(day)} is cancelled. Please choose another Friday.'
     return (f'Registration for {reminder_date_display(day)} is closed. '
             'Bookings close on Thursday at 10am (London time). '
             'The session is still going ahead and existing bookings remain valid.')

@@ -11,16 +11,18 @@ APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class SeptemberScheduleTest(unittest.TestCase):
-    def test_withdrawn_november_dates_reject_stale_forms(self):
+    def test_withdrawn_dates_reject_stale_forms(self):
         from test_attendee_booking_experience import run_isolated
         result = run_isolated('''
             from datetime import datetime
             from unittest.mock import patch
             from app import app, db, Room, Booking, init_default_data, get_volunteer_rota
             class Clock(datetime):
+                current = (2026, 10, 21, 12)
+
                 @classmethod
                 def now(cls, tz=None):
-                    return cls(2026, 10, 21, 12, tzinfo=tz)
+                    return cls(*cls.current, tzinfo=tz)
             with app.app_context(), patch('app.datetime', Clock), patch('app.send_emails_async') as send:
                 init_default_data()
                 client = app.test_client()
@@ -28,11 +30,11 @@ class SeptemberScheduleTest(unittest.TestCase):
                 assert rota_rooms['2026-10-30'] == ['Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"']
                 assert rota_rooms['2026-11-06'] == ['Room 4.4 "Rose"', 'The Loft']
                 published_days = {day['date'] for day in client.get('/api/fridays').json}
-                for day in ('2026-11-13', '2026-11-27'):
+                for day in ('2026-11-13', '2026-11-27', '2026-12-04'):
                     assert day not in rota_rooms
                     assert day not in published_days
                     assert client.get('/api/rooms', query_string={'date': day}).json == []
-                    for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"'):
+                    for name in ('Room 4.4 "Rose"', 'Room 4.7 "Clerkenwell"', 'The Loft'):
                         room = Room.query.filter_by(name=name).one()
                         response = client.post('/api/book', json=dict(
                             room_id=room.id, date=day, name='Test Person',
@@ -40,6 +42,10 @@ class SeptemberScheduleTest(unittest.TestCase):
                             start_slot=0, end_slot=1))
                         assert response.status_code == 409, response.json
                         assert 'no longer available' in response.json['error']
+                Clock.current = (2026, 12, 3, 10)
+                stale = client.get(f'/api/availability/2026-12-04/{room.id}')
+                assert stale.status_code == 409
+                assert 'is cancelled' in stale.json['error']
                 assert Booking.query.count() == 0
                 send.assert_not_called()
         ''')
@@ -132,7 +138,6 @@ class SeptemberScheduleTest(unittest.TestCase):
                     return cls(2026, 11, 10, 12, tzinfo=tz)
 
             expected = {
-                '2026-12-04': {'Room 4.4 "Rose"': '6:00 PM', 'The Loft': '6:00 PM'},
                 '2026-12-11': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
                 '2026-12-18': {'Room 4.4 "Rose"': '6:00 PM', 'Room 4.7 "Clerkenwell"': '6:00 PM'},
             }
@@ -159,7 +164,8 @@ class SeptemberScheduleTest(unittest.TestCase):
                     assert booking_time_display(saved) == (slots[-2]['display'], closes[rose['name']])
                 homepage = client.get('/').get_data(as_text=True)
                 assert '27th November' not in homepage
-                assert '4th December (9.30am to 6pm)' in homepage
+                assert '4th December (9.30am to 6pm)' not in homepage
+                assert '11th December (9.30am to 6pm)' in homepage
                 assert client.get('/api/slots').json[-1]['time'] == '17:00'
         ''')
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
